@@ -1,0 +1,16 @@
+{
+  "name": "clearq-api",
+  "version": "2.0.0",
+  "description": "ClearQ car wash booking API",
+  "main": "clearq-server.js",
+  "scripts": {
+    "start": "node clearq-server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
