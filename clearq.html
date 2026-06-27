@@ -883,8 +883,6 @@ async function loadShops() {
         }
       } catch { queues[s.id] = {queueCount:0,activeCount:0,maxBays:s.maxWorkers||3,minsUntilNextFree:0}; }
     }));
-    // Filter to only show HD CarWash during testing phase
-    shops = shops.filter(s => s.id === 6);
     renderShops();
     // poll every 8s
     setInterval(refreshQueues, 8000);
@@ -2476,8 +2474,6 @@ async function loadShops() {
         }
       } catch { queues[s.id] = {queueCount:0,activeCount:0,maxBays:s.maxWorkers||3,minsUntilNextFree:0}; }
     }));
-    // Filter to only show HD CarWash during testing phase
-    shops = shops.filter(s => s.id === 6);
     renderShops();
     // poll every 8s
     setInterval(refreshQueues, 8000);
