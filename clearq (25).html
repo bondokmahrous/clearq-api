@@ -1,0 +1,2155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ClearQ</title>
+<style>
+:root {
+  --navy:#0f172a; --navy-mid:#1e293b; --navy-light:#334155;
+  --blue:#3b82f6; --blue-dark:#1d4ed8; --blue-light:#60a5fa;
+  --green:#22c55e; --green-dark:#166534; --amber:#f59e0b;
+  --red:#ef4444; --white:#f8fafc; --gray:#94a3b8; --gray-dark:#64748b;
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f4f8;color:#0f172a;min-height:100vh;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea{font-family:inherit;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);border-bottom:1px solid #1e293b;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+.nav-brand{display:flex;align-items:center;gap:8px;cursor:pointer;text-decoration:none;}
+.nav-logo{width:32px;height:32px;border-radius:9px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;}
+.nav-name{font-size:17px;font-weight:700;color:#fff;}
+.nav-tabs{display:flex;gap:3px;background:#1e293b;border-radius:9px;padding:3px;}
+.nav-tab{padding:5px 14px;border-radius:7px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s;background:transparent;color:var(--gray);}
+.nav-tab.active{background:var(--blue);color:#fff;}
+
+/* VIEWS */
+.view{display:none;padding-top:56px;min-height:100vh;}
+.view.active{display:block;}
+
+/* ══ USER VIEW ══════════════════════════════════════════════ */
+#view-user{background:#f0f4f8;}
+
+.user-header{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);padding:18px 16px 14px;}
+.brand-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.brand-logo{width:38px;height:38px;border-radius:19px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:17px;}
+.brand-name{color:#fff;font-size:20px;font-weight:800;}
+.brand-sub{color:rgba(255,255,255,0.72);font-size:11px;margin-top:1px;}
+.lang-btn{margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;font-weight:700;padding:5px 11px;border-radius:14px;}
+.search-bar{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.25);border-radius:11px;padding:10px 13px;}
+.search-bar input{flex:1;background:none;border:none;outline:none;color:#fff;font-size:13px;}
+.search-bar input::placeholder{color:rgba(255,255,255,0.55);}
+
+.filters{background:#fff;border-bottom:1px solid #e2e8f0;padding:9px 13px;display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;}
+.filters::-webkit-scrollbar{display:none;}
+.chip{padding:5px 13px;border-radius:18px;border:none;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.15s;}
+.chip.active{background:var(--blue);color:#fff;}
+.chip:not(.active){background:#f1f5f9;color:#475569;}
+
+.result-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:7px 13px;display:flex;align-items:center;justify-content:space-between;}
+.result-count{font-size:12px;color:#64748b;}
+
+.washes-list{padding:10px 13px 100px;display:flex;flex-direction:column;gap:11px;}
+
+/* Active reservation */
+.active-card{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);border-radius:var(--radius);padding:14px;margin-bottom:4px;}
+.active-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
+.live-row{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.8);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+.bay-badge{background:rgba(255,255,255,0.15);border-radius:5px;padding:2px 7px;font-size:11px;color:#fff;font-weight:600;}
+.ready-time{font-size:24px;font-weight:800;color:#fff;letter-spacing:-0.3px;}
+.centre-name{font-size:12px;color:rgba(255,255,255,0.65);margin-top:2px;}
+
+/* Wash card */
+.wash-card{background:#fff;border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.06);border:1px solid #e8edf3;}
+.card-top{padding:13px 13px 10px;}
+.card-row1{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+.wash-name{font-size:15px;font-weight:700;color:#0f172a;}
+.wash-addr{font-size:11px;color:#64748b;margin-top:2px;}
+.wash-meta{text-align:right;flex-shrink:0;margin-left:8px;}
+.wash-rating{font-size:12px;font-weight:600;color:#0f172a;}
+.wash-dist{font-size:11px;color:#64748b;margin-top:1px;}
+.book-btn{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;transition:background 0.15s;}
+.book-btn:hover{background:var(--blue-dark);}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);background:#f8fafc;border-radius:9px;overflow:hidden;border:1px solid #e8edf3;margin-bottom:9px;}
+.stat{padding:7px 5px;text-align:center;border-right:1px solid #e8edf3;}
+.stat:last-child{border-right:none;}
+.stat-v{font-size:14px;font-weight:700;line-height:1;}
+.stat-l{font-size:9px;color:#94a3b8;margin-top:2px;}
+
+.prices{display:flex;gap:7px;padding:0 13px 11px;}
+.price-tag{text-align:center;background:#f8fafc;border-radius:7px;padding:5px 10px;border:1px solid #e8edf3;flex:1;}
+.price-v{font-size:14px;font-weight:700;color:#0f172a;}
+.price-l{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;}
+
+.features{display:flex;flex-wrap:wrap;gap:5px;padding:0 13px 11px;}
+.fpill{background:#eff6ff;border-radius:18px;padding:3px 9px;font-size:10px;font-weight:600;color:#1d4ed8;}
+.wash-hours{padding:0 13px 11px;font-size:11px;color:#64748b;}
+.card-bottom{border-top:1px solid #f1f5f9;padding:9px 13px;display:flex;align-items:center;justify-content:space-between;}
+.maps-link{font-size:11px;color:var(--blue);font-weight:600;text-decoration:none;}
+.drive-info{font-size:11px;color:#64748b;}
+
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,0.96);backdrop-filter:blur(10px);border-top:1px solid #e2e8f0;display:flex;justify-content:space-around;align-items:center;padding:6px 0 18px;}
+.bnav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;padding:4px 18px;}
+.bnav-icon{font-size:19px;color:#94a3b8;}
+.bnav-label{font-size:9px;color:#94a3b8;font-weight:600;}
+.bnav-btn.active .bnav-icon,.bnav-btn.active .bnav-label{color:var(--blue);}
+
+/* BOOKING MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;justify-content:flex-end;align-items:flex-end;}
+.modal-bg.open{display:flex;}
+.modal-box{background:#fff;border-radius:22px 22px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding:18px 18px 36px;animation:slideUp 0.28s ease;}
+@media(min-width:641px){
+  .modal-bg{align-items:center;justify-content:center;padding:24px;}
+  .modal-box{border-radius:20px;max-width:520px;animation:fadeIn 0.2s ease;}
+}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-handle{width:38px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 18px;}
+.modal-title{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:3px;}
+.modal-sub{font-size:12px;color:#64748b;margin-bottom:18px;}
+.modal-sec{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:9px;}
+.svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:18px;}
+.svc-card{border:2px solid #e2e8f0;border-radius:11px;padding:11px 7px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.svc-card.sel{border-color:var(--blue);background:#eff6ff;}
+.svc-name{font-size:12px;font-weight:700;color:#0f172a;}
+.svc-price{font-size:15px;font-weight:800;color:var(--blue);margin-top:2px;}
+.svc-dur{font-size:10px;color:#94a3b8;}
+.info-box{background:#f8fafc;border-radius:11px;padding:13px;display:flex;align-items:center;justify-content:space-around;margin-bottom:18px;border:1px solid #e2e8f0;}
+.info-item{text-align:center;}
+.info-v{font-size:17px;font-weight:800;color:#0f172a;}
+.info-v.blue{color:var(--blue);}
+.info-l{font-size:10px;color:#94a3b8;}
+.name-in{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:#0f172a;margin-bottom:7px;transition:border-color 0.15s;}
+.name-in:focus{border-color:var(--blue);}
+.ph-in{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:11px;padding:12px 13px;font-size:14px;outline:none;color:#0f172a;margin-bottom:14px;transition:border-color 0.15s;}
+.ph-in:focus{border-color:var(--blue);}
+.confirm-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;transition:background 0.15s;}
+.confirm-btn:hover{background:var(--blue-dark);}
+.confirm-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.modal-err{font-size:12px;color:var(--red);margin-bottom:10px;text-align:center;}
+
+/* RATING MODAL */
+.rating-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;justify-content:center;align-items:center;padding:22px;}
+.rating-bg.open{display:flex;}
+.rating-box{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;animation:fadeIn 0.2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
+.rating-icon{font-size:44px;margin-bottom:10px;}
+.rating-title{font-size:19px;font-weight:800;color:#0f172a;margin-bottom:3px;}
+.rating-centre{font-size:13px;color:#64748b;margin-bottom:22px;}
+.stars{display:flex;justify-content:center;gap:7px;margin-bottom:18px;}
+.star{font-size:34px;cursor:pointer;opacity:0.25;transition:opacity 0.15s;}
+.star.on{opacity:1;}
+.rating-comment{width:100%;border:1px solid #e2e8f0;border-radius:11px;padding:11px 13px;font-size:13px;resize:none;outline:none;color:#0f172a;margin-bottom:14px;height:72px;}
+.rating-comment:focus{border-color:var(--blue);}
+.submit-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;margin-bottom:7px;}
+.skip-btn{background:none;border:none;color:#94a3b8;font-size:13px;padding:6px;}
+
+/* ══ PARTNER VIEW ══════════════════════════════════════════ */
+
+.login-logo{width:56px;height:56px;border-radius:16px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;margin-bottom:16px;}
+.login-title{font-size:22px;font-weight:800;color:var(--white);margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--gray-dark);margin-bottom:28px;text-align:center;}
+.login-form{width:100%;max-width:360px;}
+.login-label{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;display:block;}
+.login-input{width:100%;background:var(--navy-mid);border:1px solid var(--navy-light);border-radius:11px;padding:12px 14px;color:var(--white);font-size:14px;outline:none;margin-bottom:14px;transition:border-color 0.15s;}
+.login-input:focus{border-color:var(--blue);}
+.login-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;margin-top:4px;transition:background 0.15s;}
+.login-btn:hover{background:var(--blue-dark);}
+.login-btn:disabled{opacity:0.5;cursor:not-allowed;}
+.login-err{font-size:12px;color:var(--red);text-align:center;margin-bottom:10px;}
+.login-whatsapp{display:block;text-align:center;margin-top:20px;font-size:12px;color:var(--gray-dark);}
+
+/* SIGNUP MODAL */
+.signup-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.97);z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.signup-overlay.open{display:flex;}
+.signup-box{width:100%;max-width:420px;}
+.signup-logo{width:52px;height:52px;border-radius:15px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;margin:0 auto 14px;}
+.signup-title{font-size:22px;font-weight:800;color:#fff;text-align:center;margin-bottom:4px;}
+.signup-sub{font-size:13px;color:var(--gray-dark);text-align:center;margin-bottom:24px;}
+.signup-step{display:none;}
+.signup-step.active{display:block;}
+.su-label{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:7px;display:block;}
+.su-input{width:100%;background:#1e293b;border:1px solid #334155;border-radius:11px;padding:12px 14px;color:#fff;font-size:14px;outline:none;margin-bottom:13px;transition:border-color 0.15s;}
+.su-input:focus{border-color:var(--blue);}
+.su-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.su-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;margin-top:4px;transition:background 0.15s;}
+.su-btn:hover{background:var(--blue-dark);}
+.su-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.su-err{font-size:12px;color:var(--red);text-align:center;margin-bottom:10px;}
+.su-link{display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--gray-dark);cursor:pointer;}
+.su-link span{color:var(--blue-light);font-weight:600;}
+.otp-boxes{display:flex;gap:10px;justify-content:center;margin-bottom:20px;}
+.otp-box{width:48px;height:56px;background:#1e293b;border:1px solid #334155;border-radius:11px;text-align:center;font-size:22px;font-weight:700;color:#fff;outline:none;transition:border-color 0.15s;}
+.otp-box:focus{border-color:var(--blue);}
+
+/* MAP */
+#map-container{background:#e8edf3;}
+.map-card-mini{background:#fff;border-radius:12px;padding:12px;min-width:220px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.1);flex-shrink:0;cursor:pointer;}
+.mcm-name{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px;}
+.mcm-queue{font-size:12px;font-weight:600;}
+.mcm-addr{font-size:11px;color:#64748b;margin-top:2px;}
+.mcm-book{background:var(--blue);color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700;margin-top:8px;width:100%;}
+.map-pin{background:var(--blue);color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);white-space:nowrap;}
+.map-pin.busy{background:var(--amber);}
+.map-pin.full{background:var(--red);}
+
+/* BOOKINGS */
+.booking-item{background:#fff;border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.bi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.bi-name{font-size:15px;font-weight:700;color:#0f172a;}
+.bi-status{border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;}
+.bi-detail{font-size:12px;color:#64748b;margin-top:2px;}
+.bi-times{background:#f8fafc;border-radius:9px;padding:10px;display:flex;justify-content:space-around;margin-top:8px;border:1px solid #e2e8f0;}
+.bi-time-item{text-align:center;}
+.bi-time-v{font-size:14px;font-weight:700;color:#0f172a;}
+.bi-time-l{font-size:10px;color:#94a3b8;margin-top:1px;}
+
+/* ACCOUNT */
+.acct-card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid #e2e8f0;}
+.acct-avatar{width:64px;height:64px;border-radius:32px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;margin:0 auto 12px;}
+.acct-name{font-size:18px;font-weight:800;color:#0f172a;text-align:center;}
+.acct-email{font-size:13px;color:#64748b;text-align:center;margin-top:2px;}
+.acct-field{margin-bottom:12px;}
+.acct-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;}
+.acct-input{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:11px 13px;font-size:14px;color:#0f172a;outline:none;transition:border-color 0.15s;}
+.acct-input:focus{border-color:var(--blue);}
+.acct-save-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;margin-top:4px;}
+.acct-logout-btn{width:100%;background:#fff;color:var(--red);border:1px solid #fecaca;border-radius:11px;padding:13px;font-size:14px;font-weight:600;margin-top:8px;}
+
+
+/* LANDING PAGE */
+.landing{display:none;min-height:100vh;background:#f0f4f8;}
+.landing.show{display:block;}
+.lp-hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 60%,#1d4ed8 100%);padding:52px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+.lp-hero::before{content:'';position:absolute;top:-80px;right:-80px;width:280px;height:280px;border-radius:50%;background:rgba(59,130,246,0.15);}
+.lp-hero::after{content:'';position:absolute;bottom:-60px;left:-60px;width:200px;height:200px;border-radius:50%;background:rgba(30,58,138,0.4);}
+.lp-badge{display:inline-block;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
+.lp-h1{font-size:38px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:Georgia,serif;}
+.lp-h1 span{color:#60a5fa;font-style:italic;}
+.lp-sub{font-size:15px;color:rgba(255,255,255,0.72);line-height:1.6;margin-bottom:28px;position:relative;z-index:1;max-width:340px;margin-left:auto;margin-right:auto;}
+.lp-hero-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;margin-bottom:8px;}
+.lp-btn-primary{background:#3b82f6;color:#fff;border:none;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s;}
+.lp-btn-primary:hover{background:#1d4ed8;}
+.lp-btn-secondary{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:11px;padding:13px 24px;font-size:14px;font-weight:600;cursor:pointer;}
+.lp-phone-mock{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:14px;max-width:320px;margin:0 auto;position:relative;z-index:1;}
+.lp-mock-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);}
+.lp-mock-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;animation:pulse 1.5s infinite;}
+.lp-mock-title{font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);}
+.lp-mock-row{background:rgba(255,255,255,0.08);border-radius:10px;padding:11px;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;}
+.lp-mock-row-left{font-size:12px;font-weight:600;color:#fff;}
+.lp-mock-row-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px;}
+.lp-mock-queue{font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;}
+.lp-stats{display:flex;justify-content:center;background:#fff;border-bottom:1px solid #e2e8f0;}
+.lp-stat{flex:1;text-align:center;padding:18px 10px;border-right:1px solid #e2e8f0;}
+.lp-stat:last-child{border-right:none;}
+.lp-stat-v{font-size:22px;font-weight:800;color:#1d4ed8;}
+.lp-stat-l{font-size:10px;color:#64748b;margin-top:2px;font-weight:500;}
+.lp-how{padding:36px 22px;}
+.lp-section-label{font-size:10px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.lp-section-title{font-size:26px;font-weight:800;color:#0f172a;line-height:1.2;margin-bottom:6px;font-family:Georgia,serif;}
+.lp-section-title span{color:#3b82f6;font-style:italic;}
+.lp-section-sub{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:24px;}
+.lp-steps{display:flex;flex-direction:column;gap:14px;}
+.lp-step{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:14px;padding:16px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
+.lp-step-num{width:36px;height:36px;border-radius:18px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#1d4ed8;flex-shrink:0;}
+.lp-step-title{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:3px;}
+.lp-step-body{font-size:12px;color:#64748b;line-height:1.5;}
+.lp-features{padding:0 22px 36px;}
+.lp-feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.lp-feat{background:#fff;border-radius:14px;padding:16px;border:1px solid #e2e8f0;}
+.lp-feat-icon{font-size:24px;margin-bottom:8px;}
+.lp-feat-title{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px;}
+.lp-feat-body{font-size:11px;color:#64748b;line-height:1.5;}
+.lp-partner{background:#0f172a;padding:36px 22px;text-align:center;}
+.lp-partner-title{font-size:22px;font-weight:800;color:#fff;font-family:Georgia,serif;margin-bottom:6px;}
+.lp-partner-title span{color:#60a5fa;font-style:italic;}
+.lp-partner-sub{font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:20px;}
+.lp-partner-btn{background:#3b82f6;color:#fff;border:none;border-radius:11px;padding:13px 28px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;width:100%;text-decoration:none;text-align:center;}
+.lp-partner-wa{display:flex;align-items:center;justify-content:center;gap:6px;color:#94a3b8;font-size:12px;text-decoration:none;margin-top:10px;}
+.lp-footer{background:#020617;padding:22px;text-align:center;}
+.lp-footer-logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
+.lp-footer-name{font-size:15px;font-weight:800;color:#fff;}
+.lp-footer-sub{font-size:11px;color:#475569;line-height:1.6;}
+.lp-footer-links{display:flex;justify-content:center;gap:16px;margin-top:12px;}
+.lp-footer-link{font-size:11px;color:#475569;text-decoration:none;}
+
+
+/* VIEWPORT FIX */
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* SERVICE BOXES ON CARD */
+.svc-boxes{padding:0 13px 11px;}
+.svc-boxes-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.svc-boxes-row::-webkit-scrollbar{display:none;}
+.svc-box{background:#f8fafc;border-radius:9px;padding:8px 11px;border:1px solid #e8edf3;text-align:center;min-width:80px;flex-shrink:0;}
+.svc-box-name{font-size:11px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.3px;}
+.svc-box-price{font-size:15px;font-weight:800;color:#1d4ed8;margin-top:2px;}
+.svc-box-dur{font-size:9px;color:#94a3b8;margin-top:1px;}
+.svc-box-desc{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3;text-align:left;}
+
+/* LOCATION BANNER */
+.loc-banner{display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:10px 14px;align-items:center;gap:10px;}
+.loc-banner.show{display:flex;}
+.loc-banner-text{flex:1;font-size:12px;color:#1d4ed8;font-weight:500;}
+.loc-allow-btn{background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;}
+.loc-deny-btn{background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 4px;}
+
+/* NOTIFICATIONS */
+.notif-bar{position:fixed;top:56px;left:0;right:0;z-index:400;display:flex;flex-direction:column;gap:6px;padding:8px 14px;pointer-events:none;}
+.notif{background:#0f172a;color:#fff;border:1px solid #1e293b;border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;box-shadow:0 4px 16px rgba(0,0,0,0.25);pointer-events:auto;max-width:480px;margin:0 auto;width:100%;}
+.notif-icon{font-size:20px;flex-shrink:0;}
+.notif-content{flex:1;}
+.notif-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
+.notif-body{font-size:12px;color:#94a3b8;line-height:1.4;}
+.notif-close{background:none;border:none;color:#475569;font-size:16px;cursor:pointer;padding:0;flex-shrink:0;}
+.notif-action{display:inline-block;margin-top:6px;background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+
+/* BOOKING MODAL USER CARD */
+.bm-user-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:14px;}
+
+/* BOOKINGS TAB */
+.booking-item{background:#fff;border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.bi-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+.bi-name{font-size:15px;font-weight:700;color:#0f172a;}
+.bi-status{border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;}
+.bi-detail{font-size:12px;color:#64748b;margin-top:2px;}
+.bi-times{background:#f8fafc;border-radius:9px;padding:10px;display:flex;justify-content:space-around;margin-top:8px;border:1px solid #e2e8f0;}
+.bi-time-item{text-align:center;}
+.bi-time-v{font-size:14px;font-weight:700;color:#0f172a;}
+.bi-time-l{font-size:10px;color:#94a3b8;margin-top:1px;}
+
+/* ACCOUNT TAB */
+.acct-card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid #e2e8f0;}
+.acct-avatar{width:64px;height:64px;border-radius:32px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;margin:0 auto 12px;}
+.acct-name{font-size:18px;font-weight:800;color:#0f172a;text-align:center;}
+.acct-email{font-size:13px;color:#64748b;text-align:center;margin-top:2px;}
+.acct-field{margin-bottom:12px;}
+.acct-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;}
+.acct-input{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:11px 13px;font-size:14px;color:#0f172a;outline:none;transition:border-color 0.15s;}
+.acct-input:focus{border-color:#3b82f6;}
+.acct-save-btn{width:100%;background:#3b82f6;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;margin-top:4px;cursor:pointer;}
+.acct-logout-btn{width:100%;background:#fff;color:#ef4444;border:1px solid #fecaca;border-radius:11px;padding:13px;font-size:14px;font-weight:600;margin-top:8px;cursor:pointer;}
+
+/* MAP */
+#map-container{background:#e8edf3;width:100%;height:100%;}
+.map-card-mini{background:#fff;border-radius:12px;padding:12px;min-width:220px;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.1);flex-shrink:0;cursor:pointer;}
+.mcm-name{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px;}
+.mcm-queue{font-size:12px;font-weight:600;}
+.mcm-addr{font-size:11px;color:#64748b;margin-top:2px;}
+.mcm-book{background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:11px;font-weight:700;margin-top:8px;width:100%;cursor:pointer;}
+.map-pin{background:#3b82f6;color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);white-space:nowrap;}
+.map-pin.busy{background:#f59e0b;}
+.map-pin.full{background:#ef4444;}
+
+/* RESPONSIVE — fit to screen */
+/* MOBILE */
+@media(max-width:640px){
+  nav{padding:0 12px;}
+  .user-header{padding:14px 12px 12px;}
+  .washes-list{padding:8px 10px 90px;}
+  .wash-card{border-radius:10px;}
+  .bottom-nav{padding:6px 0 16px;}
+}
+
+/* TABLET & DESKTOP — full width layout */
+@media(min-width:641px){
+  /* Nav */
+  nav{padding:0 32px;}
+  .nav-name{font-size:19px;}
+
+  /* Views fill full width */
+  .view{max-width:100%;padding-top:60px;}
+  #view-user{background:#f0f4f8;}
+
+  /* Header */
+  .user-header{padding:20px 32px 18px;display:flex;flex-direction:column;gap:14px;}
+  .brand-row{margin-bottom:0;}
+  .search-bar{max-width:560px;}
+
+  /* Filters and result bar */
+  .filters{padding:12px 32px;}
+  .result-bar{padding:10px 32px;}
+
+  /* Wash cards grid */
+  .washes-list{padding:16px 32px 40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;align-items:start;}
+
+  /* Wash card */
+  .wash-card{border-radius:16px;}
+
+  /* Bottom nav stays but becomes side nav on desktop */
+  .bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:100%;transform:none;justify-content:center;gap:32px;padding:10px 0 14px;border-top:1px solid #e2e8f0;}
+  .bnav-btn{padding:6px 24px;}
+
+  /* Booking modal — centered on desktop, not bottom sheet */
+  .modal-bg{align-items:center;justify-content:center;padding:24px;}
+  .modal-box{border-radius:20px;width:100%;max-width:520px;max-height:90vh;}
+
+  /* Walk-in modal */
+  .wi-bg{padding:24px;}
+  .wi-box{max-width:440px;width:100%;}
+
+  /* Rating modal */
+  .rating-bg{padding:24px;}
+  .rating-box{max-width:400px;}
+
+  /* Signup overlay */
+  .signup-overlay{padding:32px;}
+  .signup-box{max-width:480px;}
+
+  /* Map tab */
+  #tab-map{height:calc(100vh - 60px - 60px);}
+
+  /* Bookings and account tabs */
+  #tab-bookings{padding:24px 32px 80px;max-width:760px;margin:0 auto;}
+  #tab-account{padding:24px 32px 80px;max-width:560px;margin:0 auto;}
+
+  /* Notification bar */
+  .notif-bar{padding:10px 32px;max-width:100%;left:0;transform:none;}
+  .notif{max-width:420px;}
+
+  /* Location banner */
+  .loc-banner{padding:10px 32px;}
+
+  /* Landing page desktop */
+  .lp-hero{padding:80px 48px 64px;}
+  .lp-h1{font-size:52px;}
+  .lp-sub{font-size:16px;max-width:520px;}
+  .lp-phone-mock{max-width:400px;}
+  .lp-stats{max-width:600px;margin:0 auto;}
+  .lp-how{padding:52px 48px;max-width:760px;margin:0 auto;}
+  .lp-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .lp-features{padding:0 48px 52px;max-width:860px;margin:0 auto;}
+  .lp-feat-grid{grid-template-columns:repeat(3,1fr);}
+  .lp-partner{padding:52px 48px;}
+  .lp-partner-btn{max-width:280px;margin:0 auto 10px;}
+  .lp-footer{padding:28px 48px;}
+}
+
+/* LARGE DESKTOP */
+@media(min-width:1024px){
+  .washes-list{grid-template-columns:repeat(auto-fill,minmax(420px,1fr));padding:20px 48px 40px;}
+  .filters{padding:12px 48px;}
+  .result-bar{padding:10px 48px;}
+  .user-header{padding:20px 48px 18px;}
+  .loc-banner{padding:10px 48px;}
+}
+
+
+/* WALK-IN MODAL */
+.wi-title{font-size:16px;font-weight:700;color:var(--white,#fff);margin-bottom:14px;}
+.wi-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:7px;display:block;}
+.wi-input{width:100%;background:var(--navy,#0f172a);border:1px solid #334155;border-radius:9px;padding:10px 13px;color:#fff;font-size:14px;outline:none;margin-bottom:14px;}
+.wi-input:focus{border-color:#3b82f6;}
+.wt-row{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;}
+.wt-btn{flex:1;min-width:70px;border-radius:9px;border:1px solid #334155;padding:9px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;background:none;transition:all 0.15s;}
+.wt-btn.sel{background:#1e3a6e;border-color:#3b82f6;color:#60a5fa;}
+.wi-acts{display:flex;gap:9px;}
+.wi-cancel{flex:1;border-radius:9px;border:1px solid #334155;padding:11px;color:#64748b;background:none;font-size:13px;font-weight:600;cursor:pointer;}
+.wi-confirm{flex:1;border-radius:9px;background:#1d4ed8;border:none;padding:11px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+.wi-confirm:disabled{opacity:0.4;cursor:not-allowed;}
+
+
+/* WALK-IN MODAL OVERLAY FIX */
+#wi-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; justify-content: center; align-items: center; padding: 22px; }
+#wi-modal.open { display: flex; }
+</style>
+</head>
+<body>
+
+
+
+<!-- LANDING PAGE -->
+<div class="landing" id="landing-page">
+
+  <!-- How it works -->
+  <div class="lp-hero">
+    <div class="lp-badge">🇪🇬 Cairo, Egypt · Now Live</div>
+    <div class="lp-h1">Egypt's first <span>live</span> car wash booking platform.</div>
+    <div class="lp-sub">Live queues. Instant booking. Your car ready when we say.</div>
+    <div class="lp-hero-btns">
+      <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()">Book a Wash Now</button>
+      <button class="lp-btn-secondary" onclick="scrollToHow()">How it works ↓</button>
+    </div>
+    <div id="lp-signin-link" style="position:relative;z-index:1;margin-top:-18px;margin-bottom:20px;">
+      <span style="font-size:12px;color:rgba(255,255,255,0.5);">Already have an account? </span>
+      <button onclick="showSignIn()" style="background:none;border:none;color:#60a5fa;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;">Sign in</button>
+    </div>
+
+    <!-- Live phone mockup -->
+    <div class="lp-phone-mock">
+      <div class="lp-mock-bar">
+        <div class="lp-mock-dot"></div>
+        <div class="lp-mock-title">Live wash centres near you</div>
+      </div>
+      <div class="lp-mock-row" id="lp-mock-1">
+        <div>
+          <div class="lp-mock-row-left">Au Garage Car Care</div>
+          <div class="lp-mock-row-sub">0.8 km · Beverly Hills</div>
+        </div>
+        <div class="lp-mock-queue" style="background:rgba(34,197,94,0.15);color:#4ade80;">✓ No queue</div>
+      </div>
+      <div class="lp-mock-row">
+        <div>
+          <div class="lp-mock-row-left">Fashion Car</div>
+          <div class="lp-mock-row-sub">1.1 km · Beverly Hills</div>
+        </div>
+        <div class="lp-mock-queue" style="background:rgba(245,158,11,0.15);color:#fbbf24;">2 waiting</div>
+      </div>
+      <div class="lp-mock-row">
+        <div>
+          <div class="lp-mock-row-left">Ferrari Garage</div>
+          <div class="lp-mock-row-sub">1.4 km · Beverly Hills</div>
+        </div>
+        <div class="lp-mock-queue" style="background:rgba(239,68,68,0.15);color:#f87171;">3 waiting</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="lp-stats">
+    <div class="lp-stat"><div class="lp-stat-v" id="lp-centres">6</div><div class="lp-stat-l">Wash centres</div></div>
+    <div class="lp-stat"><div class="lp-stat-v">0</div><div class="lp-stat-l">Phone calls needed</div></div>
+    <div class="lp-stat"><div class="lp-stat-v">28s</div><div class="lp-stat-l">To book a wash</div></div>
+  </div>
+
+  <!-- How it works — simplified -->
+  <div class="lp-how" id="lp-how">
+    <div class="lp-section-label">How it works</div>
+    <div class="lp-section-title">Three steps.<br>One <span>clean car.</span></div>
+    <div class="lp-steps">
+      <div class="lp-step">
+        <div class="lp-step-num">1</div>
+        <div>
+          <div class="lp-step-title">See live queues near you</div>
+          <div class="lp-step-body">Real-time bay availability before you leave home.</div>
+        </div>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">2</div>
+        <div>
+          <div class="lp-step-title">Book in seconds</div>
+          <div class="lp-step-body">Your slot is timed to your drive time — bay ready when you arrive.</div>
+        </div>
+      </div>
+      <div class="lp-step">
+        <div class="lp-step-num">3</div>
+        <div>
+          <div class="lp-step-title">Drive straight in</div>
+          <div class="lp-step-body">Your bay is assigned and waiting. Get notified when your car is ready.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Partner CTA -->
+  <div class="lp-partner">
+    <div class="lp-partner-title">Own a wash centre?<br><span>Grow with ClearQ.</span></div>
+    <div class="lp-partner-sub">Free to join. We bring you customers who are actively looking for a wash right now in your area — and give you a full management system to run your day.</div>
+    <a href="clearq-partner.html" class="lp-partner-btn" style="display:block;text-decoration:none;text-align:center;">Partner Login →</a>
+    <a class="lp-partner-wa" href="https://wa.me/201008888849?text=I want to register my wash centre on ClearQ" target="_blank">
+      <span>💬</span> Contact us on WhatsApp to register your centre
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div class="lp-footer">
+    <div class="lp-footer-logo">
+      <div style="width:28px;height:28px;border-radius:7px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;">C</div>
+      <span class="lp-footer-name">ClearQ</span>
+    </div>
+    <div class="lp-footer-sub">Egypt's first live car wash booking platform.<br>Cairo, Egypt · 2026</div>
+    <div class="lp-footer-links">
+      <a class="lp-footer-link" href="#">Privacy Policy</a>
+      <a class="lp-footer-link" href="https://wa.me/201008888849" target="_blank">Contact</a>
+      <a class="lp-footer-link" href="clearq-partner.html">Partner Login</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- SIGNUP OVERLAY -->
+<div class="signup-overlay" id="signup-overlay">
+  <div class="signup-box">
+    <div class="signup-logo">C</div>
+
+    <!-- STEP 1: Register -->
+    <div class="signup-step active" id="su-step1">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="signup-title" style="margin-bottom:0">Welcome to ClearQ</div>
+        <button onclick="closeSignup()" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px;">✕</button>
+      </div>
+      <div class="signup-sub">Create your account to book car washes</div>
+      <label class="su-label">Full name</label>
+      <input class="su-input" type="text" id="su-name" placeholder="Mohamed Ali">
+      <label class="su-label">Email address</label>
+      <input class="su-input" type="email" id="su-email" placeholder="you@example.com">
+      <label class="su-label">Password</label>
+      <input class="su-input" type="password" id="su-password" placeholder="Create a password">
+      <label class="su-label">Phone number</label>
+      <input class="su-input" type="tel" id="su-phone" placeholder="+20 100 000 0000">
+      <div class="su-row">
+        <div>
+          <label class="su-label">Car model</label>
+          <input class="su-input" type="text" id="su-car" placeholder="Toyota Corolla">
+        </div>
+        <div>
+          <label class="su-label">License plate</label>
+          <input class="su-input" type="text" id="su-plate" placeholder="أ ب ج 123">
+        </div>
+      </div>
+      <div class="su-err" id="su-err1"></div>
+      <button class="su-btn" id="su-btn1" onclick="doSignup()">Create Account</button>
+      <div class="su-link" onclick="showLogin()">Already have an account? <span>Sign in</span></div>
+    </div>
+
+    <!-- STEP 2: OTP -->
+    <div class="signup-step" id="su-step2">
+      <div class="signup-title">Check your email</div>
+      <div class="signup-sub" id="su-otp-sub">We sent a 6-digit code to your email</div>
+      <div class="otp-boxes">
+        <input class="otp-box" type="text" maxlength="1" id="otp0" oninput="otpNext(0)" onkeydown="otpBack(event,0)">
+        <input class="otp-box" type="text" maxlength="1" id="otp1" oninput="otpNext(1)" onkeydown="otpBack(event,1)">
+        <input class="otp-box" type="text" maxlength="1" id="otp2" oninput="otpNext(2)" onkeydown="otpBack(event,2)">
+        <input class="otp-box" type="text" maxlength="1" id="otp3" oninput="otpNext(3)" onkeydown="otpBack(event,3)">
+        <input class="otp-box" type="text" maxlength="1" id="otp4" oninput="otpNext(4)" onkeydown="otpBack(event,4)">
+        <input class="otp-box" type="text" maxlength="1" id="otp5" oninput="otpNext(5)" onkeydown="otpBack(event,5)">
+      </div>
+      <div class="su-err" id="su-err2"></div>
+      <button class="su-btn" id="su-btn2" onclick="verifyOTP()">Verify &amp; Continue</button>
+      <div class="su-link" onclick="resendOTP()">Didn't receive it? <span>Resend code</span></div>
+      <div class="su-link" onclick="showStep(1)">← Back</div>
+    </div>
+
+    <!-- STEP 3: Login -->
+    <div class="signup-step" id="su-step3">
+      <div class="signup-title">Welcome back</div>
+      <div class="signup-sub">Sign in to your ClearQ account</div>
+      <label class="su-label">Email address</label>
+      <input class="su-input" type="email" id="li-email" placeholder="you@example.com">
+      <label class="su-label">Password</label>
+      <input class="su-input" type="password" id="li-password" placeholder="Your password">
+      <div class="su-err" id="su-err3"></div>
+      <button class="su-btn" id="su-btn3" onclick="doLogin2()">Sign In</button>
+      <div class="su-link" onclick="showStep(1)">New user? <span>Create account</span></div>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <a class="nav-brand" onclick="showLanding()">
+    <div class="nav-logo">C</div>
+    <span class="nav-name">ClearQ</span>
+  </a>
+  <a href="clearq-partner.html" style="font-size:12px;color:var(--gray-dark);font-weight:600;text-decoration:none;border:1px solid #1e293b;border-radius:7px;padding:6px 12px;">Partner Login →</a>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="notif-bar" id="notif-bar"></div>
+
+<!-- ══ USER VIEW ══════════════════════════════════════════════ -->
+<div class="view active" id="view-user">
+  <div class="user-header">
+    <div class="brand-row">
+      <div class="brand-logo">💧</div>
+      <div>
+        <div class="brand-name">ClearQ</div>
+        <div class="brand-sub">Find &amp; book a car wash near you</div>
+      </div>
+      <button class="lang-btn" onclick="toggleLang()">عربي</button>
+    </div>
+    <div class="search-bar">
+      <span style="color:rgba(255,255,255,0.6)">🔍</span>
+      <input type="text" placeholder="Search by name or area..." id="search" oninput="filterWashes()">
+    </div>
+  </div>
+
+  <!-- Location banner -->
+  <div class="loc-banner" id="loc-banner">
+    <span style="font-size:18px">📍</span>
+    <div class="loc-banner-text">Allow location access for accurate arrival times and queue estimates</div>
+    <button class="loc-allow-btn" onclick="requestLocation()">Allow</button>
+    <button class="loc-deny-btn" onclick="dismissLocBanner()">✕</button>
+  </div>
+
+  <div class="filters" id="city-filters">
+    <button class="chip active" onclick="setCity('All',this)">All</button>
+    <button class="chip" onclick="setCity('Sheikh Zayed',this)">Sheikh Zayed</button>
+  </div>
+
+  <div class="result-bar">
+    <span class="result-count" id="result-count">Loading...</span>
+  </div>
+
+  <div class="washes-list" id="washes-list">
+    <div class="loading-screen"><div class="spin"></div><p>Loading wash centres...</p></div>
+  </div>
+
+  <div class="bottom-nav">
+    <button class="bnav-btn active" id="bnav-washes" onclick="showTab('washes')"><div class="bnav-icon">🚗</div><div class="bnav-label">Washes</div></button>
+    <button class="bnav-btn" id="bnav-map" onclick="showTab('map')"><div class="bnav-icon">🗺️</div><div class="bnav-label">Map</div></button>
+    <button class="bnav-btn" id="bnav-bookings" onclick="showTab('bookings')"><div class="bnav-icon">📋</div><div class="bnav-label">My Bookings</div></button>
+    <button class="bnav-btn" id="bnav-account" onclick="showTab('account')"><div class="bnav-icon">👤</div><div class="bnav-label">Account</div></button>
+  </div>
+
+  <!-- TAB PANELS inside user view -->
+  <!-- MAP TAB -->
+  <div id="tab-map" style="display:none;height:calc(100vh - 56px - 70px);position:relative;">
+    <div id="map-container" style="width:100%;height:100%;"></div>
+    <!-- Map cards overlay -->
+    <div id="map-cards" style="position:absolute;bottom:0;left:0;right:0;overflow-x:auto;display:flex;gap:10px;padding:12px;scrollbar-width:none;pointer-events:auto;"></div>
+  </div>
+
+  <!-- MY BOOKINGS TAB -->
+  <div id="tab-bookings" style="display:none;padding:16px 14px 100px;">
+    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:4px;">My Bookings</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:18px;">Your upcoming and past washes</div>
+    <div id="bookings-list"><div class="loading-screen"><div class="spin"></div><p>Loading bookings...</p></div></div>
+  </div>
+
+  <!-- ACCOUNT TAB -->
+  <div id="tab-account" style="display:none;padding:16px 14px 100px;">
+    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:18px;">My Account</div>
+    <div id="account-content"></div>
+  </div>
+</div>
+
+<!-- Booking modal -->
+<div class="modal-bg" id="booking-modal" onclick="closeBModal(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="bm-name"></div>
+    <div class="modal-sub" id="bm-addr"></div>
+    <div class="modal-sec">Choose service</div>
+    <div class="svc-grid" id="bm-svcs"></div>
+    <div class="info-box">
+      <div class="info-item"><div class="info-v" id="bm-q">0</div><div class="info-l">in line</div></div>
+      <div class="info-item"><div class="info-v" id="bm-w">0</div><div class="info-l">min wait</div></div>
+      <div class="info-item"><div class="info-v blue" id="bm-start">—</div><div class="info-l">your start</div></div>
+      <div class="info-item"><div class="info-v blue" id="bm-ready">—</div><div class="info-l">ready by</div></div>
+    </div>
+    <div id="bm-location-status" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 12px;font-size:12px;color:#1d4ed8;margin-bottom:14px;align-items:center;gap:7px"></div>
+    
+    <!-- Auto-filled user info card -->
+    <div id="bm-user-card" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div id="bm-avatar" style="width:40px;height:40px;border-radius:20px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div id="bm-user-name" style="font-size:14px;font-weight:700;color:#0f172a;"></div>
+          <div id="bm-user-phone" style="font-size:12px;color:#64748b;margin-top:1px;"></div>
+        </div>
+        <a onclick="showTab('account')" style="font-size:11px;color:#3b82f6;font-weight:600;cursor:pointer;">Edit →</a>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Car</div>
+          <div id="bm-user-car" style="font-size:13px;font-weight:600;color:#0f172a;"></div>
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;">
+          <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Plate</div>
+          <div id="bm-user-plate" style="font-size:13px;font-weight:600;color:#0f172a;letter-spacing:1px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden inputs still used by confirmBooking -->
+    <input type="hidden" id="bm-cname">
+    <input type="hidden" id="bm-phone">
+    <div class="modal-err" id="bm-err"></div>
+    <button class="confirm-btn" id="bm-confirm" onclick="confirmBooking()">Confirm Booking</button>
+  </div>
+</div>
+
+<!-- Rating modal -->
+<div class="rating-bg" id="rating-modal">
+  <div class="rating-box">
+    <div class="rating-icon">✅</div>
+    <div class="rating-title">How was your wash?</div>
+    <div class="rating-centre" id="rm-centre"></div>
+    <div class="stars" id="stars">
+      <span class="star" onclick="setStar(1)">⭐</span>
+      <span class="star" onclick="setStar(2)">⭐</span>
+      <span class="star" onclick="setStar(3)">⭐</span>
+      <span class="star" onclick="setStar(4)">⭐</span>
+      <span class="star" onclick="setStar(5)">⭐</span>
+    </div>
+    <input type="hidden" id="rm-booking-id">
+    <textarea class="rating-comment" placeholder="Add a comment (optional)" id="rm-comment"></textarea>
+    <button class="submit-btn" onclick="submitRating()">Submit Rating</button>
+    <button class="skip-btn" onclick="closeRating()">Skip</button>
+  </div>
+</div>
+
+<!-- Walk-in modal -->
+<div class="wi-bg" id="wi-modal">
+  <div class="wi-box">
+    <div class="wi-title">Add Walk-in</div>
+    <div class="wi-label">Customer name</div>
+    <input class="wi-input" type="text" placeholder="Enter name" id="wi-name" oninput="checkWI()">
+    <div class="wi-label">Wash type</div>
+    <div class="wt-row" id="wi-types"></div>
+    <div class="wi-actions">
+      <button class="wi-cancel" onclick="closeWI()">Cancel</button>
+      <button class="wi-confirm" id="wi-btn" onclick="addWalkIn()" disabled>Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://clearq-api-production.up.railway.app';
+
+// Safe fetch that handles HTML error pages gracefully
+async function apiFetch(url, options = {}) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  // If response starts with < it's an HTML page not JSON
+  if (text.trim().startsWith('<')) {
+    if (!res.ok) throw new Error('Server error ' + res.status);
+    return null;
+  }
+  try {
+    const data = JSON.parse(text);
+    if (!res.ok) throw new Error(data.error || data.message || 'Request failed');
+    return data;
+  } catch(e) {
+    if (e.message.includes('Request failed') || e.message.includes('Server error')) throw e;
+    throw new Error('Invalid response from server');
+  }
+}
+
+// ─── STATE ──────────────────────────────────────────────────────
+let shops = [], queues = {}, services = {};
+let currentCity = 'All';
+let selectedWash = null, selectedSvc = null;
+let starRating = 0;
+let partnerToken = localStorage.getItem('partner_token');
+let partnerShop = JSON.parse(localStorage.getItem('partner_shop') || 'null');
+let partnerServices = [];
+let selectedWashType = null;
+let queuePoll = null, baysPoll = null;
+let currentPTab = 'queue';
+
+// ─── TOAST ──────────────────────────────────────────────────────
+function toast(msg, dur=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ─── NAV ────────────────────────────────────────────────────────
+function switchView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  
+  if (v === 'partner') initPartnerView();
+}
+
+// ─── LANGUAGE ───────────────────────────────────────────────────
+let isArabic = false;
+function toggleLang() {
+  isArabic = !isArabic;
+  document.querySelector('.lang-btn').textContent = isArabic ? 'English' : 'عربي';
+  document.querySelector('.brand-sub').textContent = isArabic ? 'ابحث واحجز غسيل سيارتك' : 'Find & book a car wash near you';
+  document.querySelector('#search').placeholder = isArabic ? 'ابحث بالاسم أو المنطقة...' : 'Search by name or area...';
+}
+
+// ─── USER: LOAD SHOPS ───────────────────────────────────────────
+async function loadShops() {
+  try {
+    const res = await fetch(`${API}/api/wash/shops`);
+    if (!res.ok) throw new Error('Failed');
+    shops = await res.json();
+    // load all queues and services in parallel
+    await Promise.all(shops.map(async s => {
+      try {
+        const [qRes, sRes] = await Promise.all([
+          fetch(`${API}/api/wash/queue/${s.id}`),
+          fetch(`${API}/api/wash/shops/${s.id}/services`)
+        ]);
+        queues[s.id] = await qRes.json();
+        if (sRes.ok) {
+          const svcs = await sRes.json();
+          if (svcs.length) services[s.id] = svcs.filter(sv => sv.isActive !== 0);
+        }
+      } catch { queues[s.id] = {queueCount:0,activeCount:0,maxBays:s.maxWorkers||3,minsUntilNextFree:0}; }
+    }));
+    // Show only HD CarWash
+    shops = shops.filter(s => s.id === 6);
+    renderShops();
+    // poll every 8s
+    setInterval(refreshQueues, 8000);
+  } catch(e) {
+    document.getElementById('washes-list').innerHTML = '<div class="loading-screen"><p>Could not load wash centres. Please check your connection.</p></div>';
+  }
+}
+
+async function refreshQueues() {
+  await Promise.all(shops.map(async s => {
+    try {
+      const q = await fetch(`${API}/api/wash/queue/${s.id}`);
+      if (q.ok) queues[s.id] = await q.json();
+    } catch {}
+  }));
+  // Also refresh shop data so maxWorkers/prices stay current
+  try {
+    const res = await fetch(`${API}/api/wash/shops?t=${Date.now()}`);
+    if (res.ok) {
+      const fresh = await res.json();
+      fresh.forEach(fs => {
+        const idx = shops.findIndex(s => s.id === fs.id);
+        if (idx !== -1) shops[idx] = {...shops[idx], ...fs};
+      });
+    }
+  } catch {}
+  filterWashes();
+}
+
+function calcQueueWait(q, shop) {
+  // Simply return what the server calculated
+  if (!q) return 0;
+  return q.minsUntilNextFree || 0;
+}
+
+function getServiceDuration(shop, shopServices) {
+  if (shopServices && shopServices.length > 0) {
+    const active = shopServices.filter(s => s.isActive !== 0);
+    if (active.length > 0) {
+      return Math.round(active.reduce((a,s) => a + s.durationMins, 0) / active.length);
+    }
+  }
+  if (shop) {
+    if (shop.minsFull && shop.minsFull > 0) return shop.minsFull;
+    const vals = [shop.minsExterior, shop.minsInterior, shop.minsFull].filter(v => v > 0);
+    if (vals.length) return Math.round(vals.reduce((a,b) => a+b, 0) / vals.length);
+  }
+  return 45;
+}
+
+function getAvgWashDuration(shop) {
+  return getServiceDuration(shop, services[shop && shop.id]);
+}
+
+function calcQueueWait(q, shop) {
+  // Simply return what the server calculated
+  if (!q) return 0;
+  return q.minsUntilNextFree || 0;
+}
+
+function getStartReady(q, shop, svcDuration) {
+  const now = new Date();
+  const waitMins = calcQueueWait(q, shop);
+  const dur = svcDuration || getAvgWashDuration(shop) || 30;
+  const start = new Date(now.getTime() + waitMins * 60000);
+  const ready = new Date(start.getTime() + dur * 60000);
+  const fmt = d => d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+  return { waitMins, startStr: fmt(start), readyStr: fmt(ready) };
+}
+
+function renderShops() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const list = shops.filter(s => {
+    const mc = currentCity === 'All' || s.city === currentCity;
+    const ms = !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
+    return mc && ms && s.isActive;
+  });
+  document.getElementById('result-count').textContent = `${list.length} wash${list.length!==1?'es':''} found`;
+  const container = document.getElementById('washes-list');
+  container.innerHTML = '';
+
+  if (!list.length) {
+    container.innerHTML = '<div class="loading-screen"><p>No wash centres found.</p></div>';
+    return;
+  }
+
+  list.forEach(s => {
+    const qd = queues[s.id] || {};
+    const {waitMins, startStr, readyStr} = getStartReady(qd, s, getServiceDuration(s, services[s.id]));
+    const qCount = qd.queueCount || 0;
+    const effectiveWaitMins = calcQueueWait(qd, s);
+    const qColor = effectiveWaitMins === 0 ? '#22c55e' : effectiveWaitMins < 20 ? '#f59e0b' : '#ef4444';
+    const mapsUrl = s.lat && s.lng ? `https://maps.google.com/?q=${s.lat},${s.lng}` : '#';
+
+    // Use live services if available, fall back to shop's price fields
+    const liveSvcs = services[s.id];
+    let svcsHtml = '';
+    if (liveSvcs && liveSvcs.length) {
+      svcsHtml = `<div class="svc-boxes">
+        <div class="svc-boxes-row">${liveSvcs.map(sv => `
+          <div class="svc-box">
+            <div class="svc-box-name">${sv.name}</div>
+            <div class="svc-box-price">${sv.price} EGP</div>
+            <div class="svc-box-dur">${sv.durationMins} min</div>
+            ${sv.description ? `<div class="svc-box-desc">${sv.description}</div>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>`;
+    } else {
+      const fallback = [];
+      if (s.priceExterior) fallback.push({name:'EXT',price:s.priceExterior,dur:s.minsExterior||30});
+      if (s.priceInterior) fallback.push({name:'INT',price:s.priceInterior,dur:s.minsInterior||30});
+      if (s.priceFull) fallback.push({name:'FULL',price:s.priceFull,dur:s.minsFull||45});
+      svcsHtml = `<div class="svc-boxes">
+        <div class="svc-boxes-row">${fallback.map(sv => `
+          <div class="svc-box">
+            <div class="svc-box-name">${sv.name}</div>
+            <div class="svc-box-price">${sv.price} EGP</div>
+            <div class="svc-box-dur">${sv.dur} min</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'wash-card';
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-row1">
+          <div>
+            <div class="wash-name">${s.name}</div>
+            <div class="wash-addr">📍 ${s.address}</div>
+          </div>
+          <div class="wash-meta">
+            <button class="book-btn" onclick="openBModal(${s.id})">Book</button>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">in line</div></div>
+          <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">min wait</div></div>
+          <div class="stat"><div class="stat-v" style="color:var(--blue)">${startStr}</div><div class="stat-l">your start</div></div>
+          <div class="stat"><div class="stat-v" style="color:var(--blue)">${readyStr}</div><div class="stat-l">ready by</div></div>
+        </div>
+      </div>
+      ${svcsHtml}
+      <div class="wash-hours" style="padding:0 13px 11px;font-size:11px;color:#64748b;">🕘 ${s.openTime} – ${s.closeTime}</div>
+      <div class="card-bottom">
+        <div class="drive-info">📍 ${s.city}</div>
+        <a class="maps-link" href="${mapsUrl}" target="_blank">Open in Maps →</a>
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function filterWashes() { renderShops(); }
+function setCity(c, btn) {
+  currentCity = c;
+  document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterWashes();
+}
+
+// ─── BOOKING MODAL ──────────────────────────────────────────────
+// ─── LOCATION MANAGEMENT ────────────────────────────────────────
+let cachedLocation = null;
+let locationTimestamp = 0;
+const LOCATION_MAX_AGE = 5 * 60 * 1000; // 5 minutes
+
+async function requestLocation() {
+  dismissLocBanner();
+  const loc = await getUserLocation();
+  if (loc) {
+    cachedLocation = loc;
+    locationTimestamp = Date.now();
+    toast('✓ Location set — showing accurate arrival times');
+    // Refresh queue displays with location context
+    filterWashes();
+  } else {
+    toast('Could not access location — check browser settings');
+  }
+}
+
+function dismissLocBanner() {
+  document.getElementById('loc-banner').classList.remove('show');
+  localStorage.setItem('loc-banner-dismissed', '1');
+}
+
+async function getOrRequestLocation() {
+  // Return cached location if fresh
+  if (cachedLocation && (Date.now() - locationTimestamp) < LOCATION_MAX_AGE) {
+    return cachedLocation;
+  }
+  // Try to get silently (will work if already granted)
+  const loc = await getUserLocation();
+  if (loc) {
+    cachedLocation = loc;
+    locationTimestamp = Date.now();
+  }
+  return loc;
+}
+
+function checkLocationPermission() {
+  if (localStorage.getItem('loc-banner-dismissed')) return;
+  if ('permissions' in navigator) {
+    navigator.permissions.query({name: 'geolocation'}).then(result => {
+      if (result.state === 'granted') {
+        // Already granted — get it silently
+        getUserLocation().then(loc => {
+          if (loc) { cachedLocation = loc; locationTimestamp = Date.now(); }
+        });
+      } else if (result.state === 'prompt') {
+        // Not yet asked — show our banner
+        document.getElementById('loc-banner').classList.add('show');
+      }
+      // If denied — don't show banner, nothing we can do
+    });
+  } else {
+    // Fallback — show banner
+    document.getElementById('loc-banner').classList.add('show');
+  }
+}
+
+
+
+let userLocation = null;
+let etaResult = null;
+let etaLoading = false;
+
+async function getUserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      (err) => { console.log('ClearQ: location error', err.code, err.message); resolve(null); },
+      { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false }
+    );
+  });
+}
+
+async function fetchETA(shopId, lat, lng) {
+  try {
+    const url = `${API}/api/wash/eta?shopId=${shopId}&fromLat=${lat}&fromLng=${lng}`;
+    console.log('ClearQ: fetching ETA', url);
+    const res = await fetch(url);
+    const data = await res.json();
+    console.log('ClearQ: ETA result', data);
+    if (!res.ok) return null;
+    return data;
+  } catch(e) { 
+    console.log('ClearQ: ETA fetch error', e);
+    return null; 
+  }
+}
+
+function fmtTime(date) {
+  return date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
+}
+
+function calcTimes(etaMins, waitMins, durationMins, qd, shop) {
+  const now = new Date();
+  const queueWait = calcQueueWait(qd, shop);
+  const effectiveWait = Math.max(etaMins || 0, queueWait);
+  const start = new Date(now.getTime() + effectiveWait * 60000);
+  const ready = new Date(start.getTime() + (durationMins || 45) * 60000);
+  return { startStr: fmtTime(start), readyStr: fmtTime(ready), effectiveWait };
+}
+
+async function openBModal(shopId) {
+  // Check login — show signup if not logged in
+  if (!currentUser) {
+    document.getElementById('signup-overlay').classList.add('open');
+    showStep(1);
+    return;
+  }
+  selectedWash = shops.find(s => s.id === shopId);
+  if (!selectedWash) return;
+  selectedSvc = null;
+  etaResult = null;
+  userLocation = null;
+
+  document.getElementById('bm-name').textContent = selectedWash.name;
+  document.getElementById('bm-addr').textContent = selectedWash.address;
+  document.getElementById('bm-err').textContent = '';
+
+  const qd = queues[shopId] || {};
+  const initWait = calcQueueWait(qd, selectedWash);
+  document.getElementById('bm-q').textContent = qd.queueCount || 0;
+  document.getElementById('bm-w').textContent = initWait;
+  document.getElementById('bm-start').textContent = '...';
+  document.getElementById('bm-ready').textContent = '...';
+
+  // Always fetch fresh services so partner changes reflect immediately
+  const grid = document.getElementById('bm-svcs');
+  grid.innerHTML = '<div class="spin"></div>';
+  delete services[shopId]; // clear cache
+  try {
+    // Use the public shops services endpoint — same one the app uses
+    const res = await fetch(`${API}/api/wash/shops/${shopId}/services?t=${Date.now()}`);
+    let svcs = res.ok ? await res.json() : [];
+    if (!svcs.length) {
+      svcs = [
+        {name:'exterior', price: selectedWash.priceExterior, durationMins: selectedWash.minsExterior},
+        {name:'interior', price: selectedWash.priceInterior, durationMins: selectedWash.minsInterior},
+        {name:'full', price: selectedWash.priceFull, durationMins: selectedWash.minsFull},
+      ].filter(s => s.price);
+    }
+    services[shopId] = svcs.filter(s => s.isActive !== 0);
+    grid.innerHTML = '';
+    services[shopId].forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'svc-card';
+      card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${s.price} EGP</div><div class="svc-dur">${s.durationMins} min</div>`;
+      card.onclick = () => {
+        document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
+        card.classList.add('sel');
+        selectedSvc = s;
+        // Recalculate times with selected service duration
+        const qd2 = queues[selectedWash.id] || {};
+        const qWait2 = calcQueueWait(qd2, selectedWash);
+        const {startStr, readyStr, effectiveWait} = calcTimes(etaResult?.etaMinutes, qWait2, s.durationMins, qd2, selectedWash);
+        document.getElementById('bm-w').textContent = effectiveWait;
+        document.getElementById('bm-start').textContent = startStr;
+        document.getElementById('bm-ready').textContent = readyStr;
+      };
+      grid.appendChild(card);
+    });
+  } catch {
+    grid.innerHTML = '<p style="color:var(--gray);font-size:12px">Could not load services</p>';
+  }
+
+  document.getElementById('booking-modal').classList.add('open');
+
+  // Pre-fill user details into card UI
+  if (currentUser) {
+    const u = currentUser;
+    // Hidden inputs for form submission
+    document.getElementById('bm-cname').value = u.name || '';
+    document.getElementById('bm-phone').value = u.phone || '';
+    // Visual card
+    const initials = (u.name||'U').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('bm-avatar').textContent = initials;
+    document.getElementById('bm-user-name').textContent = u.name || 'No name set';
+    document.getElementById('bm-user-phone').textContent = u.phone || 'No phone set';
+    document.getElementById('bm-user-car').textContent = u.carModel || '—';
+    document.getElementById('bm-user-plate').textContent = u.licensePlate || '—';
+  }
+
+  // Fetch location and ETA in background
+  const locStatus = document.getElementById('bm-location-status');
+  locStatus.style.display = 'flex';
+  locStatus.style.alignItems = 'center';
+  locStatus.textContent = '📍 Getting your location to calculate arrival time...';
+  document.getElementById('bm-start').textContent = '...';
+  document.getElementById('bm-ready').textContent = '...';
+  
+  getOrRequestLocation().then(async loc => {
+    userLocation = loc;
+    const qd = queues[shopId] || {};
+    const qWait = calcQueueWait(qd, selectedWash);
+    
+    if (loc) {
+      locStatus.textContent = '🗺️ Calculating travel time...';
+      const eta = await fetchETA(shopId, loc.latitude, loc.longitude);
+      etaResult = eta;
+      const svc = selectedSvc || (services[shopId] && services[shopId][0]);
+      const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
+      const {startStr, readyStr, effectiveWait} = calcTimes(eta?.etaMinutes, qWait, dur, queues[shopId], selectedWash);
+      document.getElementById('bm-w').textContent = effectiveWait;
+      document.getElementById('bm-start').textContent = startStr;
+      document.getElementById('bm-ready').textContent = readyStr;
+      const travelMins = eta?.etaMinutes || 0;
+      locStatus.innerHTML = `✅ ~${travelMins} min drive · Bay will be ready when you arrive`;
+      locStatus.style.background = '#f0fdf4';
+      locStatus.style.borderColor = '#bbf7d0';
+      locStatus.style.color = '#166534';
+    } else {
+      locStatus.innerHTML = loc ? '⚠️ Could not calculate travel time — using queue wait time only' : '⚠️ Location not available — allow location access for accurate timing';
+      locStatus.style.background = '#fefce8';
+      locStatus.style.borderColor = '#fde68a';
+      locStatus.style.color = '#92400e';
+      const svc = selectedSvc || (services[shopId] && services[shopId][0]);
+      const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
+      const {startStr, readyStr, effectiveWait: ew2} = calcTimes(0, qWait, dur, queues[shopId], selectedWash);
+      document.getElementById('bm-w').textContent = ew2;
+      document.getElementById('bm-start').textContent = startStr;
+      document.getElementById('bm-ready').textContent = readyStr;
+    }
+  });
+}
+
+function closeBModal(e) {
+  if (e.target === document.getElementById('booking-modal'))
+    document.getElementById('booking-modal').classList.remove('open');
+}
+
+async function confirmBooking() {
+  const name = document.getElementById('bm-cname').value.trim();
+  const phone = document.getElementById('bm-phone').value.trim();
+  const errEl = document.getElementById('bm-err');
+  errEl.textContent = '';
+
+  if (!selectedSvc) { errEl.textContent = 'Please select a service'; return; }
+  if (!name) { errEl.textContent = 'Please enter your name'; return; }
+  if (!phone) { errEl.textContent = 'Please enter your phone number'; return; }
+
+  const btn = document.getElementById('bm-confirm');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>';
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const scheduledDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const scheduledTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  try {
+    const body = {
+      shopId: selectedWash.id,
+      customerName: name,
+      customerPhone: phone,
+      washType: selectedSvc.name,
+      scheduledDate,
+      scheduledTime,
+      price: selectedSvc.price,
+      carModel: currentUser?.carModel || '',
+      licensePlate: currentUser?.licensePlate || '',
+    };
+    if (userLocation) {
+      body.customerLat = userLocation.latitude;
+      body.customerLng = userLocation.longitude;
+    }
+    if (etaResult) {
+      body.etaMinutesOverride = etaResult.etaMinutes;
+      body.etaSource = etaResult.source;
+    }
+    const res = await fetch(`${API}/api/wash/reservations`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(()=>({}));
+      throw new Error(d.error || d.message || 'Booking failed');
+    }
+    const booking = await res.json();
+    document.getElementById('booking-modal').classList.remove('open');
+    
+    // Show confirmed times from server (uses actual ETA-based scheduling)
+    const confirmedStart = booking.etaArrivalAt ? fmtTime(new Date(booking.etaArrivalAt)) : document.getElementById('bm-start').textContent;
+    const confirmedReady = booking.etaReadyAt ? fmtTime(new Date(booking.etaReadyAt)) : document.getElementById('bm-ready').textContent;
+    
+    toast(`✓ Booked at ${selectedWash.name}! Ready by ${confirmedReady}`);
+    showNotif('📋', 'Booking confirmed!', `${selectedWash.name} · Ready by ${confirmedReady}`, 
+      `showTab('bookings')`, 'View Booking');
+    
+    // Immediately update queue display — don't wait for next poll
+    const shopId = selectedWash.id;
+    try {
+      const qRes = await fetch(`${API}/api/wash/queue/${shopId}`);
+      if (qRes.ok) {
+        queues[shopId] = await qRes.json();
+        filterWashes();
+      }
+    } catch {}
+    // Store booking ID for later rating when wash is done
+    localStorage.setItem('pending_rating_shop', selectedWash.name);
+    // save booking locally
+    const bookings = JSON.parse(localStorage.getItem('my_bookings')||'[]');
+    bookings.unshift({...booking, shopName: selectedWash.name});
+    localStorage.setItem('my_bookings', JSON.stringify(bookings.slice(0,20)));
+    refreshQueues();
+  } catch(e) {
+    errEl.textContent = e.message || 'Booking failed. Please try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirm Booking';
+  }
+}
+
+// ─── RATING ─────────────────────────────────────────────────────
+function setStar(n) {
+  starRating = n;
+  document.querySelectorAll('.star').forEach((s,i) => s.classList.toggle('on', i<n));
+}
+function showUserRating(shopName, bookingId) {
+  // In a real scenario this would send a push notification to the user
+  // For now we show the rating modal on the same device (demo)
+  document.getElementById('rm-centre').textContent = shopName;
+  document.getElementById('rm-booking-id').value = bookingId || '';
+  document.getElementById('rating-modal').classList.add('open');
+}
+
+async function submitRating() {
+  const bookingId = document.getElementById('rm-booking-id')?.value;
+  const token = localStorage.getItem('cq_token');
+  if (starRating > 0 && bookingId) {
+    try {
+      await fetch(`${API}/api/wash/reservations/${bookingId}/rating`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{})},
+        body: JSON.stringify({rating: starRating, comment: document.getElementById('rm-comment').value})
+      });
+    } catch {}
+  }
+  closeRating();
+  toast('⭐ Thank you for your rating!');
+  // Refresh bookings list
+  if (document.getElementById('tab-bookings').style.display !== 'none') loadMyBookings();
+}
+function closeRating() {
+  document.getElementById('rating-modal').classList.remove('open');
+  starRating = 0;
+  document.querySelectorAll('.star').forEach(s => s.classList.remove('on'));
+  document.getElementById('rm-comment').value = '';
+}
+
+// ─── PARTNER: LOGIN ─────────────────────────────────────────────
+function initPartnerView() {
+  if (partnerToken && partnerShop) {
+    showDash();
+  }
+}
+
+async function doLogin() {
+  const user = document.getElementById('p-user').value.trim();
+  const pass = document.getElementById('p-pass').value;
+  const errEl = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  if (!user || !pass) { errEl.textContent = 'Enter username and password'; return; }
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await fetch(`${API}/api/partners/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    partnerToken = data.token;
+    partnerShop = data.shop;
+    localStorage.setItem('partner_token', partnerToken);
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    showDash();
+  } catch(e) {
+    errEl.textContent = e.message || 'Invalid username or password';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+function doLogout() {
+  partnerToken = null; partnerShop = null;
+  localStorage.removeItem('partner_token');
+  localStorage.removeItem('partner_shop');
+  if (queuePoll) clearInterval(queuePoll);
+  if (baysPoll) clearInterval(baysPoll);
+  showLanding();
+  toast('Logged out');
+}
+
+function showDash() {
+  // Request push notification permission
+  requestPushPermission();
+
+  document.getElementById('dash-shop-name').textContent = partnerShop?.name || 'Wash Centre';
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-EG',{weekday:'long',month:'short',day:'numeric'});
+  loadQueue();
+  loadBays();
+  loadSummary();
+  loadManage();
+  if (queuePoll) clearInterval(queuePoll);
+  queuePoll = setInterval(() => { loadQueue(true); loadBays(true); }, 5000);
+}
+
+function authH() {
+  return {'Content-Type':'application/json', 'Authorization':`Bearer ${partnerToken}`};
+}
+
+// ─── PARTNER: QUEUE ─────────────────────────────────────────────
+async function loadQueue(silent=false) {
+  const shopId = partnerShop?.id;
+  if (!shopId) return;
+  try {
+    const [qRes, sRes] = await Promise.all([
+      fetch(`${API}/api/partners/shop/${shopId}/queue`, {headers: authH()}),
+      fetch(`${API}/api/partners/shop/${shopId}/services`, {headers: authH()}),
+    ]);
+    if (!qRes.ok) throw new Error();
+    const bookings = (await qRes.json()).filter(b => b.status !== 'cancelled');
+    partnerServices = sRes.ok ? await sRes.json() : [];
+    renderQueue(bookings);
+    document.getElementById('offline-bar').classList.remove('show');
+  } catch {
+    if (!silent) document.getElementById('offline-bar').classList.add('show');
+  }
+}
+
+function svcLabel(name) {
+  const s = partnerServices.find(sv => sv.name === name);
+  return s ? s.name : name;
+}
+
+function statusColor(st) {
+  if (st==='in_progress') return '#f59e0b';
+  if (st==='completed') return '#22c55e';
+  if (st==='cancelled') return '#ef4444';
+  return '#60a5fa';
+}
+
+function minsAgo(d) { return d ? Math.floor((Date.now()-new Date(d).getTime())/60000) : 0; }
+function minsUntil(d) { return d ? Math.round((new Date(d).getTime()-Date.now())/60000) : 0; }
+
+function renderQueue(bookings) {
+  const inP = bookings.filter(b=>b.status==='in_progress');
+  const pend = bookings.filter(b=>b.status==='pending');
+  const done = bookings.filter(b=>b.status==='completed');
+
+  document.getElementById('chip-p').textContent = pend.length;
+  document.getElementById('chip-i').textContent = inP.length;
+  document.getElementById('chip-d').textContent = done.length;
+
+  let html = '';
+  const renderGroup = (list, label, color, title) => {
+    if (!list.length) return;
+    html += `<div class="group-hd"><div class="gdot" style="background:${color}"></div><div class="glabel">${title}</div><div class="gcount">${list.length}</div></div>`;
+    list.forEach(b => {
+      const ip = b.status==='in_progress', cp = b.status==='completed', wi = b.kind==='walkin';
+      html += `<div class="bcard ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
+        <div class="bc-top">
+          <div class="bc-left">
+            <div class="sdot" style="background:${statusColor(b.status)}"></div>
+            <div>
+              <div class="cname">${b.customerName||'Walk-in'}</div>
+              <div class="cphone">${b.customerPhone||''}</div>
+              ${b.carType||b.carModel?`<div class="ccar">${[b.carType,b.carModel].filter(Boolean).join(' ')}</div>`:''}
+            </div>
+          </div>
+          <div class="bc-right">
+            <div class="bay-lbl">${b.bayNumber!=null?'Bay '+b.bayNumber:'Queued'}</div>
+            <div class="wbadge ${wi?'wibadge':''}">${wi?'Walk-in':svcLabel(b.washType)}</div>
+          </div>
+        </div>
+        <div class="bc-mid">
+          <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Wash started '+minsAgo(b.washStartedAt)+' min ago':'Arrives in '+minsUntil(b.etaArrivalAt)+' min'}</div>
+          ${b.licensePlate?`<div class="plate">${b.licensePlate}</div>`:''}
+        </div>
+        ${!cp?`<div class="bc-actions">
+          ${b.status==='pending'?`<button class="abtn abtn-start" onclick="doAction(${b.id},'start')">▶ Start Wash</button>`:''}
+          ${b.status==='in_progress'?`<button class="abtn abtn-done" onclick="doAction(${b.id},'done')">✓ Mark Done</button>`:''}
+        </div>`:''}
+      </div>`;
+    });
+  };
+
+  renderGroup(inP,'in_progress','#f59e0b','In Progress');
+  renderGroup(pend,'pending','#60a5fa','Pending');
+  renderGroup(done,'completed','#22c55e','Completed');
+
+  document.getElementById('queue-content').innerHTML = html || '<div class="loading-screen"><p>Queue is empty</p></div>';
+}
+
+async function doAction(bookingId, action) {
+  const btn = document.querySelector(`#bc-${bookingId} .abtn`);
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${bookingId}/${action}`, {
+      method:'PATCH', headers: authH()
+    });
+    if (!res.ok) {
+      const d=await res.json().catch(()=>({}));
+      const msg = d.error || 'Action failed';
+      if (msg.toLowerCase().includes('bay') || msg.toLowerCase().includes('occupied')) {
+        showToast('🚫 All bays are full — wait for one to free up');
+      } else {
+        showToast('Error: '+msg);
+      }
+      if (btn) { btn.disabled=false; btn.textContent = action==='done'?'✓ Mark Done':'▶ Start Wash'; }
+      return;
+    }
+    showToast(action==='done'?'✓ Wash completed':'▶ Wash started');
+    loadQueue(); loadBays();
+  } catch(e) {
+    showToast('Error: '+e.message);
+    if (btn) { btn.disabled=false; btn.textContent = action==='done'?'✓ Mark Done':'▶ Start Wash'; }
+  }
+}
+// ─── PARTNER: BAYS ──────────────────────────────────────────────
+async function loadBays(silent=false) {
+  const shopId = partnerShop?.id;
+  if (!shopId) return;
+  try {
+    const [bRes, sRes] = await Promise.all([
+      fetch(`${API}/api/partners/shop/${shopId}/bays`, {headers: authH()}),
+      fetch(`${API}/api/partners/shop/${shopId}/services`, {headers: authH()}),
+    ]);
+    if (!bRes.ok) throw new Error();
+    const data = await bRes.json();
+    partnerServices = sRes.ok ? await sRes.json() : partnerServices;
+    renderBays(data);
+  } catch { if (!silent) {} }
+}
+
+function bayTheme(state) {
+  const t = {
+    free: {bg:'#0f2d1a',border:'#166534',color:'#4ade80',label:'Free'},
+    in_wash: {bg:'#422006',border:'#d97706',color:'#fbbf24',label:'In Wash'},
+    incoming: {bg:'#1e3a6e',border:'#3b82f6',color:'#60a5fa',label:'Incoming'},
+    walkin: {bg:'#451a03',border:'#ea580c',color:'#fb923c',label:'Walk-in'},
+    unavailable: {bg:'#1c1c2e',border:'#7c3aed',color:'#a78bfa',label:'Unavailable'},
+  };
+  return t[state] || {bg:'#1e293b',border:'#334155',color:'#64748b',label:state};
+}
+
+function minsLeft(b) {
+  if (!b?.etaReadyAt) return '';
+  const m = Math.max(0,Math.round((new Date(b.etaReadyAt)-Date.now())/60000));
+  return `~${m} min left`;
+}
+
+function renderBays(data) {
+  const bays = data.bays || [];
+  let html = '<div class="bay-grid">';
+  bays.forEach(bay => {
+    const th = bayTheme(bay.state);
+    const tl = minsLeft(bay.booking);
+    html += `<div class="bay-card" style="background:${th.bg};border-color:${th.border}">
+      <div class="bay-hd">
+        <div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div>
+        <div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div>
+      </div>
+      <div class="bay-info">
+        ${bay.state==='unavailable'?`<div class="bay-unavail">${bay.reason||'Unavailable'}</div>`:
+          bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div>
+            <div class="bay-btype">${svcLabel(bay.booking.washType)}</div>
+            ${tl?`<div class="bay-time">${tl}</div>`:''}`:
+          `<div class="bay-avail">Available</div>`}
+      </div>
+      <div class="bay-actions">
+        ${bay.state==='free'?`<button class="bbtn" style="background:#1e40af" onclick="openWIBay(${bay.bayNumber})">+ Walk-in</button><button class="bbtn bbtn-icon" style="background:#3b0764;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:''}
+        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#14532d" onclick="setBayFree(${bay.bayNumber})">🔓 Set Available</button>`:''}
+        ${bay.state==='incoming'&&bay.booking?`<button class="bbtn" style="background:#1e40af" onclick="doAction(${bay.booking.id},'start')">▶ Start</button>`:''}
+        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">✓ Done</button>`:''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('bays-content').innerHTML = html;
+}
+
+async function setBayUnavail(num) {
+  const reason = prompt('Reason (optional):') || '';
+  await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`, {
+    method:'PATCH', headers: authH(), body: JSON.stringify({state:'unavailable',reason})
+  });
+  loadBays();
+}
+
+async function setBayFree(num) {
+  await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`, {
+    method:'PATCH', headers: authH(), body: JSON.stringify({state:'free'})
+  });
+  loadBays(); toast(`Bay ${num} is now available`);
+}
+
+async function addBay() {
+  const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`, {method:'POST', headers: authH()});
+  if (res.ok) { loadBays(); toast('Bay added'); }
+  else { const d=await res.json().catch(()=>{}); toast('Error: '+(d?.error||'Failed to add bay')); }
+}
+
+async function removeBay() {
+  if (!confirm('Remove the last bay?')) return;
+  const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`, {method:'DELETE', headers: authH()});
+  if (res.ok) { loadBays(); toast('Bay removed'); }
+  else { const d=await res.json().catch(()=>{}); toast('Error: '+(d?.error||'Failed')); }
+}
+
+async function loadSummary() {
+  const shopId = partnerShop?.id;
+  if (!shopId) return;
+  const today = new Date().toISOString().slice(0,10);
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/dashboard?date=${today}`, {headers: authH()});
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    let html = `<div class="sum-grid">
+      <div class="sum-card"><div class="sum-v" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sum-l">Bookings today</div></div>
+      <div class="sum-card"><div class="sum-v" style="color:var(--green)">${d.completedBookings||0}</div><div class="sum-l">Completed</div></div>
+      <div class="sum-card"><div class="sum-v" style="color:var(--amber)">${d.shopRating?Number(d.shopRating).toFixed(1)+' ★':'—'}</div><div class="sum-l">Rating</div></div>
+      <div class="sum-card"><div class="sum-v">${d.totalRevenue||0}</div><div class="sum-l">EGP today</div></div>
+    </div>`;
+    document.getElementById('summary-content').innerHTML = html;
+  } catch {
+    document.getElementById('summary-content').innerHTML = '<p>Could not load summary</p>';
+  }
+}
+
+let editServices = [];
+
+async function loadManage() {
+  const shopId = partnerShop?.id;
+  if (!shopId) return;
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/services`, {headers: authH()});
+    if (!res.ok) throw new Error();
+    editServices = await res.json();
+    renderManage();
+  } catch {
+    document.getElementById('manage-content').innerHTML = '<p>Could not load settings</p>';
+  }
+}
+
+function renderManage() {
+  let html = `<div class="msec"><div class="msec-title">Services &amp; Prices</div>`;
+  editServices.filter(s=>!s._deleted).forEach((s,i) => {
+    html += `<div class="svc-row" style="flex-direction:column;gap:8px;align-items:stretch;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input class="svc-row-name-input" value="${s.name||''}" placeholder="Service name" oninput="editSvc(${i},'name',this.value)" style="flex:1;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:8px 10px;color:#fff;font-size:13px;outline:none;">
+        <input class="price-in" type="number" value="${s.price||0}" oninput="editSvc(${i},'price',this.value)" style="width:70px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:8px;color:#fff;font-size:13px;outline:none;">
+        <span style="color:#64748b;font-size:11px;">EGP</span>
+        <button onclick="delSvc(${i})" style="background:none;border:none;color:#ef4444;font-size:16px;cursor:pointer;">🗑</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:11px;color:#64748b;">Duration:</span>
+        <input type="number" value="${s.durationMins||30}" oninput="editSvc(${i},'durationMins',this.value)" style="width:60px;background:#1e293b;border:1px solid #334155;border-radius:7px;padding:6px;color:#fff;font-size:13px;outline:none;">
+        <span style="font-size:11px;color:#64748b;">min</span>
+      </div>
+    </div>`;
+  });
+  html += `<button onclick="addSvc()" style="background:#1e3a6e;border:none;border-radius:7px;padding:9px 14px;color:#60a5fa;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;">+ Add Service</button>
+    <button onclick="saveServices()" style="background:#166534;border:none;border-radius:7px;padding:9px 14px;color:#4ade80;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;margin-left:8px;">Save Changes</button>
+  </div>`;
+  document.getElementById('manage-content').innerHTML = html;
+}
+
+function editSvc(i, field, val) { editServices[i][field] = field==='price'||field==='durationMins' ? Number(val) : val; }
+function addSvc() { editServices.push({name:'',price:0,durationMins:30,displayOrder:editServices.length,isActive:1,isNew:true}); renderManage(); }
+function delSvc(i) { if (editServices[i].id) editServices[i]._deleted=true; else editServices.splice(i,1); renderManage(); }
+
+async function saveServices() {
+  const shopId = partnerShop?.id;
+  try {
+    for (const s of editServices) {
+      if (s._deleted && s.id) {
+        await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`, {method:'DELETE', headers: authH()});
+      } else if (s.isNew && !s._deleted) {
+        await fetch(`${API}/api/partners/shop/${shopId}/services`, {method:'POST', headers: authH(), body: JSON.stringify({name:s.name,description:'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:1})});
+      } else if (s.id && !s._deleted) {
+        await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`, {method:'PUT', headers: authH(), body: JSON.stringify({name:s.name,description:'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:s.isActive??1})});
+      }
+    }
+    toast('Services saved');
+    loadManage();
+  } catch(e) { toast('Error saving services'); }
+}
+
+let wiBayNum = null;
+function openWI() { openWIBay(null); }
+function openWIBay(bayNum) {
+  wiBayNum = bayNum;
+  selectedWashType = null;
+  document.getElementById('wi-name').value = '';
+  document.getElementById('wi-btn').disabled = true;
+  const row = document.getElementById('wi-types');
+  const types = partnerServices.length ? partnerServices.filter(s=>s.isActive!==0) : [{name:'exterior'},{name:'interior'},{name:'full'}];
+  row.innerHTML = types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');
+  document.getElementById('wi-modal').classList.add('open');
+}
+function selWT(type, btn) {
+  selectedWashType = type;
+  document.querySelectorAll('.wt-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  checkWI();
+}
+function checkWI() {
+  const name = document.getElementById('wi-name').value.trim();
+  document.getElementById('wi-btn').disabled = !(name && selectedWashType);
+}
+function closeWI() { document.getElementById('wi-modal').classList.remove('open'); }
+
+async function addWalkIn() {
+  const name = document.getElementById('wi-name').value.trim();
+  const btn = document.getElementById('wi-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`, {
+      method:'POST', headers: authH(),
+      body: JSON.stringify({washType: selectedWashType, customerName: name})
+    });
+    if (!res.ok) { const d=await res.json().catch(()=>{}); throw new Error(d?.error||'Failed'); }
+    closeWI();
+    toast(`Walk-in added: ${name}`);
+    loadQueue(); loadBays();
+  } catch(e) {
+    toast('Error: '+e.message);
+  } finally {
+    btn.disabled=false; btn.textContent='Add';
+  }
+}
+
+function setPTab(tab, btn) {
+  currentPTab = tab;
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.psec').forEach(s=>s.classList.remove('active'));
+  document.getElementById('psec-'+tab).classList.add('active');
+  if (tab==='summary') loadSummary();
+  if (tab==='manage') loadManage();
+}
+
+let currentUser = JSON.parse(localStorage.getItem('cq_user') || 'null');
+let pendingEmail = '';
+
+function checkAuth() {
+  if (!currentUser) {
+    const landing = document.getElementById('landing-page');
+    if (!landing.classList.contains('show')) {
+      document.getElementById('signup-overlay').classList.add('open');
+    }
+  } else {
+    document.getElementById('signup-overlay').classList.remove('open');
+    renderAccount();
+    requestPushPermission();
+  }
+}
+
+function showStep(n) {
+  document.querySelectorAll('.signup-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('su-step'+n).classList.add('active');
+}
+
+function showSignIn() {
+  document.getElementById('signup-overlay').classList.add('open');
+  showStep(3);
+}
+
+function closeSignup() {
+  document.getElementById('signup-overlay').classList.remove('open');
+  if (!currentUser) showLanding();
+}
+
+function showLogin() { showStep(3); }
+
+// ─── AUTH: Create account (no OTP) ───────────────────────────────
+async function doSignup() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const phone = document.getElementById('su-phone').value.trim();
+  const car = document.getElementById('su-car').value.trim();
+  const plate = document.getElementById('su-plate').value.trim();
+  const password = document.getElementById('su-password').value;
+  const err = document.getElementById('su-err1');
+  err.textContent = '';
+  if (!name || !email || !phone) { err.textContent = 'Please fill in name, email and phone'; return; }
+  if (!email.includes('@')) { err.textContent = 'Please enter a valid email'; return; }
+  if (!password || password.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  const btn = document.getElementById('su-btn1');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    currentUser = {name, email, phone, carModel: car, licensePlate: plate};
+    localStorage.setItem('cq_user', JSON.stringify(currentUser));
+    const accounts = JSON.parse(localStorage.getItem('cq_accounts') || '{}');
+    accounts[email] = {password, name, email, phone, carModel: car, licensePlate: plate};
+    localStorage.setItem('cq_accounts', JSON.stringify(accounts));
+    document.getElementById('signup-overlay').classList.remove('open');
+    document.getElementById('landing-page').classList.remove('show');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-user').classList.add('active');
+    renderAccount();
+    setTimeout(checkLocationPermission, 800);
+    toast('Welcome to ClearQ, ' + name + '!');
+  } catch(e) {
+    err.textContent = 'Something went wrong. Please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Account';
+  }
+}
+
+// ─── AUTH: Sign in with email + password ─────────────────────────
+async function doLogin2() {
+  const email = document.getElementById('li-email').value.trim();
+  const passwordEl = document.getElementById('li-password');
+  const password = passwordEl ? passwordEl.value : '';
+  const err = document.getElementById('su-err3');
+  err.textContent = '';
+  if (!email || !email.includes('@')) { err.textContent = 'Please enter a valid email'; return; }
+  if (!password) { err.textContent = 'Please enter your password'; return; }
+  const btn = document.getElementById('su-btn3');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const accounts = JSON.parse(localStorage.getItem('cq_accounts') || '{}');
+    const account = accounts[email];
+    if (!account || account.password !== password) {
+      err.textContent = 'Incorrect email or password';
+      btn.disabled = false; btn.textContent = 'Sign In';
+      return;
+    }
+    currentUser = {name: account.name, email: account.email, phone: account.phone, carModel: account.carModel, licensePlate: account.licensePlate};
+    localStorage.setItem('cq_user', JSON.stringify(currentUser));
+    document.getElementById('signup-overlay').classList.remove('open');
+    document.getElementById('landing-page').classList.remove('show');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-user').classList.add('active');
+    renderAccount();
+    setTimeout(checkLocationPermission, 800);
+    toast('Welcome back, ' + account.name + '!');
+  } catch(e) {
+    err.textContent = 'Something went wrong. Please try again.';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+function otpNext(i) {}
+function otpBack(e, i) {}
+async function verifyOTP() {}
+async function resendOTP() {}
+
+let mapInitialized = false;
+let leafletMap = null;
+
+function showTab(tab) {
+  document.getElementById('washes-list').style.display = 'none';
+  document.querySelectorAll('.filters,.result-bar,.user-header').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-map').style.display = 'none';
+  document.getElementById('tab-bookings').style.display = 'none';
+  document.getElementById('tab-account').style.display = 'none';
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('bnav-'+tab).classList.add('active');
+  if (tab === 'washes') {
+    document.getElementById('washes-list').style.display = 'flex';
+    document.querySelectorAll('.filters,.result-bar,.user-header').forEach(el => el.style.display = '');
+  } else if (tab === 'map') {
+    document.getElementById('tab-map').style.display = 'block';
+    initMap();
+  } else if (tab === 'bookings') {
+    document.getElementById('tab-bookings').style.display = 'block';
+    loadMyBookings();
+  } else if (tab === 'account') {
+    document.getElementById('tab-account').style.display = 'block';
+    renderAccount();
+  }
+}
+
+function initMap() {
+  if (mapInitialized) { refreshMapPins(); return; }
+  mapInitialized = true;
+  leafletMap = L.map('map-container', {zoomControl: true}).setView([30.062, 30.958], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors', maxZoom: 19
+  }).addTo(leafletMap);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      leafletMap.setView([pos.coords.latitude, pos.coords.longitude], 14);
+      L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
+        radius: 8, fillColor: '#3b82f6', color: '#fff', weight: 2, fillOpacity: 1
+      }).addTo(leafletMap).bindPopup('You are here');
+    }, () => {});
+  }
+  refreshMapPins();
+}
+
+function refreshMapPins() {
+  if (!leafletMap) return;
+  leafletMap.eachLayer(layer => { if (layer instanceof L.Marker) leafletMap.removeLayer(layer); });
+  const cards = document.getElementById('map-cards');
+  cards.innerHTML = '';
+  shops.forEach(s => {
+    if (!s.lat || !s.lng) return;
+    const qd = queues[s.id] || {};
+    const qCount = qd.queueCount || 0;
+    const icon = L.divIcon({
+      className: '',
+      html: `<button class="map-pin" onclick="openBModal(${s.id})">${s.name.split(' ')[0]}</button>`,
+      iconAnchor: [0, 0]
+    });
+    L.marker([s.lat, s.lng], {icon}).addTo(leafletMap);
+    const card = document.createElement('div');
+    card.className = 'map-card-mini';
+    card.innerHTML = `<div class="mcm-name">${s.name}</div><div class="mcm-queue">${qCount === 0 ? 'No queue' : qCount + ' waiting'}</div><button class="mcm-book" onclick="openBModal(${s.id})">Book Now</button>`;
+    cards.appendChild(card);
+  });
+}
+
+let bookingsPoll = null;
+
+async function loadMyBookings() {
+  const list = document.getElementById('bookings-list');
+  list.innerHTML = '<div class="loading-screen"><div class="spin"></div><p>Loading...</p></div>';
+  await _doLoadBookings();
+}
+
+async function _doLoadBookings() {
+  const list = document.getElementById('bookings-list');
+  function getStatusDisplay(status) {
+    if (status === 'completed') return { color: '#22c55e', label: 'Completed' };
+    if (status === 'in_progress') return { color: '#f59e0b', label: 'In Progress' };
+    if (status === 'cancelled') return { color: '#ef4444', label: 'Cancelled' };
+    if (status === 'pending') return { color: '#3b82f6', label: 'Upcoming' };
+    return { color: '#94a3b8', label: status || 'Booked' };
+  }
+  function renderBookingList(bookings) {
+    if (!bookings.length) {
+      list.innerHTML = '<div class="loading-screen"><p>No bookings yet. Book your first wash!</p></div>';
+      return;
+    }
+    list.innerHTML = '';
+    bookings.sort((a, b) => {
+      const order = {in_progress:0, pending:1, completed:2, cancelled:3};
+      const ao = order[a.status] ?? 4, bo = order[b.status] ?? 4;
+      if (ao !== bo) return ao - bo;
+      return new Date(b.createdAt||0) - new Date(a.createdAt||0);
+    });
+    bookings.forEach(b => {
+      const { color: sc, label: sl } = getStatusDisplay(b.status);
+      const startTime = b.etaArrivalAt ? new Date(b.etaArrivalAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : (b.scheduledTime || '—');
+      const readyTime = b.etaReadyAt ? new Date(b.etaReadyAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
+      const dateStr = b.scheduledDate || '';
+      const shopName = b.shopName || 'Wash Centre';
+      const el = document.createElement('div');
+      el.className = 'booking-item';
+      el.innerHTML = `<div class="bi-top"><div><div class="bi-name">${shopName}</div><div class="bi-detail">${b.washType||''} · ${dateStr}</div></div><div class="bi-status" style="background:${sc}22;color:${sc};font-weight:700">${sl}</div></div><div class="bi-times"><div class="bi-time-item"><div class="bi-time-v">${startTime}</div><div class="bi-time-l">Start</div></div><div class="bi-time-item"><div class="bi-time-v">${readyTime}</div><div class="bi-time-l">Ready by</div></div><div class="bi-time-item"><div class="bi-time-v">${b.price||'—'} EGP</div><div class="bi-time-l">Price</div></div></div>`;
+      list.appendChild(el);
+    });
+  }
+  try {
+    const local = JSON.parse(localStorage.getItem('my_bookings') || '[]');
+    const refreshed = await Promise.all(local.map(async b => {
+      if (!b.id) return b;
+      try {
+        const fresh = await apiFetch(`${API}/api/wash/reservations/${b.id}`);
+        return fresh ? {...b, ...fresh, shopName: b.shopName || fresh.shopName} : b;
+      } catch { return b; }
+    }));
+    localStorage.setItem('my_bookings', JSON.stringify(refreshed.slice(0, 50)));
+    renderBookingList(refreshed);
+  } catch(e) {
+    list.innerHTML = '<div class="loading-screen"><p>Could not load bookings</p></div>';
+  }
+}
+
+function renderAccount() {
+  const el = document.getElementById('account-content');
+  if (!el) return;
+  if (!currentUser) {
+    el.innerHTML = '<div class="loading-screen"><p>Please sign in to view your account</p></div>';
+    return;
+  }
+  const u = currentUser;
+  const initials = (u.name||'U').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  el.innerHTML = `
+    <div class="acct-card" style="text-align:center;padding:20px">
+      <div class="acct-avatar">${initials}</div>
+      <div class="acct-name">${u.name||''}</div>
+      <div class="acct-email">${u.email||''}</div>
+    </div>
+    <div class="acct-card">
+      <div class="acct-field"><div class="acct-label">Full name</div><input class="acct-input" id="acct-name" value="${u.name||''}"></div>
+      <div class="acct-field"><div class="acct-label">Phone number</div><input class="acct-input" id="acct-phone" value="${u.phone||''}"></div>
+      <div class="acct-field"><div class="acct-label">Car model</div><input class="acct-input" id="acct-car" value="${u.carModel||''}"></div>
+      <div class="acct-field"><div class="acct-label">License plate</div><input class="acct-input" id="acct-plate" value="${u.licensePlate||''}"></div>
+      <button class="acct-save-btn" onclick="saveAccount()">Save Changes</button>
+    </div>
+    <div class="acct-card">
+      <button class="acct-logout-btn" onclick="logoutUser()">Sign Out</button>
+    </div>`;
+}
+
+async function saveAccount() {
+  const updated = {
+    ...currentUser,
+    name: document.getElementById('acct-name').value.trim(),
+    phone: document.getElementById('acct-phone').value.trim(),
+    carModel: document.getElementById('acct-car').value.trim(),
+    licensePlate: document.getElementById('acct-plate').value.trim(),
+  };
+  currentUser = updated;
+  localStorage.setItem('cq_user', JSON.stringify(updated));
+  // Update stored account credentials too
+  const accounts = JSON.parse(localStorage.getItem('cq_accounts') || '{}');
+  if (accounts[updated.email]) {
+    accounts[updated.email] = {...accounts[updated.email], ...updated};
+    localStorage.setItem('cq_accounts', JSON.stringify(accounts));
+  }
+  renderAccount();
+  toast('Account updated');
+}
+
+function logoutUser() {
+  if (!confirm('Sign out of ClearQ?')) return;
+  currentUser = null;
+  localStorage.removeItem('cq_user');
+  document.getElementById('signup-overlay').classList.remove('open');
+  showLanding();
+  toast('Signed out');
+}
+
+function showLanding() {
+  document.getElementById('landing-page').classList.add('show');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('signup-overlay').classList.remove('open');
+  updateLandingMock();
+}
+
+function enterApp() {
+  if (!currentUser) {
+    document.getElementById('signup-overlay').classList.add('open');
+    showStep(1);
+    return;
+  }
+  document.getElementById('landing-page').classList.remove('show');
+  document.getElementById('signup-overlay').classList.remove('open');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-user').classList.add('active');
+  setTimeout(checkLocationPermission, 800);
+}
+
+function scrollToHow() {
+  document.getElementById('lp-how').scrollIntoView({behavior:'smooth'});
+}
+
+function updateLandingMock() {
+  const btn = document.getElementById('lp-main-btn');
+  const signinLink = document.getElementById('lp-signin-link');
+  if (btn) {
+    if (currentUser) {
+      btn.textContent = 'Continue → ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'App');
+      if (signinLink) signinLink.style.display = 'none';
+    } else {
+      btn.textContent = 'Book a Wash Now';
+      if (signinLink) signinLink.style.display = 'block';
+    }
+  }
+  if (shops.length) document.getElementById('lp-centres').textContent = shops.length;
+}
+
+function switchView(v) {
+  if (v === 'partner') { window.location.href = 'clearq-partner.html'; return; }
+  document.getElementById('landing-page').classList.remove('show');
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-user').classList.add('active');
+  if (v === 'user') checkAuth();
+}
+
+function showNotif(icon, title, body, action=null, actionLabel='View') {
+  const bar = document.getElementById('notif-bar');
+  const el = document.createElement('div');
+  el.className = 'notif';
+  el.innerHTML = `<div class="notif-icon">${icon}</div><div class="notif-content"><div class="notif-title">${title}</div><div class="notif-body">${body}</div>${action ? `<button class="notif-action" onclick="${action}">${actionLabel}</button>` : ''}</div><button class="notif-close" onclick="this.closest('.notif').remove()">✕</button>`;
+  bar.appendChild(el);
+  setTimeout(() => { if (el.parentNode) el.remove(); }, 6000);
+}
+
+function requestPushPermission() {}
+function initServiceWorker() {}
+function startBookingStatusPoll() {}
+
+// ─── INIT ────────────────────────────────────────────────────────
+loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock());
+showLanding();
+
+</script>
+</body>
+</html>
