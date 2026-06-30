@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ClearQ Partner Dashboard</title>
+<style>
+:root {
+  --navy:#0f172a; --navy-mid:#1e293b; --navy-light:#334155;
+  --blue:#3b82f6; --blue-dark:#1d4ed8; --blue-light:#60a5fa;
+  --green:#22c55e; --green-dark:#166534; --amber:#f59e0b;
+  --red:#ef4444; --white:#f8fafc; --gray:#94a3b8; --gray-dark:#64748b;
+  --radius:14px; --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea{font-family:inherit;}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.95);backdrop-filter:blur(12px);border-bottom:1px solid #1e293b;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+.nav-brand{display:flex;align-items:center;gap:8px;text-decoration:none;}
+.nav-logo{width:32px;height:32px;border-radius:9px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;}
+.nav-name{font-size:17px;font-weight:700;color:#fff;}
+.nav-sub{font-size:11px;color:var(--gray-dark);font-weight:500;}
+.nav-user-link{font-size:12px;color:var(--blue-light);font-weight:600;text-decoration:none;padding:6px 12px;border:1px solid #1e3a6e;border-radius:7px;}
+
+/* LOGIN */
+.login-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;padding-top:80px;}
+.login-logo{width:60px;height:60px;border-radius:16px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;margin-bottom:16px;}
+.login-title{font-size:24px;font-weight:800;color:var(--white);margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--gray-dark);margin-bottom:28px;text-align:center;}
+.login-form{width:100%;max-width:360px;}
+.l-label{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;display:block;}
+.l-input{width:100%;background:var(--navy-mid);border:1px solid var(--navy-light);border-radius:11px;padding:12px 14px;color:var(--white);font-size:14px;outline:none;margin-bottom:14px;transition:border-color 0.15s;}
+.l-input:focus{border-color:var(--blue);}
+.l-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:11px;padding:14px;font-size:15px;font-weight:700;margin-top:4px;transition:background 0.15s;}
+.l-btn:hover{background:var(--blue-dark);}
+.l-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.l-err{font-size:12px;color:var(--red);text-align:center;margin-bottom:10px;}
+.l-wa{display:block;text-align:center;margin-top:18px;font-size:12px;color:var(--gray-dark);}
+.l-wa a{color:var(--blue-light);font-weight:600;}
+
+/* DASHBOARD */
+.dash{display:none;padding-top:56px;}
+.dash.show{display:block;}
+.offline-bar{display:none;background:#422006;padding:7px 15px;font-size:11px;color:#fbbf24;align-items:center;gap:5px;}
+.offline-bar.show{display:flex;}
+.ph{background:var(--navy-mid);border-bottom:1px solid var(--navy-light);padding:14px 16px 12px;}
+.ph-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+.ph-shop{font-size:17px;font-weight:700;color:var(--white);}
+.ph-date{font-size:11px;color:var(--gray-dark);margin-top:2px;}
+.ph-actions{display:flex;gap:7px;align-items:center;}
+.wi-btn{display:flex;align-items:center;gap:4px;background:#1e3a6e;border:none;border-radius:7px;padding:6px 10px;color:var(--blue-light);font-size:12px;font-weight:600;}
+.lo-btn{background:none;border:none;color:var(--gray-dark);font-size:17px;padding:5px;}
+.sc-row{display:flex;gap:7px;}
+.sc{flex:1;border-radius:9px;padding:9px;text-align:center;}
+.sc-num{font-size:20px;font-weight:700;color:var(--white);}
+.sc-lbl{font-size:9px;color:var(--gray);margin-top:2px;}
+
+.ptabs{display:flex;background:var(--navy-mid);border-bottom:1px solid var(--navy-light);}
+.ptab{flex:1;padding:11px;border:none;background:none;font-size:11px;font-weight:600;color:var(--gray-dark);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color 0.15s;border-bottom:2px solid transparent;}
+.ptab.active{color:var(--blue-light);border-bottom-color:var(--blue);}
+.ptab-icon{font-size:15px;}
+.psec{display:none;padding:14px;padding-bottom:40px;}
+.psec.active{display:block;}
+
+.gh{display:flex;align-items:center;gap:5px;margin-bottom:7px;margin-top:4px;}
+.gdot{width:7px;height:7px;border-radius:50%;}
+.glabel{font-size:10px;font-weight:700;color:var(--gray-dark);text-transform:uppercase;letter-spacing:0.4px;flex:1;}
+.gcount{font-size:10px;color:var(--gray-dark);}
+
+.bc{background:var(--navy-mid);border-radius:var(--radius);padding:13px;margin-bottom:9px;border:1px solid var(--navy-light);}
+.bc.inp{border-color:var(--amber);border-width:1.5px;}
+.bc.done{opacity:0.55;}
+.bc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;}
+.bc-left{display:flex;align-items:center;gap:9px;}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.cn{font-size:14px;font-weight:600;color:var(--white);}
+.cp{font-size:11px;color:var(--gray-dark);margin-top:1px;}
+.cc{font-size:10px;color:var(--gray);margin-top:1px;}
+.bc-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.bl{font-size:12px;font-weight:600;color:var(--gray);}
+.wb{background:#1e3a6e;border-radius:5px;padding:2px 6px;font-size:10px;color:#93c5fd;font-weight:500;}
+.wib{background:#422006;color:#fb923c;}
+.bc-mid{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
+.eta{font-size:11px;color:var(--gray);}
+.pl{background:var(--navy);border-radius:5px;padding:2px 7px;border:1px solid var(--navy-light);font-size:11px;color:var(--white);font-weight:600;letter-spacing:0.8px;}
+.bc-acts{display:flex;gap:7px;}
+.abtn{flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;border-radius:7px;border:none;font-size:12px;font-weight:600;color:#fff;transition:opacity 0.15s;}
+.abtn:hover{opacity:0.85;}
+.abtn:disabled{opacity:0.4;cursor:not-allowed;}
+.abtn-s{background:#1e40af;}
+.abtn-d{background:#166534;}
+
+.bay-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;}
+.bay-card{border-radius:var(--radius);border:1.5px solid;padding:13px;min-height:145px;display:flex;flex-direction:column;}
+.bay-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
+.bay-num{font-size:15px;font-weight:700;}
+.sbadge{border-radius:5px;border:1px solid;padding:2px 6px;}
+.sbadge-txt{font-size:9px;font-weight:600;}
+.bay-info{flex:1;margin-bottom:9px;}
+.bay-avail{font-size:12px;color:var(--gray-dark);}
+.bay-bname{font-size:12px;font-weight:600;color:var(--white);}
+.bay-btype{font-size:10px;color:var(--gray);margin-top:2px;}
+.bay-time{font-size:10px;color:var(--amber);margin-top:3px;}
+.bay-acts{display:flex;gap:5px;}
+.bbtn{flex:1;display:flex;align-items:center;justify-content:center;gap:3px;border-radius:7px;padding:7px;border:none;font-size:11px;font-weight:600;color:#fff;}
+.bbtn-i{flex:0;padding:7px 9px;}
+
+.sg{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:18px;}
+.sc2{background:var(--navy-mid);border-radius:var(--radius);padding:13px;border:1px solid var(--navy-light);}
+.sv{font-size:26px;font-weight:800;color:var(--white);}
+.sl{font-size:11px;color:var(--gray);margin-top:3px;}
+
+.ms{margin-bottom:22px;}
+.ms-t{font-size:13px;font-weight:700;color:var(--white);margin-bottom:11px;}
+.sr{background:var(--navy-mid);border-radius:var(--radius-sm);padding:11px 13px;margin-bottom:7px;border:1px solid var(--navy-light);display:flex;flex-direction:column;gap:8px;}
+.sr-row{display:flex;align-items:center;gap:8px;}
+.sr-name{background:transparent;border:none;color:var(--white);font-size:13px;font-weight:600;outline:none;flex:1;}
+.sr-desc{background:transparent;border:none;color:var(--gray-dark);font-size:11px;outline:none;width:100%;}
+.pi{background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:6px 9px;color:var(--white);font-size:13px;font-weight:700;width:72px;text-align:right;outline:none;}
+.pi:focus{border-color:var(--blue);}
+.di{background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:6px 9px;color:var(--white);font-size:13px;width:56px;text-align:right;outline:none;}
+.dsv{width:100%;background:var(--blue);color:#fff;border:none;border-radius:9px;padding:12px;font-size:14px;font-weight:700;margin-top:8px;}
+.asv{display:flex;align-items:center;gap:5px;background:#1e3a6e;border:none;border-radius:7px;padding:8px 13px;color:var(--blue-light);font-size:12px;font-weight:600;margin-top:7px;}
+.delsv{background:none;border:none;color:var(--red);font-size:15px;padding:4px;}
+
+/* Walk-in modal */
+.wi-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;justify-content:center;align-items:center;padding:22px;}
+.wi-bg.open{display:flex;}
+.wi-box{background:var(--navy-mid);border-radius:15px;padding:18px;border:1px solid var(--navy-light);width:100%;max-width:380px;}
+.wi-title{font-size:16px;font-weight:700;color:var(--white);margin-bottom:14px;}
+.wi-lbl{font-size:10px;font-weight:700;color:var(--gray-dark);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:7px;}
+.wi-in{width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 13px;color:var(--white);font-size:14px;outline:none;margin-bottom:14px;}
+.wi-in:focus{border-color:var(--blue);}
+.wt-row{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;}
+.wt-btn{flex:1;min-width:70px;border-radius:9px;border:1px solid var(--navy-light);padding:9px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:var(--gray-dark);background:none;transition:all 0.15s;}
+.wt-btn.sel{background:#1e3a6e;border-color:var(--blue);color:var(--blue-light);}
+.wi-acts{display:flex;gap:9px;}
+.wi-cancel{flex:1;border-radius:9px;border:1px solid var(--navy-light);padding:11px;color:var(--gray);background:none;font-size:13px;font-weight:600;}
+.wi-confirm{flex:1;border-radius:9px;background:var(--blue-dark);border:none;padding:11px;color:#fff;font-size:13px;font-weight:700;}
+.wi-confirm:disabled{opacity:0.4;cursor:not-allowed;}
+
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ls{display:flex;align-items:center;justify-content:center;padding:50px 20px;flex-direction:column;gap:12px;}
+.ls p{color:var(--gray);font-size:13px;}
+.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;border:1px solid #1e293b;border-radius:11px;padding:10px 18px;font-size:13px;font-weight:600;z-index:500;display:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.3);}
+.toast.show{display:block;}
+@media(min-width:480px){body{max-width:480px;margin:0 auto;}.toast{left:50%;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-logo">C</div>
+    <div>
+      <div class="nav-name">ClearQ</div>
+      <div class="nav-sub">Partner Dashboard</div>
+    </div>
+  </a>
+  <a class="nav-user-link" href="/">← Customer App</a>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="login-wrap">
+  <div class="login-logo">C</div>
+  <div class="login-title">Partner Login</div>
+  <div class="login-sub">Sign in to manage your wash centre</div>
+  <div class="login-form">
+    <label class="l-label">Username</label>
+    <input class="l-input" type="text" id="p-user" placeholder="Enter username" autocomplete="username">
+    <label class="l-label">Password</label>
+    <input class="l-input" type="password" id="p-pass" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="l-err" id="login-err"></div>
+    <button class="l-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="l-wa">Not registered? <a href="https://wa.me/201008888849?text=I want to register my wash centre on ClearQ" target="_blank">Contact us on WhatsApp →</a></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dash" id="dash">
+  <div class="offline-bar" id="offline-bar">📶 Offline — changes will sync when reconnected</div>
+  <div class="ph">
+    <div class="ph-row">
+      <div>
+        <div class="ph-shop" id="dash-name">Wash Centre</div>
+        <div class="ph-date" id="dash-date"></div>
+      </div>
+      <div class="ph-actions">
+        <button class="wi-btn" onclick="openWI()">＋ Walk-in</button>
+        <button class="lo-btn" onclick="doLogout()">⏻</button>
+      </div>
+    </div>
+    <div class="sc-row">
+      <div class="sc" style="background:#1e3a6e"><div class="sc-num" id="chip-p">0</div><div class="sc-lbl">Pending</div></div>
+      <div class="sc" style="background:#451a03"><div class="sc-num" id="chip-i">0</div><div class="sc-lbl">In Progress</div></div>
+      <div class="sc" style="background:#14532d"><div class="sc-num" id="chip-d">0</div><div class="sc-lbl">Completed</div></div>
+    </div>
+  </div>
+  <div class="ptabs">
+    <button class="ptab active" onclick="setPTab('queue',this)"><span class="ptab-icon">📋</span>Queue</button>
+    <button class="ptab" onclick="setPTab('bays',this)"><span class="ptab-icon">🏢</span>Bays</button>
+    <button class="ptab" onclick="setPTab('summary',this)"><span class="ptab-icon">📊</span>Summary</button>
+    <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon">👥</span>Customers</button>
+    <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon">⚙️</span>Manage</button>
+  </div>
+  <div class="psec active" id="psec-queue"><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
+  <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p>Loading bays...</p></div></div></div>
+  <div class="psec" id="psec-summary"><div id="sum-c"><div class="ls"><div class="spin"></div><p>Loading summary...</p></div></div></div>
+  <div class="psec" id="psec-customers">
+    <div style="padding:12px;">
+      <input type="text" id="cust-search" placeholder="Search name, phone, or plate..." oninput="loadPartnerCustomers()" style="width:100%;background:var(--navy-mid,#1e293b);border:1px solid var(--navy-light,#334155);border-radius:9px;padding:10px 13px;color:#fff;font-size:14px;outline:none;margin-bottom:12px;">
+      <div id="cust-c"><div class="ls"><div class="spin"></div><p>Loading customers...</p></div></div>
+    </div>
+  </div>
+  <div class="psec" id="psec-manage"><div id="mgmt-c"><div class="ls"><div class="spin"></div><p>Loading settings...</p></div></div></div>
+</div>
+
+<!-- Customer history modal -->
+<div id="cust-history-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--navy-mid,#1e293b);border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:#fff;" id="cust-history-title">Customer History</div>
+      <button onclick="closeCustHistory()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="cust-history-list"></div>
+  </div>
+</div>
+
+<!-- Walk-in modal -->
+<div class="wi-bg" id="wi-modal">
+  <div class="wi-box">
+    <div class="wi-title">Add Walk-in</div>
+    <div class="wi-lbl">Customer name</div>
+    <input class="wi-in" type="text" placeholder="Enter name" id="wi-name" oninput="checkWI()">
+    <div class="wi-lbl">Phone number</div>
+    <input class="wi-in" type="tel" placeholder="+20 100 000 0000" id="wi-phone" oninput="checkWI()">
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;">
+        <div class="wi-lbl">Car make/model</div>
+        <input class="wi-in" type="text" placeholder="Toyota Corolla" id="wi-car">
+      </div>
+      <div style="flex:1;">
+        <div class="wi-lbl">Plate number</div>
+        <input class="wi-in" type="text" placeholder="أ ب ج 123" id="wi-plate">
+      </div>
+    </div>
+    <div class="wi-lbl">Wash type</div>
+    <div class="wt-row" id="wi-types"></div>
+    <div class="wi-acts">
+      <button class="wi-cancel" onclick="closeWI()">Cancel</button>
+      <button class="wi-confirm" id="wi-btn" onclick="addWalkIn()" disabled>Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://clearq.online';
+
+// Push notifications
+let swReg = null;
+let lastPendingCount = 0;
+
+function urlBase64ToUint8Array(b64) {
+  const pad = '='.repeat((4-b64.length%4)%4);
+  const raw = atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return new Uint8Array([...raw].map(c=>c.charCodeAt(0)));
+}
+
+async function initSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    swReg = await navigator.serviceWorker.register('/api/sw.js');
+  } catch(e) {}
+}
+
+async function enableNotifs() {
+  if (!('Notification' in window)) return toast('Notifications not supported on this browser');
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return toast('Notifications blocked');
+  if (!swReg) return;
+  try {
+    const res = await fetch(API+'/api/push/vapid-public-key');
+    if (!res.ok) return;
+    const {publicKey} = await res.json();
+    const sub = await swReg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(publicKey)});
+    await fetch(API+'/api/partners/push-subscription',{
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+partnerToken},
+      body: JSON.stringify({subscription:sub, shopId:partnerShop?.id})
+    });
+    toast('✓ Notifications enabled');
+  } catch(e) { toast('Could not enable notifications'); }
+}
+
+function checkNewBookings(bookings) {
+  const pending = bookings.filter(b=>b.status==='pending').length;
+  if (pending > lastPendingCount && lastPendingCount > 0) {
+    const diff = pending - lastPendingCount;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🚗 New Booking!', {body:`${diff} new booking${diff>1?'s':''} waiting`, icon:'/icon-192.png'});
+    }
+  }
+  lastPendingCount = pending;
+}
+let partnerToken = localStorage.getItem('partner_token');
+let partnerShop = JSON.parse(localStorage.getItem('partner_shop') || 'null');
+let partnerServices = [];
+let selectedWashType = null;
+let queuePoll = null;
+let editServices = [];
+
+async function apiFetch(url, opts={}) {
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  if (text.trim().startsWith('<')) { if (!res.ok) throw new Error('Server error '+res.status); return null; }
+  const data = JSON.parse(text);
+  if (!res.ok) throw new Error(data.error || data.message || 'Request failed');
+  return data;
+}
+
+function toast(msg, dur=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function authH() { return {'Content-Type':'application/json','Authorization':'Bearer '+partnerToken}; }
+
+// LOGIN
+window.onload = () => {
+  if (partnerToken && partnerShop) showDash();
+};
+
+async function doLogin() {
+  const user = document.getElementById('p-user').value.trim();
+  const pass = document.getElementById('p-pass').value;
+  const err = document.getElementById('login-err');
+  const btn = document.getElementById('login-btn');
+  if (!user || !pass) { err.textContent = 'Enter username and password'; return; }
+  err.textContent = '';
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const data = await apiFetch(`${API}/api/partners/login`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pass})});
+    partnerToken = data.token; partnerShop = data.shop;
+    localStorage.setItem('partner_token', partnerToken);
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    showDash();
+  } catch(e) { err.textContent = e.message || 'Invalid credentials'; }
+  finally { btn.disabled=false; btn.textContent='Sign In'; }
+}
+
+function doLogout() {
+  partnerToken=null; partnerShop=null;
+  localStorage.removeItem('partner_token'); localStorage.removeItem('partner_shop');
+  if (queuePoll) clearInterval(queuePoll);
+  document.getElementById('dash').classList.remove('show');
+  document.getElementById('login-wrap').style.display='flex';
+  toast('Logged out');
+}
+
+function showDash() {
+  setTimeout(initPartnerPush, 1000);
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('dash').classList.add('show');
+  document.getElementById('dash-name').textContent = partnerShop?.name || 'Wash Centre';
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-EG',{weekday:'long',month:'short',day:'numeric'});
+  loadQueue(); loadBays(); loadSummary(); loadManage();
+  if (queuePoll) clearInterval(queuePoll);
+  queuePoll = setInterval(() => { loadQueue(true); loadBays(true); }, 5000);
+}
+
+function setPTab(tab, btn) {
+  document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.psec').forEach(s=>s.classList.remove('active'));
+  document.getElementById('psec-'+tab).classList.add('active');
+  if (tab==='summary') loadSummary();
+  if (tab==='manage') loadManage();
+  if (tab==='customers') loadPartnerCustomers();
+}
+
+// ─── CUSTOMERS ────────────────────────────────────────────────────
+async function loadPartnerCustomers() {
+  const search = document.getElementById('cust-search').value;
+  const el = document.getElementById('cust-c');
+  el.innerHTML = '<div class="ls"><div class="spin"></div><p>Loading customers...</p></div>';
+  try {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/customers?${params}`, { headers: authH() });
+    if (!res.ok) throw new Error();
+    const customers = await res.json();
+    if (!customers.length) {
+      el.innerHTML = '<div class="ls"><p>No customers yet</p></div>';
+      return;
+    }
+    el.innerHTML = customers.map(c => `
+      <div onclick="openCustHistory('${c.phone}','${(c.name||'').replace(/'/g,"\\\\'")}')" style="background:var(--navy,#0f172a);border-radius:11px;padding:14px;margin-bottom:9px;cursor:pointer;border:1px solid var(--navy-light,#334155);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:#fff;">${c.name||'Unknown'}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${c.phone}</div>
+            ${c.license_plate ? `<div style="font-size:11px;color:#60a5fa;margin-top:2px;">${c.license_plate}</div>` : ''}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;font-weight:700;color:#4ade80;">${parseInt(c.total_spent).toLocaleString()} EGP</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${c.total_visits} visits</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="ls"><p>Error loading customers</p></div>';
+  }
+}
+
+async function openCustHistory(phone, name) {
+  document.getElementById('cust-history-title').textContent = (name||'Customer') + ' — ' + phone;
+  document.getElementById('cust-history-list').innerHTML = '<div class="ls"><div class="spin"></div></div>';
+  document.getElementById('cust-history-bg').style.display = 'flex';
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/customers/${encodeURIComponent(phone)}/history`, { headers: authH() });
+    if (!res.ok) throw new Error();
+    const history = await res.json();
+    document.getElementById('cust-history-list').innerHTML = history.map(b => `
+      <div style="background:var(--navy,#0f172a);border-radius:9px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:600;color:#fff;">${svcLabel(b.washType)} ${b.kind==='walkin'?'🚶':'📱'}</div>
+          <div style="font-size:12px;font-weight:700;color:#4ade80;">${b.price} EGP</div>
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${new Date(b.createdAt).toLocaleDateString('en-EG',{day:'numeric',month:'short',year:'numeric'})} · ${b.status}</div>
+      </div>
+    `).join('') || '<p style="color:#94a3b8;font-size:13px;">No history found</p>';
+  } catch(e) {
+    document.getElementById('cust-history-list').innerHTML = '<p style="color:#ef4444;">Error loading history</p>';
+  }
+}
+
+function closeCustHistory() {
+  document.getElementById('cust-history-bg').style.display = 'none';
+}
+
+function svcLabel(name) { const s=partnerServices.find(sv=>sv.name===name); return s?s.name:name; }
+function statusColor(st) { return st==='in_progress'?'#f59e0b':st==='completed'?'#22c55e':st==='cancelled'?'#ef4444':'#60a5fa'; }
+function minsAgo(d) { return d?Math.floor((Date.now()-new Date(d).getTime())/60000):0; }
+function minsUntil(d) { return d?Math.round((new Date(d).getTime()-Date.now())/60000):0; }
+
+async function loadQueue(silent=false) {
+  const shopId = partnerShop?.id; if (!shopId) return;
+  try {
+    const [qRes,sRes] = await Promise.all([
+      fetch(`${API}/api/partners/shop/${shopId}/queue`,{headers:authH()}),
+      fetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()})
+    ]);
+    if (!qRes.ok) throw new Error();
+    const bookings = (await qRes.json()).filter(b=>b.status!=='cancelled');
+    partnerServices = sRes.ok ? await sRes.json() : [];
+    renderQueue(bookings);
+    document.getElementById('offline-bar').classList.remove('show');
+  } catch { if (!silent) document.getElementById('offline-bar').classList.add('show'); }
+}
+
+function renderQueue(bookings) {
+  const inP=bookings.filter(b=>b.status==='in_progress');
+  const pend=bookings.filter(b=>b.status==='pending');
+  const done=bookings.filter(b=>b.status==='completed');
+  document.getElementById('chip-p').textContent=pend.length;
+  document.getElementById('chip-i').textContent=inP.length;
+  document.getElementById('chip-d').textContent=done.length;
+  let html='';
+  const rg=(list,color,title)=>{
+    if (!list.length) return;
+    html+=`<div class="gh"><div class="gdot" style="background:${color}"></div><div class="glabel">${title}</div><div class="gcount">${list.length}</div></div>`;
+    list.forEach(b=>{
+      const ip=b.status==='in_progress',cp=b.status==='completed',wi=b.kind==='walkin';
+      html+=`<div class="bc ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
+        <div class="bc-top">
+          <div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
+            <div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div>${b.carModel?`<div class="cc">${b.carModel}</div>`:''}</div>
+          </div>
+          <div class="bc-right"><div class="bl">${b.bayNumber!=null?'Bay '+b.bayNumber:'Queued'}</div><div class="wb ${wi?'wib':''}">${wi?'Walk-in':svcLabel(b.washType)}</div></div>
+        </div>
+        <div class="bc-mid">
+          <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Started '+minsAgo(b.washStartedAt)+' min ago':'Arrives in ~'+minsUntil(b.etaArrivalAt)+' min'}</div>
+          ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
+        </div>
+        ${!cp?`<div class="bc-acts">
+          ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start')">▶ Start</button>`:''}
+          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done')">✓ Done</button>`:''}
+        </div>`:''}
+      </div>`;
+    });
+  };
+  rg(inP,'#f59e0b','In Progress');
+  rg(pend,'#60a5fa','Pending');
+  rg(done,'#22c55e','Completed');
+  document.getElementById('queue-c').innerHTML = html || '<div class="ls"><p>Queue is empty</p></div>';
+}
+
+async function doAction(id, action) {
+  const btn = document.querySelector(`#bc-${id} .abtn`);
+  if (btn) { btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+  try {
+    await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${id}/${action}`,{method:'PATCH',headers:authH()});
+    toast(action==='done'?'✓ Wash completed':'Wash started');
+    loadQueue(); loadBays();
+  } catch(e) {
+    toast('Error: '+e.message);
+    if (btn) { btn.disabled=false; btn.textContent=action==='done'?'✓ Done':'▶ Start'; }
+  }
+}
+
+async function loadBays(silent=false) {
+  const shopId=partnerShop?.id; if(!shopId) return;
+  try {
+    const res=await fetch(`${API}/api/partners/shop/${shopId}/bays`,{headers:authH()});
+    if(!res.ok) throw new Error();
+    renderBays(await res.json());
+  } catch {}
+}
+
+function bayTheme(state) {
+  const t={free:{bg:'#0f2d1a',border:'#166534',color:'#4ade80',label:'Free'},in_wash:{bg:'#422006',border:'#d97706',color:'#fbbf24',label:'In Wash'},incoming:{bg:'#1e3a6e',border:'#3b82f6',color:'#60a5fa',label:'Incoming'},walkin:{bg:'#451a03',border:'#ea580c',color:'#fb923c',label:'Walk-in'},unavailable:{bg:'#1c1c2e',border:'#7c3aed',color:'#a78bfa',label:'Unavailable'}};
+  return t[state]||{bg:'#1e293b',border:'#334155',color:'#64748b',label:state};
+}
+function minsLeft(b) { if(!b?.etaReadyAt) return ''; const m=Math.max(0,Math.round((new Date(b.etaReadyAt)-Date.now())/60000)); return `~${m} min left`; }
+
+function renderBays(data) {
+  const bays=data.bays||[];
+  let html='<div class="bay-grid">';
+  bays.forEach(bay=>{
+    const th=bayTheme(bay.state); const tl=minsLeft(bay.booking);
+    html+=`<div class="bay-card" style="background:${th.bg};border-color:${th.border}">
+      <div class="bay-hd"><div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div><div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div></div>
+      <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#a78bfa">${bay.reason||'Unavailable'}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:`<div class="bay-avail">Available</div>`}</div>
+      <div class="bay-acts">
+        ${bay.state==='free'?`<button class="bbtn" style="background:#1e40af" onclick="openWI()">＋ Walk-in</button><button class="bbtn bbtn-i" style="background:#3b0764;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:''}
+        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#14532d" onclick="setBayFree(${bay.bayNumber})">🔓 Available</button>`:''}
+        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">✓ Done</button>`:''}
+        ${bay.state==='incoming'&&bay.booking?`<button class="bbtn" style="background:#1e40af" onclick="doAction(${bay.booking.id},'start')">▶ Start</button>`:''}
+      </div>
+    </div>`;
+  });
+  html+='</div><div style="margin-top:14px;display:flex;gap:8px"><button onclick="addBay()" style="background:#1e3a6e;border:none;border-radius:7px;padding:9px 14px;color:var(--blue-light);font-size:12px;font-weight:600;cursor:pointer">＋ Add Bay</button><button onclick="removeBay()" style="background:#3b0764;border:none;border-radius:7px;padding:9px 14px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer">− Remove Bay</button></div>';
+  document.getElementById('bays-c').innerHTML=html;
+}
+
+async function setBayUnavail(num) { const r=prompt('Reason:')||''; await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'unavailable',reason:r})}); loadBays(); }
+async function setBayFree(num) { await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'free'})}); loadBays(); toast(`Bay ${num} available`); }
+async function addBay() { const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'POST',headers:authH()}); if(r.ok){loadBays();toast('Bay added');} }
+async function removeBay() { if(!confirm('Remove last bay?')) return; const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'DELETE',headers:authH()}); if(r.ok){loadBays();toast('Bay removed');} }
+
+async function loadSummary() {
+  const shopId=partnerShop?.id; if(!shopId) return;
+  const today=new Date().toISOString().slice(0,10);
+  try {
+    const d=await apiFetch(`${API}/api/partners/shop/${shopId}/dashboard?date=${today}`,{headers:authH()});
+    let html=`<div class="sg">
+      <div class="sc2"><div class="sv" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sl">Bookings today</div></div>
+      <div class="sc2"><div class="sv" style="color:var(--green)">${d.completedBookings||0}</div><div class="sl">Completed</div></div>
+      <div class="sc2"><div class="sv" style="color:var(--amber)">${d.shopRating?Number(d.shopRating).toFixed(1)+' ★':'—'}</div><div class="sl">Rating</div></div>
+      <div class="sc2"><div class="sv">${d.totalRevenue||0}</div><div class="sl">EGP today</div></div>
+    </div><div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px">Today's bookings</div>`;
+    (d.todayBookings||[]).forEach(b=>{
+      html+=`<div class="bc ${b.status==='completed'?'done':''}">
+        <div class="bc-top"><div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
+          <div><div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div></div>
+        </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${b.price} EGP</div></div>
+      </div>`;
+    });
+    document.getElementById('sum-c').innerHTML=html;
+  } catch { document.getElementById('sum-c').innerHTML='<div class="ls"><p>Could not load summary</p></div>'; }
+}
+
+async function loadManage() {
+  const shopId=partnerShop?.id; if(!shopId) return;
+  try {
+    editServices=await apiFetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()});
+    renderManage();
+  } catch { document.getElementById('mgmt-c').innerHTML='<div class="ls"><p>Could not load settings</p></div>'; }
+}
+
+function renderManage() {
+  let html=`<div class="ms"><div class="ms-t">Services &amp; Prices</div>`;
+  editServices.filter(s=>!s._deleted).forEach((s,i)=>{
+    html+=`<div class="sr">
+      <div class="sr-row"><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">🗑</button></div>
+      <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)">
+      <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Duration:</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min</span></div>
+    </div>`;
+  });
+  html+=`<button class="asv" onclick="aSvc()">＋ Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>
+  <div class="ms"><div class="ms-t">Working Hours</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+  </div>`;
+  document.getElementById('mgmt-c').innerHTML=html;
+}
+
+function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}
+function aSvc(){editServices.push({name:'',description:'',price:0,durationMins:30,displayOrder:editServices.length,isActive:1,isNew:true});renderManage();}
+function dSvc(i){if(editServices[i].id)editServices[i]._deleted=true;else editServices.splice(i,1);renderManage();}
+
+async function saveServices() {
+  const btn=document.querySelector('.dsv');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  try {
+    for(const s of editServices){
+      if(s._deleted&&s.id) await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'DELETE',headers:authH()});
+      else if(s.isNew&&!s._deleted) await fetch(`${API}/api/partners/shop/${shopId}/services`,{method:'POST',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:1})});
+      else if(s.id&&!s._deleted) await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'PUT',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:s.isActive??1})});
+    }
+    toast('✓ Services saved');
+    loadManage();
+  } catch { toast('Error saving'); }
+  finally{btn.disabled=false;btn.textContent='Save Changes';}
+}
+
+// WALK-IN
+function openWI(){selectedWashType=null;document.getElementById('wi-name').value='';document.getElementById('wi-phone').value='';document.getElementById('wi-car').value='';document.getElementById('wi-plate').value='';document.getElementById('wi-btn').disabled=true;const row=document.getElementById('wi-types');const types=partnerServices.length?partnerServices.filter(s=>s.isActive!==0):[{name:'exterior'},{name:'interior'},{name:'full'}];row.innerHTML=types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');document.getElementById('wi-modal').classList.add('open');}
+function closeWI(){document.getElementById('wi-modal').classList.remove('open');}
+function selWT(type,btn){selectedWashType=type;document.querySelectorAll('.wt-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');checkWI();}
+function checkWI(){document.getElementById('wi-btn').disabled=!(document.getElementById('wi-name').value.trim()&&selectedWashType);}
+async function addWalkIn(){
+  const name=document.getElementById('wi-name').value.trim();
+  const phone=document.getElementById('wi-phone').value.trim();
+  const car=document.getElementById('wi-car').value.trim();
+  const plate=document.getElementById('wi-plate').value.trim();
+  const btn=document.getElementById('wi-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+  try{
+    const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})});
+    closeWI();
+    toast(result?.linkedToAccount ? `✓ Walk-in added — linked to ${name}'s ClearQ account` : `✓ Walk-in added: ${name}`);
+    loadQueue();loadBays();
+  }catch(e){toast('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Add';}
+}
+
+// ─── PUSH NOTIFICATIONS FOR PARTNER ─────────────────────────────
+async function initPartnerPush() {
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    window._swReg = reg;
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    const keyRes = await fetch(`${API}/api/push/vapid-public-key`);
+    if (!keyRes.ok) return;
+    const { publicKey } = await keyRes.json();
+    const padding = '='.repeat((4 - publicKey.length % 4) % 4);
+    const base64 = (publicKey + padding).replace(/-/g,'+').replace(/_/g,'/');
+    const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: raw });
+    await fetch(`${API}/api/push/subscribe`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + partnerToken},
+      body: JSON.stringify({ subscription: sub.toJSON(), partnerId: partnerData?.id })
+    });
+    console.log('ClearQ Partner: push subscribed');
+  } catch(e) { console.log('ClearQ Partner: push failed', e.message); }
+}
+
+</script>
+</body>
+</html>
