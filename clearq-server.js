@@ -1742,6 +1742,19 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 200, { success: true });
     }
 
+    // GET /users/me/bookings — all bookings linked to this account (reservations + linked walk-ins)
+    if (m === "GET" && p === "/users/me/bookings") {
+      const payload = verifyJWT(getToken(req));
+      if (!payload?.userId) return respond(res, 401, { error: "Unauthorized" });
+      const rows = await db(
+        `SELECT b.*, s.name as shop_name FROM wash_bookings b
+         JOIN wash_shops s ON s.id = b.shop_id
+         WHERE b.user_id = $1 ORDER BY b.created_at DESC LIMIT 100`,
+        [payload.userId]
+      );
+      return respond(res, 200, rows.map(b => ({ ...booking(b), shopName: b.shop_name })));
+    }
+
     return respond(res, 404, { error: "Route not found", path: p });
 
   } catch (err) {

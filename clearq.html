@@ -2234,7 +2234,22 @@ async function _doLoadBookings() {
       } catch { return b; }
     }));
     localStorage.setItem('my_bookings', JSON.stringify(refreshed.slice(0, 50)));
-    renderBookingList(refreshed);
+
+    // Merge in bookings linked to this account server-side (e.g. walk-ins matched by phone)
+    let combined = refreshed;
+    const token = localStorage.getItem('cq_token');
+    if (token) {
+      try {
+        const accountBookings = await apiFetch(`${API}/api/users/me/bookings`, {
+          headers: {'Authorization': 'Bearer ' + token}
+        });
+        if (Array.isArray(accountBookings)) {
+          const seenIds = new Set(refreshed.map(b => b.id));
+          combined = [...refreshed, ...accountBookings.filter(b => !seenIds.has(b.id))];
+        }
+      } catch {}
+    }
+    renderBookingList(combined);
   } catch(e) {
     list.innerHTML = '<div class="loading-screen"><p>Could not load bookings</p></div>';
   }
