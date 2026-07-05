@@ -595,11 +595,32 @@ function renderManage() {
     </div>`;
   });
   html+=`<button class="asv" onclick="aSvc()">＋ Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>
-  <div class="ms"><div class="ms-t">Working Hours</div>
-    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+  <div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Booking slot interval</span><select id="wh-slot" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none">
+      <option value="30" ${(partnerShop?.slotDurationMins||30)==30?'selected':''}>30 min</option>
+      <option value="60" ${(partnerShop?.slotDurationMins||30)==60?'selected':''}>60 min</option>
+    </select></div></div>
+    <button class="dsv" style="margin-top:10px" onclick="saveWorkingHours(this)">Save Hours</button>
   </div>`;
   document.getElementById('mgmt-c').innerHTML=html;
+}
+
+async function saveWorkingHours(btn) {
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  try {
+    const updated = await (await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+      openTime:document.getElementById('wh-open').value,
+      closeTime:document.getElementById('wh-close').value,
+      slotDurationMins:Number(document.getElementById('wh-slot').value),
+    })})).json();
+    partnerShop = {...partnerShop, ...updated};
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    toast('✓ Working hours saved');
+  } catch { toast('Error saving'); }
+  finally{btn.disabled=false;btn.textContent='Save Hours';}
 }
 
 function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}

@@ -1477,7 +1477,7 @@ function renderSettings() {
     </div>
 
     <div class="settings-card">
-      <div class="settings-card-title">Working Hours</div>
+      <div class="settings-card-title">Working Hours &amp; Booking Slots</div>
       <div class="settings-row">
         <div class="settings-label">Opens</div>
         <input class="settings-input" type="time" id="set-open" value="${s.openTime||'09:00'}">
@@ -1485,6 +1485,13 @@ function renderSettings() {
       <div class="settings-row">
         <div class="settings-label">Closes</div>
         <input class="settings-input" type="time" id="set-close" value="${s.closeTime||'22:00'}">
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Booking slot interval</div>
+        <select class="settings-input" id="set-slot">
+          <option value="30" ${(s.slotDurationMins||30)==30?'selected':''}>30 min</option>
+          <option value="60" ${(s.slotDurationMins||30)==60?'selected':''}>60 min</option>
+        </select>
       </div>
       <button class="settings-save-btn" onclick="saveHours(this)">Save Hours</button>
     </div>
@@ -1534,11 +1541,11 @@ async function saveHours(btn) {
   spin(btn);
   try {
     const shopId = currentShopId;
-    await fetch(API+'/api/wash/shops/'+shopId,{
-      method:'PUT',headers:authH(),
-      body:JSON.stringify({
+    await api('/api/partners/shop/'+shopId+'/settings',{
+      method:'PATCH', body:JSON.stringify({
         openTime:document.getElementById('set-open').value,
         closeTime:document.getElementById('set-close').value,
+        slotDurationMins:Number(document.getElementById('set-slot').value),
       })
     });
     toast('✓ Hours updated','success','🕘');

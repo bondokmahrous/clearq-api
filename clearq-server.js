@@ -449,6 +449,98 @@ async function inProgressCount(shopId) {
   return parseInt(r?.cnt || 0, 10);
 }
 
+// Shared bay-assignment simulation used by both the live queue display and new-booking pricing,
+// so a booking scheduled for later today is accounted for the same way in both places.
+// opts.hypotheticalArrival lets a caller ask "if someone arrived at this time, when would their bay free up?"
+// without inserting anything — used by POST /wash/reservations to price a new booking.
+async function simulateBayQueue(shopId, opts = {}) {
+  const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
+  const maxBays = s?.max_workers || 3;
+  const defaultDur = s?.slot_duration_mins || 30;
+  const nowMs = Date.now();
+
+  const allBookings = await db(
+    `SELECT b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
+            b.created_at, b.kind, COALESCE(sv.duration_mins, $2) as duration_mins
+     FROM wash_bookings b
+     LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
+     WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')`,
+    [shopId, defaultDur]
+  );
+
+  const pending = allBookings.filter(b => b.status === 'pending' && b.kind !== 'maintenance');
+  const active = allBookings.filter(b => b.status === 'in_progress' && b.kind !== 'maintenance');
+  const occupiedBays = allBookings.filter(b => b.status === 'in_progress').length;
+  const freeBays = Math.max(0, maxBays - occupiedBays);
+
+  // Process pending bookings in the order they'll actually arrive, not the order they were booked —
+  // otherwise a slot booked hours ahead gets simulated as if it happens before a walk-in booked later
+  // today but arriving sooner.
+  const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
+  pending.sort((a, b) => arrivalMs(a) - arrivalMs(b));
+
+  // QUEUE SIMULATION:
+  // Every booking (active + pending) occupies a bay slot.
+  // A new customer waits until the soonest bay is free AFTER
+  // all existing bookings are assigned.
+  let bays = Array(maxBays).fill(nowMs);
+
+  // 1. Assign active washes to bays (already in progress)
+  for (const b of active) {
+    bays.sort((a, x) => a - x);
+    const dur = parseInt(b.duration_mins) || defaultDur;
+    const finishAt = b.eta_ready_at
+      ? new Date(b.eta_ready_at).getTime()
+      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
+    bays[0] = finishAt;
+  }
+
+  // 2. Assign pending bookings to bays in arrival order
+  for (const b of pending) {
+    bays.sort((a, x) => a - x);
+    // Get real duration from eta_ready_at - eta_arrival_at if both exist
+    let dur;
+    if (b.eta_ready_at && b.eta_arrival_at) {
+      dur = Math.round((new Date(b.eta_ready_at) - new Date(b.eta_arrival_at)) / 60000);
+      if (dur < 5) dur = parseInt(b.duration_mins) || defaultDur;
+    } else {
+      dur = parseInt(b.duration_mins) || defaultDur;
+    }
+    const bayFreeAt = bays[0];
+    // Booking can't start until customer arrives OR bay is free, whichever is LATER
+    const arriveAt = b.eta_arrival_at
+      ? new Date(b.eta_arrival_at).getTime()
+      : nowMs;
+    const startAt = Math.max(bayFreeAt, arriveAt);
+    bays[0] = startAt + dur * 60000;
+  }
+
+  // 3. Optionally fold in a hypothetical new booking to see when ITS bay would actually free up,
+  // given every existing reservation (scheduled or not) — without inserting anything.
+  if (opts.hypotheticalArrival) {
+    bays.sort((a, x) => a - x);
+    const bayFreeAt = bays[0];
+    const arriveAt = opts.hypotheticalArrival.getTime();
+    const hypotheticalStart = Math.max(bayFreeAt, arriveAt);
+    return { maxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
+  }
+
+  // 4. New customer (no specific arrival given) waits until soonest bay is free
+  bays.sort((a, x) => a - x);
+  const nextFree = bays[0];
+  const waitMins = nextFree > nowMs
+    ? Math.max(1, Math.round((nextFree - nowMs) / 60000))
+    : 0;
+
+  return {
+    queueCount: pending.length,
+    activeCount: active.length,
+    maxBays,
+    freeBays,
+    minsUntilNextFree: waitMins,
+  };
+}
+
 async function getFreeBay(shopId, maxWorkers) {
   const occupied = await db(
     `SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL`,
@@ -682,77 +774,7 @@ self.addEventListener('notificationclick', e => {
     // GET /wash/queue/:shopId
     if (m === "GET" && /^\/wash\/queue\/\d+$/.test(p)) {
       const shopId = +p.split("/")[3];
-      const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
-      const maxBays = s?.max_workers || 3;
-      const defaultDur = s?.slot_duration_mins || 30;
-      const nowMs = Date.now();
-
-      // Get all unfinished bookings with their actual service duration
-      const allBookings = await db(
-        `SELECT b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
-                b.created_at, b.kind, COALESCE(sv.duration_mins, $2) as duration_mins
-         FROM wash_bookings b
-         LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
-         WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')
-         ORDER BY b.created_at ASC`,
-        [shopId, defaultDur]
-      );
-
-      const pending = allBookings.filter(b => b.status === 'pending' && b.kind !== 'maintenance');
-      const active = allBookings.filter(b => b.status === 'in_progress' && b.kind !== 'maintenance');
-      const occupiedBays = allBookings.filter(b => b.status === 'in_progress').length;
-      const freeBays = Math.max(0, maxBays - occupiedBays);
-
-      // QUEUE SIMULATION:
-      // Every booking (active + pending) occupies a bay slot.
-      // A new customer waits until the soonest bay is free AFTER
-      // all existing bookings are assigned.
-      let bays = Array(maxBays).fill(nowMs);
-
-      // 1. Assign active washes to bays (already in progress)
-      for (const b of active) {
-        bays.sort((a, x) => a - x);
-        const dur = parseInt(b.duration_mins) || defaultDur;
-        const finishAt = b.eta_ready_at
-          ? new Date(b.eta_ready_at).getTime()
-          : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
-        bays[0] = finishAt;
-      }
-
-      // 2. Assign pending bookings to bays in order they were booked
-      for (const b of pending) {
-        bays.sort((a, x) => a - x);
-        // Get real duration from eta_ready_at - eta_arrival_at if both exist
-        let dur;
-        if (b.eta_ready_at && b.eta_arrival_at) {
-          dur = Math.round((new Date(b.eta_ready_at) - new Date(b.eta_arrival_at)) / 60000);
-          if (dur < 5) dur = parseInt(b.duration_mins) || defaultDur;
-        } else {
-          dur = parseInt(b.duration_mins) || defaultDur;
-        }
-        const bayFreeAt = bays[0];
-        // Booking can't start until customer arrives OR bay is free, whichever is LATER
-        const arriveAt = b.eta_arrival_at
-          ? new Date(b.eta_arrival_at).getTime()
-          : nowMs;
-        const startAt = Math.max(bayFreeAt, arriveAt);
-        bays[0] = startAt + dur * 60000;
-      }
-
-      // 3. New customer waits until soonest bay is free
-      bays.sort((a, x) => a - x);
-      const nextFree = bays[0];
-      const waitMins = nextFree > nowMs
-        ? Math.max(1, Math.round((nextFree - nowMs) / 60000))
-        : 0;
-
-      return respond(res, 200, {
-        queueCount: pending.length,
-        activeCount: active.length,
-        maxBays,
-        freeBays,
-        minsUntilNextFree: waitMins,
-      });
+      return respond(res, 200, await simulateBayQueue(shopId));
     }
 
     // GET /wash/reservations/:id
@@ -766,7 +788,7 @@ self.addEventListener('notificationclick', e => {
     // POST /wash/reservations
     if (m === "POST" && p === "/wash/reservations") {
       const body = await readBody(req);
-      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, customerLat, customerLng } = body;
+      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng } = body;
       if (!shopId || !customerName || !customerPhone || !washType) {
         return respond(res, 400, { error: "shopId, customerName, customerPhone, washType required" });
       }
@@ -790,31 +812,13 @@ self.addEventListener('notificationclick', e => {
 
       const { price, durationMins } = await resolveService(shopId, washType);
       const now = new Date();
-      const ipCount = await inProgressCount(shopId);
-      const maxBays = s.max_workers;
-      const slotDur = s.slot_duration_mins || durationMins;
 
-      // Calculate wait time properly
-      let queueWait = 0;
-      if (ipCount >= maxBays) {
-        const active = await db(
-          `SELECT eta_ready_at, wash_started_at FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND kind IN ('reservation','walkin')`,
-          [shopId]
-        );
-        let soonest = Infinity;
-        for (const b of active) {
-          const freeAt = b.eta_ready_at
-            ? new Date(b.eta_ready_at).getTime()
-            : b.wash_started_at
-              ? new Date(b.wash_started_at).getTime() + slotDur * 60000
-              : Date.now() + slotDur * 60000;
-          if (freeAt < soonest) soonest = freeAt;
-        }
-        queueWait = soonest === Infinity ? slotDur : Math.max(1, Math.round((soonest - Date.now()) / 60000));
-      }
-
+      // Price this booking against every existing reservation (scheduled or not), not just
+      // bays physically busy right now — see simulateBayQueue for why that distinction matters.
       const driveMins = etaMinutesOverride || 0;
-      const startMins = Math.max(driveMins, queueWait);
+      const requestedArrival = new Date(now.getTime() + driveMins * 60000);
+      const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival });
+      const startMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
       const etaArrival = new Date(now.getTime() + startMins * 60000);
       const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
 
@@ -824,7 +828,7 @@ self.addEventListener('notificationclick', e => {
         [shopId, customerName, customerPhone, washType,
           scheduledDate || today(), scheduledTime || nowTime(),
           price, finalLicensePlate, finalCarModel,
-          etaArrival, etaReady, etaMinutesOverride ? "google" : "fallback",
+          etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"),
           customerLat || null, customerLng || null,
           userId, carId || null]
       );
@@ -1098,16 +1102,20 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time });
     }
 
     // PATCH /partners/shop/:id/settings
     if (m === "PATCH" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const body = await readBody(req);
-      const map = { priceExterior:"price_exterior", priceInterior:"price_interior", priceFull:"price_full", minsExterior:"mins_exterior", minsInterior:"mins_interior", minsFull:"mins_full" };
+      const numericMap = { priceExterior:"price_exterior", priceInterior:"price_interior", priceFull:"price_full", minsExterior:"mins_exterior", minsInterior:"mins_interior", minsFull:"mins_full", slotDurationMins:"slot_duration_mins" };
+      const textMap = { openTime:"open_time", closeTime:"close_time" };
       const sets = []; const vals = []; let i = 1;
-      for (const [k,col] of Object.entries(map)) {
+      for (const [k,col] of Object.entries(numericMap)) {
         if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(+body[k]); }
+      }
+      for (const [k,col] of Object.entries(textMap)) {
+        if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(String(body[k])); }
       }
       if (!sets.length) return respond(res, 400, { error: "No valid fields" });
       vals.push(shopId);

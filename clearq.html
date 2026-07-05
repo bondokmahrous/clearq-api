@@ -705,6 +705,12 @@ html, body {
     <div class="modal-sub" id="bm-addr"></div>
     <div class="modal-sec">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
+    <div class="modal-sec">When?</div>
+    <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
+      <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
+      <button type="button" id="when-schedule-btn" onclick="setBookingMode('schedule')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">Schedule</button>
+    </div>
+    <select id="bm-slot-time" onchange="onSlotTimeChange()" style="display:none;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:600;color:#0f172a;outline:none;margin-bottom:14px;"></select>
     <div class="info-box">
       <div class="info-item"><div class="info-v" id="bm-q">0</div><div class="info-l">in line</div></div>
       <div class="info-item"><div class="info-v" id="bm-w">0</div><div class="info-l">min wait</div></div>
@@ -813,6 +819,7 @@ async function apiFetch(url, options = {}) {
 let shops = [], queues = {}, services = {};
 let currentCity = 'All';
 let selectedWash = null, selectedSvc = null, selectedCarId = null;
+let bookingMode = 'now', selectedSlotTime = null;
 let starRating = 0;
 let partnerToken = localStorage.getItem('partner_token');
 let partnerShop = JSON.parse(localStorage.getItem('partner_shop') || 'null');
@@ -1221,6 +1228,15 @@ async function proceedToBookingModal(shopId) {
   selectedSvc = null;
   etaResult = null;
   userLocation = null;
+  bookingMode = 'now';
+  selectedSlotTime = null;
+  document.getElementById('bm-slot-time').style.display = 'none';
+  document.getElementById('bm-location-status').style.display = 'flex';
+  document.getElementById('when-now-btn').style.background = '#eff6ff';
+  document.getElementById('when-now-btn').style.color = '#1d4ed8';
+  document.getElementById('when-schedule-btn').style.background = '#fff';
+  document.getElementById('when-schedule-btn').style.color = '#64748b';
+  populateSlotSelect();
 
   document.getElementById('bm-name').textContent = selectedWash.name;
   document.getElementById('bm-addr').textContent = selectedWash.address;
@@ -1258,6 +1274,10 @@ async function proceedToBookingModal(shopId) {
         document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
         card.classList.add('sel');
         selectedSvc = s;
+        if (bookingMode === 'schedule') {
+          renderSchedulePreview();
+          return;
+        }
         // Recalculate times with selected service duration
         const qd2 = queues[selectedWash.id] || {};
         const qWait2 = calcQueueWait(qd2, selectedWash);
@@ -1317,11 +1337,12 @@ async function proceedToBookingModal(shopId) {
     userLocation = loc;
     const qd = queues[shopId] || {};
     const serverWaitMins = qd.minsUntilNextFree || 0;
-    
+
     if (loc) {
       locStatus.textContent = '🗺️ Calculating travel time...';
       const eta = await fetchETA(shopId, loc.latitude, loc.longitude);
       etaResult = eta;
+      if (bookingMode !== 'now') return; // user switched to Schedule while this was loading
       const driveMins = eta?.etaMinutes || 0;
       const svc = selectedSvc || (services[shopId] && services[shopId][0]);
       const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
@@ -1338,6 +1359,7 @@ async function proceedToBookingModal(shopId) {
       locStatus.style.borderColor = '#bbf7d0';
       locStatus.style.color = '#166534';
     } else {
+      if (bookingMode !== 'now') return; // user switched to Schedule while this was loading
       locStatus.innerHTML = '⚠️ Location not available — allow location access for accurate timing';
       locStatus.style.background = '#fefce8';
       locStatus.style.borderColor = '#fde68a';
@@ -1352,6 +1374,101 @@ async function proceedToBookingModal(shopId) {
       document.getElementById('bm-ready').textContent = readyStr;
     }
   });
+}
+
+function buildSlotOptions(shop) {
+  const interval = shop.slotDurationMins || 30;
+  const [openH, openM] = (shop.openTime || '09:00').split(':').map(Number);
+  const [closeH, closeM] = (shop.closeTime || '22:00').split(':').map(Number);
+  const now = new Date();
+
+  const open = new Date(now);
+  open.setHours(openH, openM, 0, 0);
+  const close = new Date(now);
+  close.setHours(closeH, closeM, 0, 0);
+  // Shop closes after midnight (e.g. open 10:00, close 00:00) — the close boundary is really tomorrow
+  if (closeH * 60 + closeM <= openH * 60 + openM) close.setDate(close.getDate() + 1);
+  if (close <= now) return []; // already closed for the rest of today
+
+  // Round up to the next slot boundary, at least one interval from now — but not before opening
+  let next = new Date(Math.max(now.getTime(), open.getTime()) + interval * 60000);
+  const rem = next.getMinutes() % interval;
+  if (rem !== 0) next.setMinutes(next.getMinutes() + (interval - rem));
+  next.setSeconds(0, 0);
+
+  const options = [];
+  let t = new Date(next);
+  while (t <= close) {
+    options.push(new Date(t));
+    t = new Date(t.getTime() + interval * 60000);
+  }
+  return options;
+}
+
+function populateSlotSelect() {
+  const select = document.getElementById('bm-slot-time');
+  const scheduleBtn = document.getElementById('when-schedule-btn');
+  const slots = buildSlotOptions(selectedWash);
+  if (!slots.length) {
+    scheduleBtn.disabled = true;
+    scheduleBtn.style.opacity = '0.4';
+    scheduleBtn.style.cursor = 'not-allowed';
+    select.innerHTML = '<option>No slots left today</option>';
+    return;
+  }
+  scheduleBtn.disabled = false;
+  scheduleBtn.style.opacity = '1';
+  scheduleBtn.style.cursor = 'pointer';
+  select.innerHTML = slots.map(t => `<option value="${t.toISOString()}">${fmtTime(t)}</option>`).join('');
+  selectedSlotTime = slots[0];
+}
+
+function onSlotTimeChange() {
+  const select = document.getElementById('bm-slot-time');
+  if (!select.value) return;
+  selectedSlotTime = new Date(select.value);
+  renderSchedulePreview();
+}
+
+function renderSchedulePreview() {
+  if (!selectedSlotTime) return;
+  const svc = selectedSvc || (services[selectedWash.id] && services[selectedWash.id][0]);
+  const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
+  const readyDate = new Date(selectedSlotTime.getTime() + dur * 60000);
+  document.getElementById('bm-w').textContent = '—';
+  document.getElementById('bm-start').textContent = fmtTime(selectedSlotTime);
+  document.getElementById('bm-ready').textContent = fmtTime(readyDate);
+}
+
+function setBookingMode(mode) {
+  bookingMode = mode;
+  const nowBtn = document.getElementById('when-now-btn');
+  const schedBtn = document.getElementById('when-schedule-btn');
+  const slotSelect = document.getElementById('bm-slot-time');
+  const locStatus = document.getElementById('bm-location-status');
+  nowBtn.style.background = mode === 'now' ? '#eff6ff' : '#fff';
+  nowBtn.style.color = mode === 'now' ? '#1d4ed8' : '#64748b';
+  schedBtn.style.background = mode === 'schedule' ? '#eff6ff' : '#fff';
+  schedBtn.style.color = mode === 'schedule' ? '#1d4ed8' : '#64748b';
+  if (mode === 'schedule') {
+    slotSelect.style.display = 'block';
+    locStatus.style.display = 'none';
+    if (!selectedSlotTime) {
+      const slots = buildSlotOptions(selectedWash);
+      selectedSlotTime = slots[0] || null;
+    }
+    renderSchedulePreview();
+  } else {
+    slotSelect.style.display = 'none';
+    locStatus.style.display = 'flex';
+    const qd = queues[selectedWash.id] || {};
+    const qWait = calcQueueWait(qd, selectedWash);
+    const svc = selectedSvc || (services[selectedWash.id] && services[selectedWash.id][0]);
+    const {startStr, readyStr, effectiveWait} = calcTimes(etaResult?.etaMinutes, qWait, svc ? svc.durationMins : (selectedWash.minsFull || 45), qd, selectedWash);
+    document.getElementById('bm-w').textContent = effectiveWait;
+    document.getElementById('bm-start').textContent = startStr;
+    document.getElementById('bm-ready').textContent = readyStr;
+  }
 }
 
 function closeBModal(e) {
@@ -1369,15 +1486,17 @@ async function confirmBooking() {
   if (!name) { errEl.textContent = 'Please enter your name'; return; }
   if (!phone) { errEl.textContent = 'Please enter your phone number'; return; }
   if (userCars.length && !selectedCarId) { errEl.textContent = 'Please select which car'; return; }
+  if (bookingMode === 'schedule' && !selectedSlotTime) { errEl.textContent = 'Please pick a time slot'; return; }
 
   const btn = document.getElementById('bm-confirm');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>';
 
-  const now = new Date();
   const pad = n => String(n).padStart(2,'0');
-  const scheduledDate = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  const scheduledTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const now = new Date();
+  const refTime = bookingMode === 'schedule' ? selectedSlotTime : now;
+  const scheduledDate = `${refTime.getFullYear()}-${pad(refTime.getMonth()+1)}-${pad(refTime.getDate())}`;
+  const scheduledTime = `${pad(refTime.getHours())}:${pad(refTime.getMinutes())}`;
 
   try {
     const selectedCar = userCars.find(c => c.id === selectedCarId);
@@ -1397,7 +1516,10 @@ async function confirmBooking() {
       body.customerLat = userLocation.latitude;
       body.customerLng = userLocation.longitude;
     }
-    if (etaResult) {
+    if (bookingMode === 'schedule') {
+      body.etaMinutesOverride = Math.max(0, Math.round((selectedSlotTime - now) / 60000));
+      body.etaSource = 'scheduled';
+    } else if (etaResult) {
       body.etaMinutesOverride = etaResult.etaMinutes;
       body.etaSource = etaResult.source;
     }
