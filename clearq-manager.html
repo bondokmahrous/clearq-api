@@ -1102,9 +1102,18 @@ function renderQueueTable(bookings) {
     return;
   }
 
-  // Sort: in_progress first, then pending, then completed
+  // Sort: in_progress first, then pending, then completed.
+  // Pending is ordered by expected arrival time (first come, first served) so staff can see who's
+  // actually next in line and manually start the right one — not automated, since only staff on
+  // site know who's really arrived.
   const order = {in_progress:0,pending:1,completed:2,cancelled:3};
-  const sorted = [...filtered].sort((a,b)=>(order[a.status]??4)-(order[b.status]??4)||(new Date(b.createdAt)-new Date(a.createdAt)));
+  const arrival = b => new Date(b.etaArrivalAt || b.createdAt).getTime();
+  const sorted = [...filtered].sort((a,b) => {
+    const statusDiff = (order[a.status]??4)-(order[b.status]??4);
+    if (statusDiff !== 0) return statusDiff;
+    if (a.status === 'pending' && b.status === 'pending') return arrival(a) - arrival(b);
+    return new Date(b.createdAt)-new Date(a.createdAt);
+  });
 
   el.innerHTML = `<table class="queue-table">
     <thead><tr>

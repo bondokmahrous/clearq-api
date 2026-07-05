@@ -553,23 +553,6 @@ async function getFreeBay(shopId, maxWorkers) {
   return null;
 }
 
-async function autoAdvance(shopId, freedBay) {
-  const next = await db1(
-    `SELECT * FROM wash_bookings WHERE shop_id=$1 AND status='pending' AND kind IN ('reservation','walkin') AND bay_number IS NULL ORDER BY created_at ASC LIMIT 1`,
-    [shopId]
-  );
-  if (!next) return null;
-  const { durationMins } = await resolveService(shopId, next.wash_type);
-  const now = new Date();
-  const eta = new Date(now.getTime() + durationMins * 60000);
-  const [advanced] = await db(
-    `UPDATE wash_bookings SET status='in_progress', bay_number=$1, arrived_at=NOW(), wash_started_at=NOW(), eta_ready_at=$2, updated_at=NOW() WHERE id=$3 RETURNING *`,
-    [freedBay, eta, next.id]
-  );
-  console.log(`Auto-advanced booking ${next.id} to bay ${freedBay}`);
-  return advanced;
-}
-
 // ─── PUSH NOTIFICATIONS ──────────────────────────────────────────────────────
 function b64urlDecode(str) {
   str = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -1178,8 +1161,9 @@ self.addEventListener('notificationclick', e => {
         [b.customer_phone, b.customer_name, shopId, s?.name||"", b.wash_type, dur, b.price, bookingId]
       );
 
-      // Auto-advance queue
-      if (b.bay_number != null) await autoAdvance(shopId, b.bay_number);
+      // Bay is freed here — staff pick who starts next from the queue themselves (see Start button),
+      // rather than the system auto-assigning by booking order, since only staff can see who's
+      // actually arrived.
 
       // Notify user their car is ready
       try {

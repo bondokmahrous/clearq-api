@@ -467,7 +467,9 @@ async function loadQueue(silent=false) {
 
 function renderQueue(bookings) {
   const inP=bookings.filter(b=>b.status==='in_progress');
-  const pend=bookings.filter(b=>b.status==='pending');
+  // First come, first served — sorted by expected arrival, not booking order, so staff can see
+  // who's actually next in line and pick who to start themselves.
+  const pend=bookings.filter(b=>b.status==='pending').sort((a,b)=>new Date(a.etaArrivalAt||a.createdAt)-new Date(b.etaArrivalAt||b.createdAt));
   const done=bookings.filter(b=>b.status==='completed');
   document.getElementById('chip-p').textContent=pend.length;
   document.getElementById('chip-i').textContent=inP.length;
