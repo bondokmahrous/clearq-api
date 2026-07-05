@@ -483,9 +483,9 @@ html, body {
 <div class="landing" id="landing-page">
 
   <div class="lp-hero">
-    <div class="lp-badge">🇪🇬 Cairo · Now Live</div>
-    <div class="lp-h1">Egypt's first <span>live</span> car wash booking.</div>
-    <div class="lp-sub">See real queues. Book instantly. Drive straight in.</div>
+    <div class="lp-badge">🔴 Live Queues · Cairo</div>
+    <div class="lp-h1">See car wash <span>queues</span>, live.</div>
+    <div class="lp-sub">Real wait times at every wash centre, updated live. Book instantly. Drive straight in.</div>
 
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:32px;">
       <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()" style="width:100%;max-width:320px;padding:15px 24px;font-size:16px;">Book a Wash Now</button>
@@ -906,6 +906,7 @@ async function refreshQueues() {
     }
   } catch {}
   filterWashes();
+  updateLandingLiveTicker();
 }
 
 function calcQueueWait(q, shop) {
@@ -2502,6 +2503,21 @@ function updateLandingMock() {
   }
   const centresEl = document.getElementById('lp-centres');
   if (shops.length && centresEl) centresEl.textContent = shops.length;
+  updateLandingLiveTicker();
+}
+
+function updateLandingLiveTicker() {
+  const qd = queues[6];
+  const badge = document.querySelector('#lp-mock-1 .lp-mock-queue');
+  const sub = document.querySelector('#lp-mock-1 .lp-mock-row-sub');
+  if (!qd || !badge) return;
+  const waitMins = qd.minsUntilNextFree || 0;
+  const bg = waitMins === 0 ? 'rgba(34,197,94,0.15)' : waitMins < 30 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+  const color = waitMins === 0 ? '#4ade80' : waitMins < 30 ? '#fbbf24' : '#f87171';
+  badge.textContent = waitMins === 0 ? '✓ No wait' : `~${waitMins} min wait`;
+  badge.style.background = bg;
+  badge.style.color = color;
+  if (sub && qd.maxBays != null) sub.textContent = `${qd.freeBays ?? 0} of ${qd.maxBays} bays free now`;
 }
 
 function switchView(v) {
