@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  window.googleMapsReadyPromise = new Promise(resolve => { window._resolveGoogleMapsReady = resolve; });
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as&callback=_resolveGoogleMapsReady"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ClearQ — Book a Car Wash Online in Sheikh Zayed, Cairo</title>
 <meta name="description" content="ClearQ is Egypt's first live car wash booking platform. See real-time queues, book a car wash in seconds, and drive straight in with no waiting. Now live in Sheikh Zayed, Cairo.">
@@ -2076,7 +2078,42 @@ async function verifyOTP() {}
 async function resendOTP() {}
 
 let mapInitialized = false;
-let leafletMap = null;
+let gMap = null;
+let gPinOverlays = [];
+let gUserMarker = null;
+
+// PinOverlay must be built lazily — google.maps isn't loaded yet when this script first parses,
+// so extending google.maps.OverlayView at top level would throw before the SDK script resolves.
+let PinOverlayClass = null;
+function getPinOverlayClass() {
+  if (!PinOverlayClass) {
+    PinOverlayClass = class extends google.maps.OverlayView {
+      constructor(position, html) {
+        super();
+        this.position = position;
+        this.html = html;
+        this.div = null;
+      }
+      onAdd() {
+        this.div = document.createElement('div');
+        this.div.style.position = 'absolute';
+        this.div.style.transform = 'translate(-50%, -100%)';
+        this.div.innerHTML = this.html;
+        this.getPanes().overlayMouseTarget.appendChild(this.div);
+      }
+      draw() {
+        const proj = this.getProjection();
+        if (!proj || !this.div) return;
+        const point = proj.fromLatLngToDivPixel(new google.maps.LatLng(this.position.lat, this.position.lng));
+        if (point) { this.div.style.left = point.x + 'px'; this.div.style.top = point.y + 'px'; }
+      }
+      onRemove() {
+        if (this.div) { this.div.remove(); this.div = null; }
+      }
+    };
+  }
+  return PinOverlayClass;
+}
 
 function showTab(tab) {
   document.getElementById('washes-list').style.display = 'none';
@@ -2091,7 +2128,7 @@ function showTab(tab) {
     document.querySelectorAll('.filters,.result-bar,.user-header').forEach(el => el.style.display = '');
   } else if (tab === 'map') {
     document.getElementById('tab-map').style.display = 'block';
-    initMap();
+    window.googleMapsReadyPromise.then(initMap);
   } else if (tab === 'bookings') {
     document.getElementById('tab-bookings').style.display = 'block';
     loadMyBookings();
@@ -2104,24 +2141,27 @@ function showTab(tab) {
 function initMap() {
   if (mapInitialized) { refreshMapPins(); return; }
   mapInitialized = true;
-  leafletMap = L.map('map-container', {zoomControl: true}).setView([30.062, 30.958], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors', maxZoom: 19
-  }).addTo(leafletMap);
+  gMap = new google.maps.Map(document.getElementById('map-container'), {
+    center: { lat: 30.062, lng: 30.958 }, zoom: 14,
+    mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+  });
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
-      leafletMap.setView([pos.coords.latitude, pos.coords.longitude], 14);
-      L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
-        radius: 8, fillColor: '#3b82f6', color: '#fff', weight: 2, fillOpacity: 1
-      }).addTo(leafletMap).bindPopup('You are here');
+      const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      gMap.setCenter(userPos);
+      gUserMarker = new google.maps.Marker({
+        position: userPos, map: gMap, title: 'You are here',
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+      });
     }, () => {});
   }
   refreshMapPins();
 }
 
 function refreshMapPins() {
-  if (!leafletMap) return;
-  leafletMap.eachLayer(layer => { if (layer instanceof L.Marker) leafletMap.removeLayer(layer); });
+  if (!gMap) return;
+  gPinOverlays.forEach(o => o.setMap(null));
+  gPinOverlays = [];
   const cards = document.getElementById('map-cards');
   cards.innerHTML = '';
   shops.forEach(s => {
@@ -2132,12 +2172,10 @@ function refreshMapPins() {
     const qColor = waitMins === 0 ? '#22c55e' : waitMins < 30 ? '#f59e0b' : '#ef4444';
     const pinClass = waitMins === 0 ? '' : waitMins < 30 ? 'busy' : 'full';
 
-    const icon = L.divIcon({
-      className: '',
-      html: `<button class="map-pin ${pinClass}" onclick="focusMapShop(${s.id})">${s.name.split(' ')[0]}</button>`,
-      iconAnchor: [0, 0]
-    });
-    L.marker([s.lat, s.lng], {icon}).addTo(leafletMap);
+    const pinHtml = `<button class="map-pin ${pinClass}" onclick="focusMapShop(${s.id})">${s.name.split(' ')[0]}</button>`;
+    const overlay = new (getPinOverlayClass())({ lat: s.lat, lng: s.lng }, pinHtml);
+    overlay.setMap(gMap);
+    gPinOverlays.push(overlay);
 
     // Build pricing pills from live services or shop fallback prices
     const liveSvcs = services[s.id];
@@ -2177,7 +2215,7 @@ function refreshMapPins() {
 
 function focusMapShop(shopId) {
   const s = shops.find(sh => sh.id === shopId);
-  if (s && leafletMap) leafletMap.setView([s.lat, s.lng], 16);
+  if (s && gMap) { gMap.panTo({ lat: s.lat, lng: s.lng }); gMap.setZoom(16); }
   const card = document.getElementById(`map-card-${shopId}`);
   if (card) card.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
 }
