@@ -18,7 +18,7 @@
 <style>
 :root {
   --navy:#0f172a; --navy-mid:#1e293b; --navy-light:#334155;
-  --blue:#3b82f6; --blue-dark:#1d4ed8; --blue-light:#60a5fa;
+  --blue:#3FBDB0; --blue-dark:#21867B; --blue-light:#8FE1D9;
   --green:#22c55e; --green-dark:#166534; --amber:#f59e0b;
   --red:#ef4444; --white:#f8fafc; --gray:#94a3b8; --gray-dark:#64748b;
   --radius:14px; --radius-sm:8px;
@@ -44,7 +44,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 /* ══ USER VIEW ══════════════════════════════════════════════ */
 #view-user{background:#f0f4f8;}
 
-.user-header{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);padding:18px 16px 14px;}
+.user-header{background:linear-gradient(135deg,#21867B,#0B2B33);padding:18px 16px 14px;}
 .brand-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
 .brand-logo{width:38px;height:38px;border-radius:19px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:17px;}
 .brand-name{color:#fff;font-size:20px;font-weight:800;}
@@ -66,7 +66,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 .washes-list{padding:10px 13px 100px;display:flex;flex-direction:column;gap:11px;}
 
 /* Active reservation */
-.active-card{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);border-radius:var(--radius);padding:14px;margin-bottom:4px;}
+.active-card{background:linear-gradient(135deg,#21867B,#0B2B33);border-radius:var(--radius);padding:14px;margin-bottom:4px;}
 .active-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;}
 .live-row{display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.8);}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;}
@@ -99,7 +99,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 .price-l{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.3px;}
 
 .features{display:flex;flex-wrap:wrap;gap:5px;padding:0 13px 11px;}
-.fpill{background:#eff6ff;border-radius:18px;padding:3px 9px;font-size:10px;font-weight:600;color:#1d4ed8;}
+.fpill{background:#E6F7F5;border-radius:18px;padding:3px 9px;font-size:10px;font-weight:600;color:#21867B;}
 .wash-hours{padding:0 13px 11px;font-size:11px;color:#64748b;}
 .card-bottom{border-top:1px solid #f1f5f9;padding:9px 13px;display:flex;align-items:center;justify-content:space-between;}
 .maps-link{font-size:11px;color:var(--blue);font-weight:600;text-decoration:none;}
@@ -127,7 +127,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 .modal-sec{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:9px;}
 .svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:18px;}
 .svc-card{border:2px solid #e2e8f0;border-radius:11px;padding:11px 7px;text-align:center;cursor:pointer;transition:all 0.15s;}
-.svc-card.sel{border-color:var(--blue);background:#eff6ff;}
+.svc-card.sel{border-color:var(--blue);background:#E6F7F5;}
 .svc-name{font-size:12px;font-weight:700;color:#0f172a;}
 .svc-price{font-size:15px;font-weight:800;color:var(--blue);margin-top:2px;}
 .svc-dur{font-size:10px;color:#94a3b8;}
@@ -259,16 +259,16 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 .lp-stats{display:flex;justify-content:center;background:#fff;border-bottom:1px solid #e2e8f0;}
 .lp-stat{flex:1;text-align:center;padding:18px 10px;border-right:1px solid #e2e8f0;}
 .lp-stat:last-child{border-right:none;}
-.lp-stat-v{font-size:22px;font-weight:800;color:#1d4ed8;}
+.lp-stat-v{font-size:22px;font-weight:800;color:#21867B;}
 .lp-stat-l{font-size:10px;color:#64748b;margin-top:2px;font-weight:500;}
 .lp-how{padding:36px 22px;}
-.lp-section-label{font-size:10px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.lp-section-label{font-size:10px;font-weight:700;color:#3FBDB0;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
 .lp-section-title{font-size:26px;font-weight:800;color:#0f172a;line-height:1.2;margin-bottom:6px;font-family:Georgia,serif;}
-.lp-section-title span{color:#3b82f6;font-style:italic;}
+.lp-section-title span{color:#3FBDB0;font-style:italic;}
 .lp-section-sub{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:24px;}
 .lp-steps{display:flex;flex-direction:column;gap:14px;}
 .lp-step{display:flex;align-items:flex-start;gap:14px;background:#fff;border-radius:14px;padding:16px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.04);}
-.lp-step-num{width:36px;height:36px;border-radius:18px;background:#eff6ff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#1d4ed8;flex-shrink:0;}
+.lp-step-num{width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#21867B;flex-shrink:0;}
 .lp-step-title{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:3px;}
 .lp-step-body{font-size:12px;color:#64748b;line-height:1.5;}
 .lp-features{padding:0 22px 36px;}
@@ -279,9 +279,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,23,42,0.9
 .lp-feat-body{font-size:11px;color:#64748b;line-height:1.5;}
 .lp-partner{background:#0f172a;padding:36px 22px;text-align:center;}
 .lp-partner-title{font-size:22px;font-weight:800;color:#fff;font-family:Georgia,serif;margin-bottom:6px;}
-.lp-partner-title span{color:#60a5fa;font-style:italic;}
+.lp-partner-title span{color:#8FE1D9;font-style:italic;}
 .lp-partner-sub{font-size:13px;color:#94a3b8;line-height:1.6;margin-bottom:20px;}
-.lp-partner-btn{background:#3b82f6;color:#fff;border:none;border-radius:11px;padding:13px 28px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;width:100%;text-decoration:none;text-align:center;}
+.lp-partner-btn{background:#3FBDB0;color:#fff;border:none;border-radius:11px;padding:13px 28px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;display:block;width:100%;text-decoration:none;text-align:center;}
 .lp-partner-wa{display:flex;align-items:center;justify-content:center;gap:6px;color:#94a3b8;font-size:12px;text-decoration:none;margin-top:10px;}
 .lp-footer{background:#020617;padding:22px;text-align:center;}
 .lp-footer-logo{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;}
@@ -304,15 +304,15 @@ html, body {
 .svc-boxes-row::-webkit-scrollbar{display:none;}
 .svc-box{background:#f8fafc;border-radius:9px;padding:8px 11px;border:1px solid #e8edf3;text-align:center;min-width:80px;flex-shrink:0;}
 .svc-box-name{font-size:11px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.3px;}
-.svc-box-price{font-size:15px;font-weight:800;color:#1d4ed8;margin-top:2px;}
+.svc-box-price{font-size:15px;font-weight:800;color:#21867B;margin-top:2px;}
 .svc-box-dur{font-size:9px;color:#94a3b8;margin-top:1px;}
 .svc-box-desc{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3;text-align:left;}
 
 /* LOCATION BANNER */
-.loc-banner{display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;padding:10px 14px;align-items:center;gap:10px;}
+.loc-banner{display:none;background:#E6F7F5;border-bottom:1px solid #B7E8E1;padding:10px 14px;align-items:center;gap:10px;}
 .loc-banner.show{display:flex;}
-.loc-banner-text{flex:1;font-size:12px;color:#1d4ed8;font-weight:500;}
-.loc-allow-btn{background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;}
+.loc-banner-text{flex:1;font-size:12px;color:#21867B;font-weight:500;}
+.loc-allow-btn{background:#3FBDB0;color:#fff;border:none;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;}
 .loc-deny-btn{background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;padding:0 4px;}
 
 /* NOTIFICATIONS */
@@ -323,7 +323,7 @@ html, body {
 .notif-title{font-size:13px;font-weight:700;color:#fff;margin-bottom:2px;}
 .notif-body{font-size:12px;color:#94a3b8;line-height:1.4;}
 .notif-close{background:none;border:none;color:#475569;font-size:16px;cursor:pointer;padding:0;flex-shrink:0;}
-.notif-action{display:inline-block;margin-top:6px;background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;}
+.notif-action{display:inline-block;margin-top:6px;background:#3FBDB0;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;}
 
 /* BOOKING MODAL USER CARD */
 .bm-user-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:14px;}
@@ -341,14 +341,14 @@ html, body {
 
 /* ACCOUNT TAB */
 .acct-card{background:#fff;border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid #e2e8f0;}
-.acct-avatar{width:64px;height:64px;border-radius:32px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;margin:0 auto 12px;}
+.acct-avatar{width:64px;height:64px;border-radius:32px;background:#3FBDB0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;margin:0 auto 12px;}
 .acct-name{font-size:18px;font-weight:800;color:#0f172a;text-align:center;}
 .acct-email{font-size:13px;color:#64748b;text-align:center;margin-top:2px;}
 .acct-field{margin-bottom:12px;}
 .acct-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;}
 .acct-input{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:11px 13px;font-size:14px;color:#0f172a;outline:none;transition:border-color 0.15s;}
-.acct-input:focus{border-color:#3b82f6;}
-.acct-save-btn{width:100%;background:#3b82f6;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;margin-top:4px;cursor:pointer;}
+.acct-input:focus{border-color:#3FBDB0;}
+.acct-save-btn{width:100%;background:#3FBDB0;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;margin-top:4px;cursor:pointer;}
 .acct-logout-btn{width:100%;background:#fff;color:#ef4444;border:1px solid #fecaca;border-radius:11px;padding:13px;font-size:14px;font-weight:600;margin-top:8px;cursor:pointer;}
 
 /* MAP */
@@ -357,8 +357,8 @@ html, body {
 .mcm-name{font-size:13px;font-weight:700;color:#0f172a;margin-bottom:4px;}
 .mcm-queue{font-size:12px;font-weight:600;}
 .mcm-addr{font-size:11px;color:#64748b;margin-top:2px;}
-.mcm-book{background:#3b82f6;color:#fff;border:none;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:700;margin-top:8px;width:100%;cursor:pointer;position:relative;z-index:1001;}
-.map-pin{background:#3b82f6;color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);white-space:nowrap;}
+.mcm-book{background:#3FBDB0;color:#fff;border:none;border-radius:7px;padding:8px 12px;font-size:12px;font-weight:700;margin-top:8px;width:100%;cursor:pointer;position:relative;z-index:1001;}
+.map-pin{background:#3FBDB0;color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);white-space:nowrap;}
 .map-pin.busy{background:#f59e0b;}
 .map-pin.full{background:#ef4444;}
 
@@ -460,13 +460,13 @@ html, body {
 .wi-title{font-size:16px;font-weight:700;color:var(--white,#fff);margin-bottom:14px;}
 .wi-label{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:7px;display:block;}
 .wi-input{width:100%;background:var(--navy,#0f172a);border:1px solid #334155;border-radius:9px;padding:10px 13px;color:#fff;font-size:14px;outline:none;margin-bottom:14px;}
-.wi-input:focus{border-color:#3b82f6;}
+.wi-input:focus{border-color:#3FBDB0;}
 .wt-row{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;}
 .wt-btn{flex:1;min-width:70px;border-radius:9px;border:1px solid #334155;padding:9px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;color:#64748b;background:none;transition:all 0.15s;}
-.wt-btn.sel{background:#1e3a6e;border-color:#3b82f6;color:#60a5fa;}
+.wt-btn.sel{background:#123D3A;border-color:#3FBDB0;color:#8FE1D9;}
 .wi-acts{display:flex;gap:9px;}
 .wi-cancel{flex:1;border-radius:9px;border:1px solid #334155;padding:11px;color:#64748b;background:none;font-size:13px;font-weight:600;cursor:pointer;}
-.wi-confirm{flex:1;border-radius:9px;background:#1d4ed8;border:none;padding:11px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+.wi-confirm{flex:1;border-radius:9px;background:#21867B;border:none;padding:11px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;}
 .wi-confirm:disabled{opacity:0.4;cursor:not-allowed;}
 
 
@@ -489,7 +489,7 @@ html, body {
 
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:32px;">
       <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()" style="width:100%;max-width:320px;padding:15px 24px;font-size:16px;">Book a Wash Now</button>
-      <button onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#60a5fa;font-weight:700;text-decoration:underline;">Sign in</span></button>
+      <button onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;">Sign in</span></button>
     </div>
 
     <!-- Live bay board -->
@@ -504,23 +504,23 @@ html, body {
 
   <!-- Simple 3 steps -->
   <div style="background:#fff;padding:28px 22px;" id="lp-how">
-    <div style="font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;">How it works</div>
+    <div style="font-size:11px;font-weight:700;color:#3FBDB0;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;">How it works</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:36px;height:36px;border-radius:18px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="9" r="6.5" stroke="#3b82f6" stroke-width="1.8"/><path d="M9 5.5V9l3 2" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/><path d="M16 16l4.5 4.5" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="9" r="6.5" stroke="#3FBDB0" stroke-width="1.8"/><path d="M9 5.5V9l3 2" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/><path d="M16 16l4.5 4.5" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
         <div><div style="font-size:14px;font-weight:700;color:#0f172a;">See live queues</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Check wait times before you leave</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:36px;height:36px;border-radius:18px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="15" height="18" viewBox="0 0 18 22" fill="none"><rect x="1" y="1" width="16" height="20" rx="3" stroke="#3b82f6" stroke-width="1.8"/><path d="M6 15.5l2.5 2.5L13 12" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="15" height="18" viewBox="0 0 18 22" fill="none"><rect x="1" y="1" width="16" height="20" rx="3" stroke="#3FBDB0" stroke-width="1.8"/><path d="M6 15.5l2.5 2.5L13 12" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
         <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Book in seconds</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Your bay is timed to your arrival</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:36px;height:36px;border-radius:18px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <svg width="20" height="15" viewBox="0 0 24 18" fill="none"><rect x="2" y="6" width="20" height="7" rx="3" fill="none" stroke="#3b82f6" stroke-width="1.8"/><circle cx="7" cy="15" r="2.2" fill="#3b82f6"/><circle cx="17" cy="15" r="2.2" fill="#3b82f6"/><path d="M1 6l2-4h5M23 6l-2-4" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="15" viewBox="0 0 24 18" fill="none"><rect x="2" y="6" width="20" height="7" rx="3" fill="none" stroke="#3FBDB0" stroke-width="1.8"/><circle cx="7" cy="15" r="2.2" fill="#3FBDB0"/><circle cx="17" cy="15" r="2.2" fill="#3FBDB0"/><path d="M1 6l2-4h5M23 6l-2-4" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
         <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Drive straight in</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Bay ready, notified when car is done</div></div>
       </div>
@@ -533,14 +533,14 @@ html, body {
     <div class="lp-partner-sub">Free to join. Get customers, manage your queue, track your day.</div>
     <a href="/partner" class="lp-partner-btn">Partner Login →</a>
     <div style="margin-top:14px;font-size:12px;color:#94a3b8;">
-      To register your centre, email <a href="mailto:ClearQ.info@gmail.com" style="color:#60a5fa;font-weight:600;text-decoration:none;">ClearQ.info@gmail.com</a>
+      To register your centre, email <a href="mailto:ClearQ.info@gmail.com" style="color:#8FE1D9;font-weight:600;text-decoration:none;">ClearQ.info@gmail.com</a>
     </div>
   </div>
 
   <!-- Footer -->
   <div class="lp-footer">
     <div class="lp-footer-logo">
-      <div style="width:28px;height:28px;border-radius:7px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;">C</div>
+      <div style="width:28px;height:28px;border-radius:7px;background:#3FBDB0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;">C</div>
       <span class="lp-footer-name">ClearQ</span>
     </div>
     <div class="lp-footer-sub">Egypt's first live car wash booking platform.<br>Cairo, Egypt · 2026</div>
@@ -707,7 +707,7 @@ html, body {
     <div class="svc-grid" id="bm-svcs"></div>
     <div class="modal-sec">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
-      <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#eff6ff;color:#1d4ed8;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
+      <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
       <button type="button" id="when-schedule-btn" onclick="setBookingMode('schedule')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">Schedule</button>
     </div>
     <select id="bm-slot-time" onchange="onSlotTimeChange()" style="display:none;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:600;color:#0f172a;outline:none;margin-bottom:14px;"></select>
@@ -717,17 +717,17 @@ html, body {
       <div class="info-item"><div class="info-v blue" id="bm-start">—</div><div class="info-l">your start</div></div>
       <div class="info-item"><div class="info-v blue" id="bm-ready">—</div><div class="info-l">ready by</div></div>
     </div>
-    <div id="bm-location-status" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:9px 12px;font-size:12px;color:#1d4ed8;margin-bottom:14px;align-items:center;gap:7px"></div>
+    <div id="bm-location-status" style="display:none;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:9px;padding:9px 12px;font-size:12px;color:#21867B;margin-bottom:14px;align-items:center;gap:7px"></div>
     
     <!-- Auto-filled user info card -->
     <div id="bm-user-card" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <div id="bm-avatar" style="width:40px;height:40px;border-radius:20px;background:#3b82f6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;"></div>
+        <div id="bm-avatar" style="width:40px;height:40px;border-radius:20px;background:#3FBDB0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;flex-shrink:0;"></div>
         <div style="flex:1;">
           <div id="bm-user-name" style="font-size:14px;font-weight:700;color:#0f172a;"></div>
           <div id="bm-user-phone" style="font-size:12px;color:#64748b;margin-top:1px;"></div>
         </div>
-        <a onclick="showTab('account')" style="font-size:11px;color:#3b82f6;font-weight:600;cursor:pointer;">Edit →</a>
+        <a onclick="showTab('account')" style="font-size:11px;color:#3FBDB0;font-weight:600;cursor:pointer;">Edit →</a>
       </div>
       <div id="bm-car-section">
         <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Which car?</div>
@@ -1232,8 +1232,8 @@ async function proceedToBookingModal(shopId) {
   selectedSlotTime = null;
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
-  document.getElementById('when-now-btn').style.background = '#eff6ff';
-  document.getElementById('when-now-btn').style.color = '#1d4ed8';
+  document.getElementById('when-now-btn').style.background = '#E6F7F5';
+  document.getElementById('when-now-btn').style.color = '#21867B';
   document.getElementById('when-schedule-btn').style.background = '#fff';
   document.getElementById('when-schedule-btn').style.color = '#64748b';
   populateSlotSelect();
@@ -1314,7 +1314,7 @@ async function proceedToBookingModal(shopId) {
       carSelect.innerHTML = userCars.map(c => `<option value="${c.id}" ${c.isDefault ? 'selected' : ''}>${carLabel(c)}${c.licensePlate ? ' · ' + c.licensePlate : ''}</option>`).join('');
       selectedCarId = userCars.find(c => c.isDefault)?.id || userCars[0]?.id || null;
     } else {
-      carSection.innerHTML = `<div style="font-size:12px;color:#94a3b8;">No cars saved yet. <a onclick="closeBModal({target:document.getElementById('booking-modal')});showTab('account');" style="color:#3b82f6;font-weight:600;cursor:pointer;">Add a car →</a></div>`;
+      carSection.innerHTML = `<div style="font-size:12px;color:#94a3b8;">No cars saved yet. <a onclick="closeBModal({target:document.getElementById('booking-modal')});showTab('account');" style="color:#3FBDB0;font-weight:600;cursor:pointer;">Add a car →</a></div>`;
       selectedCarId = null;
     }
   }
@@ -1446,10 +1446,10 @@ function setBookingMode(mode) {
   const schedBtn = document.getElementById('when-schedule-btn');
   const slotSelect = document.getElementById('bm-slot-time');
   const locStatus = document.getElementById('bm-location-status');
-  nowBtn.style.background = mode === 'now' ? '#eff6ff' : '#fff';
-  nowBtn.style.color = mode === 'now' ? '#1d4ed8' : '#64748b';
-  schedBtn.style.background = mode === 'schedule' ? '#eff6ff' : '#fff';
-  schedBtn.style.color = mode === 'schedule' ? '#1d4ed8' : '#64748b';
+  nowBtn.style.background = mode === 'now' ? '#E6F7F5' : '#fff';
+  nowBtn.style.color = mode === 'now' ? '#21867B' : '#64748b';
+  schedBtn.style.background = mode === 'schedule' ? '#E6F7F5' : '#fff';
+  schedBtn.style.color = mode === 'schedule' ? '#21867B' : '#64748b';
   if (mode === 'schedule') {
     slotSelect.style.display = 'block';
     locStatus.style.display = 'none';
@@ -1760,7 +1760,7 @@ function statusColor(st) {
   if (st==='in_progress') return '#f59e0b';
   if (st==='completed') return '#22c55e';
   if (st==='cancelled') return '#ef4444';
-  return '#60a5fa';
+  return '#8FE1D9';
 }
 
 function minsAgo(d) { return d ? Math.floor((Date.now()-new Date(d).getTime())/60000) : 0; }
@@ -1809,7 +1809,7 @@ function renderQueue(bookings) {
   };
 
   renderGroup(inP,'in_progress','#f59e0b','In Progress');
-  renderGroup(pend,'pending','#60a5fa','Pending');
+  renderGroup(pend,'pending','#8FE1D9','Pending');
   renderGroup(done,'completed','#22c55e','Completed');
 
   document.getElementById('queue-content').innerHTML = html || '<div class="loading-screen"><p>Queue is empty</p></div>';
@@ -1860,7 +1860,7 @@ function bayTheme(state) {
   const t = {
     free: {bg:'#0f2d1a',border:'#166534',color:'#4ade80',label:'Free'},
     in_wash: {bg:'#422006',border:'#d97706',color:'#fbbf24',label:'In Wash'},
-    incoming: {bg:'#1e3a6e',border:'#3b82f6',color:'#60a5fa',label:'Incoming'},
+    incoming: {bg:'#123D3A',border:'#3FBDB0',color:'#8FE1D9',label:'Incoming'},
     walkin: {bg:'#451a03',border:'#ea580c',color:'#fb923c',label:'Walk-in'},
     unavailable: {bg:'#1c1c2e',border:'#7c3aed',color:'#a78bfa',label:'Unavailable'},
   };
@@ -1892,9 +1892,9 @@ function renderBays(data) {
           `<div class="bay-avail">Available</div>`}
       </div>
       <div class="bay-actions">
-        ${bay.state==='free'?`<button class="bbtn" style="background:#1e40af" onclick="openWIBay(${bay.bayNumber})">+ Walk-in</button><button class="bbtn bbtn-icon" style="background:#3b0764;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:''}
+        ${bay.state==='free'?`<button class="bbtn" style="background:#1C7A70" onclick="openWIBay(${bay.bayNumber})">+ Walk-in</button><button class="bbtn bbtn-icon" style="background:#3b0764;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:''}
         ${bay.state==='unavailable'?`<button class="bbtn" style="background:#14532d" onclick="setBayFree(${bay.bayNumber})">🔓 Set Available</button>`:''}
-        ${bay.state==='incoming'&&bay.booking?`<button class="bbtn" style="background:#1e40af" onclick="doAction(${bay.booking.id},'start')">▶ Start</button>`:''}
+        ${bay.state==='incoming'&&bay.booking?`<button class="bbtn" style="background:#1C7A70" onclick="doAction(${bay.booking.id},'start')">▶ Start</button>`:''}
         ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">✓ Done</button>`:''}
       </div>
     </div>`;
@@ -1983,7 +1983,7 @@ function renderManage() {
       </div>
     </div>`;
   });
-  html += `<button onclick="addSvc()" style="background:#1e3a6e;border:none;border-radius:7px;padding:9px 14px;color:#60a5fa;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;">+ Add Service</button>
+  html += `<button onclick="addSvc()" style="background:#123D3A;border:none;border-radius:7px;padding:9px 14px;color:#8FE1D9;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;">+ Add Service</button>
     <button onclick="saveServices()" style="background:#166534;border:none;border-radius:7px;padding:9px 14px;color:#4ade80;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px;margin-left:8px;">Save Changes</button>
   </div>`;
   document.getElementById('manage-content').innerHTML = html;
@@ -2274,7 +2274,7 @@ function initMap() {
       gMap.setCenter(userPos);
       gUserMarker = new google.maps.Marker({
         position: userPos, map: gMap, title: 'You are here',
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#3b82f6', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
+        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#3FBDB0', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
       });
     }, () => {});
   }
@@ -2307,7 +2307,7 @@ function refreshMapPins() {
       priceHtml = liveSvcs.slice(0, 3).map(sv => `
         <div style="flex:1;background:#f8fafc;border-radius:7px;padding:6px 4px;text-align:center;border:1px solid #e8edf3;">
           <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;">${sv.name}</div>
-          <div style="font-size:13px;font-weight:800;color:#1d4ed8;">${sv.price}</div>
+          <div style="font-size:13px;font-weight:800;color:#21867B;">${sv.price}</div>
         </div>`).join('');
     } else {
       const fallback = [];
@@ -2317,7 +2317,7 @@ function refreshMapPins() {
       priceHtml = fallback.map(f => `
         <div style="flex:1;background:#f8fafc;border-radius:7px;padding:6px 4px;text-align:center;border:1px solid #e8edf3;">
           <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;">${f.n}</div>
-          <div style="font-size:13px;font-weight:800;color:#1d4ed8;">${f.p}</div>
+          <div style="font-size:13px;font-weight:800;color:#21867B;">${f.p}</div>
         </div>`).join('');
     }
 
@@ -2357,7 +2357,7 @@ async function _doLoadBookings() {
     if (status === 'completed') return { color: '#22c55e', label: 'Completed' };
     if (status === 'in_progress') return { color: '#f59e0b', label: 'In Progress' };
     if (status === 'cancelled') return { color: '#ef4444', label: 'Cancelled' };
-    if (status === 'pending') return { color: '#3b82f6', label: 'Upcoming' };
+    if (status === 'pending') return { color: '#3FBDB0', label: 'Upcoming' };
     return { color: '#94a3b8', label: status || 'Booked' };
   }
   function renderBookingList(bookings) {
@@ -2380,7 +2380,7 @@ async function _doLoadBookings() {
       const shopName = b.shopName || 'Wash Centre';
       const el = document.createElement('div');
       el.className = 'booking-item';
-      const rateBtn = b.status === 'completed' ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3b82f6;font-weight:600;cursor:pointer;">⭐ Rate this wash</button>` : '';
+      const rateBtn = b.status === 'completed' ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3FBDB0;font-weight:600;cursor:pointer;">⭐ Rate this wash</button>` : '';
       el.innerHTML = `<div class="bi-top"><div><div class="bi-name">${shopName}</div><div class="bi-detail">${b.washType||''} · ${dateStr}</div></div><div class="bi-status" style="background:${sc}22;color:${sc};font-weight:700">${sl}</div></div><div class="bi-times"><div class="bi-time-item"><div class="bi-time-v">${startTime}</div><div class="bi-time-l">Start</div></div><div class="bi-time-item"><div class="bi-time-v">${readyTime}</div><div class="bi-time-l">Ready by</div></div><div class="bi-time-item"><div class="bi-time-v">${b.price||'—'} EGP</div><div class="bi-time-l">Price</div></div></div>${rateBtn}`;
       list.appendChild(el);
     });
@@ -2460,16 +2460,16 @@ async function renderAccount() {
     <div class="acct-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <div style="font-size:15px;font-weight:700;color:#0f172a;">My Cars</div>
-        <button onclick="openAddCarModal()" style="background:#eff6ff;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;color:#3b82f6;cursor:pointer;">+ Add Car</button>
+        <button onclick="openAddCarModal()" style="background:#E6F7F5;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;color:#3FBDB0;cursor:pointer;">+ Add Car</button>
       </div>
       ${userCars.length ? userCars.map(c => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:8px;">
           <div>
-            <div style="font-size:14px;font-weight:700;color:#0f172a;">${carLabel(c)} ${c.isDefault ? '<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:2px 6px;margin-left:4px;">Default</span>' : ''}</div>
+            <div style="font-size:14px;font-weight:700;color:#0f172a;">${carLabel(c)} ${c.isDefault ? '<span style="font-size:10px;background:#D3F3EE;color:#21867B;border-radius:4px;padding:2px 6px;margin-left:4px;">Default</span>' : ''}</div>
             <div style="font-size:12px;color:#64748b;margin-top:2px;">${c.licensePlate || 'No plate set'}${c.carType ? ' · ' + c.carType : ''}</div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button onclick="openEditCarModal(${c.id})" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;font-size:11px;color:#3b82f6;cursor:pointer;">Edit</button>
+            <button onclick="openEditCarModal(${c.id})" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;font-size:11px;color:#3FBDB0;cursor:pointer;">Edit</button>
             <button onclick="deleteCar(${c.id})" style="background:none;border:1px solid #fecaca;border-radius:6px;padding:5px 9px;font-size:11px;color:#ef4444;cursor:pointer;">Remove</button>
           </div>
         </div>
