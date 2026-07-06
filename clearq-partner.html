@@ -208,7 +208,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
     <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon">👥</span>Customers</button>
     <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon">⚙️</span>Manage</button>
   </div>
-  <div class="psec active" id="psec-queue"><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
+  <div class="psec active" id="psec-queue"><div id="stale-c"></div><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
   <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p>Loading bays...</p></div></div></div>
   <div class="psec" id="psec-summary"><div id="sum-c"><div class="ls"><div class="spin"></div><p>Loading summary...</p></div></div></div>
   <div class="psec" id="psec-customers">
@@ -453,16 +453,43 @@ function minsUntil(d) { return d?Math.round((new Date(d).getTime()-Date.now())/6
 async function loadQueue(silent=false) {
   const shopId = partnerShop?.id; if (!shopId) return;
   try {
-    const [qRes,sRes] = await Promise.all([
+    const [qRes,sRes,staleRes] = await Promise.all([
       fetch(`${API}/api/partners/shop/${shopId}/queue`,{headers:authH()}),
-      fetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()})
+      fetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()}),
+      fetch(`${API}/api/partners/shop/${shopId}/stale-bookings`,{headers:authH()})
     ]);
     if (!qRes.ok) throw new Error();
     const bookings = (await qRes.json()).filter(b=>b.status!=='cancelled');
     partnerServices = sRes.ok ? await sRes.json() : [];
     renderQueue(bookings);
+    renderStaleBookings(staleRes.ok ? await staleRes.json() : []);
     document.getElementById('offline-bar').classList.remove('show');
   } catch { if (!silent) document.getElementById('offline-bar').classList.add('show'); }
+}
+
+function overdueLabel(etaReadyAt) {
+  const hrs = Math.round((Date.now() - new Date(etaReadyAt).getTime()) / 3600000);
+  if (hrs < 24) return `~${hrs}h overdue`;
+  const days = Math.round(hrs / 24);
+  return `~${days} day${days===1?'':'s'} overdue`;
+}
+
+function renderStaleBookings(list) {
+  const el = document.getElementById('stale-c');
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="ms" style="border:1.5px solid #FEF3C7;background:#FFFBEB;border-radius:var(--radius);padding:11px 13px;margin-bottom:14px;">
+    <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:9px;">⚠️ Needs attention — ${list.length} forgotten booking${list.length===1?'':'s'}</div>
+    ${list.map(b => `<div class="bc" id="bc-${b.id}" style="border-color:#FEF3C7;margin-bottom:7px;">
+      <div class="bc-top">
+        <div class="bc-left"><div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div></div></div>
+        <div class="bc-right"><div class="bl" style="color:#92400E;">${overdueLabel(b.etaReadyAt)}</div><div class="wb">${svcLabel(b.washType)}</div></div>
+      </div>
+      <div class="bc-acts">
+        <button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">✓ Mark Completed</button>
+        <button class="abtn" style="background:#7f1d1d" onclick="doAction(${b.id},'cancel',this)">✕ Cancel</button>
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
 
 function renderQueue(bookings) {
@@ -504,16 +531,17 @@ function renderQueue(bookings) {
   document.getElementById('queue-c').innerHTML = html || '<div class="ls"><p>Queue is empty</p></div>';
 }
 
-async function doAction(id, action) {
-  const btn = document.querySelector(`#bc-${id} .abtn`);
+async function doAction(id, action, btn) {
+  btn = btn || document.querySelector(`#bc-${id} .abtn`);
+  const originalText = btn ? btn.textContent : '';
   if (btn) { btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try {
     await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${id}/${action}`,{method:'PATCH',headers:authH()});
-    toast(action==='done'?'✓ Wash completed':'Wash started');
+    toast(action==='done'?'✓ Wash completed':action==='cancel'?'Booking cancelled':'Wash started');
     loadQueue(); loadBays();
   } catch(e) {
     toast('Error: '+e.message);
-    if (btn) { btn.disabled=false; btn.textContent=action==='done'?'✓ Done':'▶ Start'; }
+    if (btn) { btn.disabled=false; btn.textContent=originalText; }
   }
 }
 

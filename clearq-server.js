@@ -459,12 +459,16 @@ async function simulateBayQueue(shopId, opts = {}) {
   const defaultDur = s?.slot_duration_mins || 30;
   const nowMs = Date.now();
 
+  // Exclude bookings that were clearly forgotten (should have finished hours ago but were
+  // never marked done) — otherwise a stale booking from days ago silently distorts live wait
+  // times for real customers. These still show up in the partner/manager "Needs Attention" list.
   const allBookings = await db(
     `SELECT b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
             b.created_at, b.kind, COALESCE(sv.duration_mins, $2) as duration_mins
      FROM wash_bookings b
      LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
-     WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')`,
+     WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')
+       AND (b.eta_ready_at IS NULL OR b.eta_ready_at > NOW() - INTERVAL '4 hours')`,
     [shopId, defaultDur]
   );
 
@@ -1172,6 +1176,31 @@ self.addEventListener('notificationclick', e => {
       } catch(e) {}
 
       return respond(res, 200, booking(updated));
+    }
+
+    // PATCH /partners/shop/:id/reservations/:bookingId/cancel
+    if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/cancel$/.test(p)) {
+      const parts = p.split("/");
+      const bookingId = +parts[parts.length-2];
+      const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
+      if (!b) return respond(res, 404, { error: "Booking not found" });
+      const [updated] = await db(
+        `UPDATE wash_bookings SET status='cancelled', updated_at=NOW() WHERE id=$1 RETURNING *`,
+        [bookingId]
+      );
+      return respond(res, 200, booking(updated));
+    }
+
+    // GET /partners/shop/:id/stale-bookings — pending/in_progress bookings overdue by 4+ hours,
+    // regardless of date, so the partner can resolve ones forgotten from a previous day
+    if (m === "GET" && /\/partners\/shop\/\d+\/stale-bookings$/.test(p)) {
+      const rows = await db(
+        `SELECT * FROM wash_bookings WHERE shop_id=$1 AND status IN ('pending','in_progress')
+         AND eta_ready_at IS NOT NULL AND eta_ready_at <= NOW() - INTERVAL '4 hours'
+         ORDER BY created_at ASC`,
+        [shopId]
+      );
+      return respond(res, 200, rows.map(booking));
     }
 
     // POST /partners/shop/:id/walkin — links to user account by phone if registered
