@@ -6,23 +6,23 @@
 <title>ClearQ — Manager Dashboard</title>
 <style>
 :root {
-  --bg: #0a0f1a;
-  --surface: #111827;
-  --surface2: #1a2235;
-  --border: #1f2d45;
-  --blue: #3b82f6;
-  --blue-dim: #1e3a6e;
-  --blue-light: #60a5fa;
+  --bg: #F4F6F7;
+  --surface: #FFFFFF;
+  --surface2: #F1F5F9;
+  --border: #E2E8F0;
+  --blue: #3FBDB0;
+  --blue-dim: #E6F7F5;
+  --blue-light: #21867B;
   --green: #22c55e;
-  --green-dim: #14532d;
+  --green-dim: #DCFCE7;
   --amber: #f59e0b;
-  --amber-dim: #451a03;
+  --amber-dim: #FEF3C7;
   --red: #ef4444;
-  --red-dim: #450a0a;
-  --purple: #a78bfa;
-  --white: #f1f5f9;
+  --red-dim: #FEE2E2;
+  --purple: #7c3aed;
+  --white: #0f172a;
   --gray: #94a3b8;
-  --gray-dim: #334155;
+  --gray-dim: #94a3b8;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --radius: 12px;
   --radius-sm: 8px;
@@ -116,7 +116,7 @@ a { text-decoration: none; }
 
 .topbar {
   position: sticky; top: 0; z-index: 50;
-  background: rgba(10,15,26,0.92); backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px; height: 56px;
   display: flex; align-items: center; justify-content: space-between;
@@ -167,7 +167,7 @@ a { text-decoration: none; }
   border: none; border-radius: var(--radius-sm); padding: 12px;
   font-size: 14px; font-weight: 700; transition: background 0.15s;
 }
-.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:hover { background: #21867B; }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .login-wa { display: block; text-align: center; margin-top: 18px; font-size: 12px; color: var(--gray); }
 .login-wa a { color: var(--blue-light); font-weight: 600; }
@@ -198,7 +198,7 @@ a { text-decoration: none; }
   color: var(--blue-light); padding: 7px 13px;
   font-size: 12px; font-weight: 600; transition: background 0.15s;
 }
-.section-action:hover { background: #1e40af; }
+.section-action:hover { background: #3FBDB0; }
 
 /* ── QUEUE TABLE ─────────────────────────────────────────────── */
 .queue-filters {
@@ -260,7 +260,7 @@ a { text-decoration: none; }
 }
 .act-btn:hover { opacity: 0.85; }
 .act-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.act-start { background: #1e40af; }
+.act-start { background: #3FBDB0; }
 .act-done { background: var(--green-dim); color: var(--green); border: 1px solid #166534; }
 .act-cancel { background: var(--red-dim); color: var(--red); border: 1px solid #7f1d1d; }
 
@@ -388,7 +388,7 @@ a { text-decoration: none; }
   border-radius: var(--radius-sm); padding: 11px; font-size: 13px;
   font-weight: 700; margin-top: 6px; transition: background 0.15s;
 }
-.settings-save-btn:hover { background: #1d4ed8; }
+.settings-save-btn:hover { background: #21867B; }
 
 /* ── MODALS ──────────────────────────────────────────────────── */
 .modal-overlay {
@@ -435,7 +435,7 @@ a { text-decoration: none; }
 .offline-banner {
   display: none; background: var(--amber-dim);
   padding: 8px 24px; font-size: 12px; color: var(--amber);
-  align-items: center; gap: 8px; border-bottom: 1px solid #78350f;
+  align-items: center; gap: 8px; border-bottom: 1px solid #FDE68A;
 }
 .offline-banner.show { display: flex; }
 
@@ -832,7 +832,7 @@ function statusColor(s) {
 }
 
 function statusBorderColor(s) {
-  return s==='in_progress'?'#d97706':s==='completed'?'#166534':s==='cancelled'?'#7f1d1d':'#1e3a8a';
+  return s==='in_progress'?'#d97706':s==='completed'?'#166534':s==='cancelled'?'#7f1d1d':'#21867B';
 }
 
 function statusLabel(s) {
@@ -990,7 +990,7 @@ async function loadManagerCustomers() {
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--white,#fff);">${c.name||'Unknown'}</div>
           <div style="font-size:12px;color:var(--gray,#94a3b8);margin-top:2px;">${c.phone}</div>
-          ${c.license_plate ? `<div style="font-size:11px;color:#60a5fa;margin-top:2px;">${c.license_plate}</div>` : ''}
+          ${c.license_plate ? `<div style="font-size:11px;color:#21867B;margin-top:2px;">${c.license_plate}</div>` : ''}
           <div style="font-size:11px;color:var(--gray,#94a3b8);margin-top:4px;">📱 ${c.online_bookings} online · 🚶 ${c.walkin_bookings} walk-in</div>
         </div>
         <div style="text-align:right;">
@@ -1203,8 +1203,8 @@ function bayTheme(state) {
   const t = {
     free:       {bg:'var(--green-dim)',border:'#166534',color:'var(--green)',label:'Free'},
     in_wash:    {bg:'var(--amber-dim)',border:'#d97706',color:'var(--amber)',label:'In Wash'},
-    incoming:   {bg:'var(--blue-dim)',border:'#1e40af',color:'var(--blue-light)',label:'Incoming'},
-    walkin:     {bg:'rgba(245,158,11,0.08)',border:'#ea580c',color:'#fb923c',label:'Walk-in'},
+    incoming:   {bg:'var(--blue-dim)',border:'#3FBDB0',color:'var(--blue-light)',label:'Incoming'},
+    walkin:     {bg:'rgba(245,158,11,0.08)',border:'#ea580c',color:'#C2410C',label:'Walk-in'},
     unavailable:{bg:'rgba(124,58,237,0.1)',border:'#7c3aed',color:'var(--purple)',label:'Unavailable'},
   };
   return t[state]||{bg:'var(--surface2)',border:'var(--border)',color:'var(--gray)',label:state};
@@ -1232,14 +1232,14 @@ function renderBays(data) {
       </div>
       <div class="bay-actions">
         ${bay.state==='free'?`
-          <button class="bay-btn" style="background:#1e40af" onclick="openWalkInModal()">＋ Walk-in</button>
-          <button class="bay-btn bay-btn-icon" style="background:#3b0764;flex:0;padding:8px 12px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:
+          <button class="bay-btn" style="background:#3FBDB0" onclick="openWalkInModal()">＋ Walk-in</button>
+          <button class="bay-btn bay-btn-icon" style="background:#7c3aed;flex:0;padding:8px 12px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:
         bay.state==='unavailable'?`
           <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="setBayFree(${bay.bayNumber})">🔓 Set Available</button>`:
         (bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`
           <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="doAction(${bay.booking.id},'done',this)">✓ Mark Done</button>`:
         bay.state==='incoming'&&bay.booking?`
-          <button class="bay-btn" style="background:#1e40af" onclick="doAction(${bay.booking.id},'start',this)">▶ Start Wash</button>`:''}
+          <button class="bay-btn" style="background:#3FBDB0" onclick="doAction(${bay.booking.id},'start',this)">▶ Start Wash</button>`:''}
       </div>
     </div>`;
   }).join('');
