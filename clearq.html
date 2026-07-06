@@ -29,7 +29,7 @@ button{font-family:inherit;cursor:pointer;}
 input,textarea{font-family:inherit;}
 
 /* NAV */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.1);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.95);backdrop-filter:blur(12px);height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
 .nav-brand{display:flex;align-items:center;gap:8px;cursor:pointer;text-decoration:none;}
 .nav-logo{width:32px;height:32px;border-radius:9px;background:var(--blue);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .nav-name{font-size:17px;font-weight:700;color:#fff;}
@@ -44,7 +44,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 /* ══ USER VIEW ══════════════════════════════════════════════ */
 #view-user{background:#f0f4f8;}
 
-.user-header{background:linear-gradient(135deg,#21867B,#0B2B33);padding:18px 16px 14px;}
+.user-header{background:linear-gradient(135deg,#21867B,#0B2B33);padding:18px 16px 14px;margin-top:-56px;padding-top:74px;}
 .brand-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
 .brand-logo{width:38px;height:38px;border-radius:19px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:17px;}
 .brand-name{color:#fff;font-size:20px;font-weight:800;}
@@ -237,7 +237,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 /* LANDING PAGE */
 .landing{display:none;min-height:100vh;background:#f0f4f8;}
 .landing.show{display:block;}
-.lp-hero{background:#0B2B33;padding:52px 24px 48px;text-align:center;position:relative;overflow:hidden;}
+.lp-hero{background:#0B2B33;padding:76px 24px 48px;text-align:center;position:relative;overflow:hidden;}
 .lp-hero::before{content:'';position:absolute;top:-80px;right:-80px;width:280px;height:280px;border-radius:50%;background:rgba(63,189,176,0.12);}
 .lp-hero::after{content:'';position:absolute;bottom:-60px;left:-60px;width:200px;height:200px;border-radius:50%;background:rgba(15,53,64,0.6);}
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
@@ -366,7 +366,7 @@ html, body {
 /* MOBILE */
 @media(max-width:640px){
   nav{padding:0 12px;}
-  .user-header{padding:14px 12px 12px;}
+  .user-header{padding:14px 12px 12px;padding-top:70px;}
   .washes-list{padding:8px 10px 90px;}
   .wash-card{border-radius:10px;}
   .bottom-nav{padding:6px 0 16px;}
@@ -383,7 +383,7 @@ html, body {
   #view-user{background:#f0f4f8;}
 
   /* Header */
-  .user-header{padding:20px 32px 18px;display:flex;flex-direction:column;gap:14px;}
+  .user-header{padding:20px 32px 18px;padding-top:76px;display:flex;flex-direction:column;gap:14px;}
   .brand-row{margin-bottom:0;}
   .search-bar{max-width:560px;}
 
@@ -451,7 +451,7 @@ html, body {
   .washes-list{grid-template-columns:repeat(auto-fill,minmax(420px,1fr));padding:20px 48px 40px;}
   .filters{padding:12px 48px;}
   .result-bar{padding:10px 48px;}
-  .user-header{padding:20px 48px 18px;}
+  .user-header{padding:20px 48px 18px;padding-top:76px;}
   .loc-banner{padding:10px 48px;}
 }
 
@@ -649,7 +649,6 @@ html, body {
 <div class="view active" id="view-user">
   <div class="user-header">
     <div class="brand-row">
-      <div class="brand-logo">💧</div>
       <div>
         <div class="brand-name">ClearQ</div>
         <div class="brand-sub">Find &amp; book a car wash near you</div>
