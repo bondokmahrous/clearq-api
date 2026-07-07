@@ -166,6 +166,47 @@ input,select{font-family:inherit;}
       <div class="stats-grid" id="overview-stats">
         <div class="loading"><div class="spin"></div></div>
       </div>
+
+      <div class="table-wrap" style="padding:18px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:700;">Performance Trends</div>
+          <div class="drp">
+            <button class="drp-mode" data-mode="day" onclick="setTrendMode('day')">Day</button>
+            <button class="drp-mode active" data-mode="week" onclick="setTrendMode('week')">Week</button>
+            <button class="drp-mode" data-mode="month" onclick="setTrendMode('month')">Month</button>
+            <button class="drp-mode" data-mode="all" onclick="setTrendMode('all')">All Time</button>
+            <div class="drp-nav" id="trend-nav-wrap">
+              <button class="drp-nav-btn" onclick="shiftTrendDate(-1)">‹</button>
+              <span class="drp-label" id="trend-label">—</span>
+              <button class="drp-nav-btn" onclick="shiftTrendDate(1)">›</button>
+              <input class="drp-datepick" type="date" id="trend-datepick" onchange="pickTrendDate(this.value)">
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px;">
+          <div style="background:var(--navy);border-radius:10px;padding:16px;">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-val" id="trend-revenue-val" style="color:var(--blue-dark)">—</div>
+            <div class="stat-sub" id="trend-revenue-delta">&nbsp;</div>
+          </div>
+          <div style="background:var(--navy);border-radius:10px;padding:16px;">
+            <div class="stat-label">Bookings</div>
+            <div class="stat-val" id="trend-bookings-val" style="color:var(--amber)">—</div>
+            <div class="stat-sub" id="trend-bookings-delta">&nbsp;</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Revenue by day</div>
+            <div id="trend-revenue-chart" style="display:flex;align-items:flex-end;gap:4px;height:110px;"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Bookings by day</div>
+            <div id="trend-bookings-chart" style="display:flex;align-items:flex-end;gap:4px;height:110px;"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="table-wrap" style="padding:18px;margin-bottom:20px;">
         <div style="font-size:14px;font-weight:700;margin-bottom:14px;">Booking Source — Website vs Walk-in</div>
         <div id="source-breakdown"><div class="loading"><div class="spin"></div></div></div>
@@ -411,6 +452,7 @@ function doLogout() {
 async function init() {
   document.getElementById('overview-date').textContent = new Date().toLocaleDateString('en-EG', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
   renderDrpLabel();
+  renderTrendLabel();
   await loadShops();
   loadOverview();
 }
@@ -459,8 +501,147 @@ async function getPartnerToken(shopId) {
   return null;
 }
 
+// ─── OVERVIEW TRENDS ─────────────────────────────────────────────
+let trendMode = 'week';
+let trendRefDate = new Date();
+
+function getTrendRange(mode, refDate) {
+  if (mode === 'day') { const s = fmtYMD(refDate); return { from: s, to: s }; }
+  if (mode === 'week') return { from: fmtYMD(startOfWeek(refDate)), to: fmtYMD(endOfWeek(refDate)) };
+  if (mode === 'month') return { from: fmtYMD(startOfMonth(refDate)), to: fmtYMD(endOfMonth(refDate)) };
+  return { from: null, to: null };
+}
+
+function getPrevTrendRange(mode, refDate) {
+  const d = new Date(refDate);
+  if (mode === 'day') d.setDate(d.getDate() - 1);
+  else if (mode === 'week') d.setDate(d.getDate() - 7);
+  else if (mode === 'month') d.setMonth(d.getMonth() - 1);
+  return getTrendRange(mode, d);
+}
+
+function renderTrendLabel() {
+  const label = document.getElementById('trend-label');
+  if (trendMode === 'day') {
+    const isToday = fmtYMD(trendRefDate) === fmtYMD(new Date());
+    label.textContent = (isToday ? 'Today · ' : '') + trendRefDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  } else if (trendMode === 'week') {
+    const s = startOfWeek(trendRefDate), e = endOfWeek(trendRefDate);
+    label.textContent = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } else if (trendMode === 'month') {
+    label.textContent = trendRefDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  } else {
+    label.textContent = 'All Time';
+  }
+  document.getElementById('trend-datepick').value = fmtYMD(trendRefDate);
+}
+
+function setTrendMode(mode) {
+  trendMode = mode;
+  document.querySelectorAll('#page-overview .drp-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('trend-nav-wrap').style.visibility = mode === 'all' ? 'hidden' : 'visible';
+  renderTrendLabel();
+  loadTrends();
+}
+
+function shiftTrendDate(delta) {
+  const d = new Date(trendRefDate);
+  if (trendMode === 'day') d.setDate(d.getDate() + delta);
+  else if (trendMode === 'week') d.setDate(d.getDate() + delta * 7);
+  else if (trendMode === 'month') d.setMonth(d.getMonth() + delta);
+  trendRefDate = d;
+  renderTrendLabel();
+  loadTrends();
+}
+
+function pickTrendDate(value) {
+  if (!value) return;
+  trendRefDate = new Date(value + 'T00:00:00');
+  renderTrendLabel();
+  loadTrends();
+}
+
+async function fetchOwnerBookingsRange(from, to) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  params.set('limit', '1000');
+  try {
+    const res = await fetch(`${API}/api/owner/bookings?${params}`, { headers: {'x-owner-key': OWNER_PASSWORD} });
+    return res.ok ? await res.json() : [];
+  } catch { return []; }
+}
+
+function buildDailySeries(bookings, from, to) {
+  if (!from || !to) {
+    if (!bookings.length) return [];
+    const dates = bookings.map(b => b.scheduledDate).sort();
+    from = dates[0]; to = dates[dates.length - 1];
+  }
+  const days = [];
+  const cursor = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while (cursor <= end) {
+    days.push(fmtYMD(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days.map(day => {
+    const dayBookings = bookings.filter(b => b.scheduledDate === day);
+    const revenue = dayBookings.filter(b => b.status === 'completed').reduce((s, b) => s + Number(b.price || 0), 0);
+    const count = dayBookings.filter(b => b.status !== 'cancelled').length;
+    return { day, revenue, count };
+  });
+}
+
+function renderTrendBarChart(containerId, series, key, color) {
+  const el = document.getElementById(containerId);
+  if (!series.length) { el.innerHTML = '<div style="color:var(--gray);font-size:12px;align-self:center;">No data</div>'; return; }
+  const max = Math.max(...series.map(d => d[key]), 1);
+  el.innerHTML = series.map(d => {
+    const h = d[key] > 0 ? Math.max(4, Math.round((d[key] / max) * 100)) : 1;
+    const label = new Date(d.day + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;" title="${label}: ${d[key]}">
+      <div style="width:100%;max-width:28px;height:${h}%;background:${color};border-radius:3px 3px 0 0;"></div>
+    </div>`;
+  }).join('');
+}
+
+function trendDeltaHtml(cur, prev) {
+  if (prev === 0) return cur > 0 ? '<span style="color:#166534">↑ new activity</span>' : '&nbsp;';
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  const up = pct >= 0;
+  return `<span style="color:${up ? '#166534' : '#b91c1c'}">${up ? '↑' : '↓'} ${Math.abs(pct)}% vs previous period</span>`;
+}
+
+async function loadTrends() {
+  document.getElementById('trend-revenue-val').textContent = '—';
+  document.getElementById('trend-bookings-val').textContent = '—';
+  try {
+    const cur = getTrendRange(trendMode, trendRefDate);
+    const [curBookings, prevBookings] = await Promise.all([
+      fetchOwnerBookingsRange(cur.from, cur.to),
+      trendMode === 'all' ? Promise.resolve([]) : (() => { const p = getPrevTrendRange(trendMode, trendRefDate); return fetchOwnerBookingsRange(p.from, p.to); })()
+    ]);
+
+    const daily = buildDailySeries(curBookings, cur.from, cur.to);
+    const curRevenue = daily.reduce((s, d) => s + d.revenue, 0);
+    const curCount = daily.reduce((s, d) => s + d.count, 0);
+    const prevRevenue = prevBookings.filter(b => b.status === 'completed').reduce((s, b) => s + Number(b.price || 0), 0);
+    const prevCount = prevBookings.filter(b => b.status !== 'cancelled').length;
+
+    document.getElementById('trend-revenue-val').textContent = curRevenue.toLocaleString() + ' EGP';
+    document.getElementById('trend-bookings-val').textContent = curCount;
+    document.getElementById('trend-revenue-delta').innerHTML = trendMode === 'all' ? '&nbsp;' : trendDeltaHtml(curRevenue, prevRevenue);
+    document.getElementById('trend-bookings-delta').innerHTML = trendMode === 'all' ? '&nbsp;' : trendDeltaHtml(curCount, prevCount);
+
+    renderTrendBarChart('trend-revenue-chart', daily, 'revenue', 'var(--blue)');
+    renderTrendBarChart('trend-bookings-chart', daily, 'count', 'var(--amber)');
+  } catch (e) { console.log('Trends error', e); }
+}
+
 // ─── OVERVIEW ────────────────────────────────────────────────────
 async function loadOverview() {
+  loadTrends();
   try {
     const today = new Date().toISOString().slice(0,10);
     let totalToday = 0, totalPending = 0, totalActive = 0, totalDone = 0, totalRevenue = 0;
@@ -614,7 +795,7 @@ function renderDrpLabel() {
 
 function setDateMode(mode) {
   dateMode = mode;
-  document.querySelectorAll('.drp-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.querySelectorAll('#page-bookings .drp-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   document.getElementById('drp-nav-wrap').style.visibility = mode === 'all' ? 'hidden' : 'visible';
   renderDrpLabel();
   loadBookings();
