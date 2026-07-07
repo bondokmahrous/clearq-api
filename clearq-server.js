@@ -10,7 +10,6 @@ const { Pool } = require("pg");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const nodemailer = require("nodemailer");
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -22,8 +21,8 @@ const VAPID_PRIVATE_KEY = 'jt5NyPns3nB587BzRuZxjfPsDlVzyqbMdOd_WDs5PnM';
 const VAPID_SUBJECT = 'mailto:bondokmahrous@gmail.com';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as';
 const OWNER_KEY = 'Bondok@23'; // must match OWNER_PASSWORD in clearq-owner.html
-const SMTP_USER = process.env.SMTP_USER || 'info@clearq.online';
-const SMTP_PASS = process.env.SMTP_PASS;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const MAIL_FROM = process.env.MAIL_FROM || 'ClearQ <info@clearq.online>';
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
@@ -359,27 +358,22 @@ async function bcryptHash(password) {
   }
 }
 
-// ─── EMAIL (Namecheap Private Email SMTP) ─────────────────────────────────────
-const mailTransport = SMTP_PASS
-  ? nodemailer.createTransport({
-      host: "mail.privateemail.com",
-      port: 587,
-      secure: false, // STARTTLS on 587 — port 465 (implicit TLS) is more commonly blocked by cloud hosts
-      requireTLS: true,
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-      connectionTimeout: 8000,
-      greetingTimeout: 8000,
-      socketTimeout: 8000,
-    })
-  : null;
-
+// ─── EMAIL (Resend HTTP API — raw SMTP is blocked outbound on Railway's Hobby plan) ──
 async function sendEmail(to, subject, html) {
-  if (!mailTransport) {
-    console.error("Email not sent — SMTP_PASS is not configured:", subject, "to", to);
+  if (!RESEND_API_KEY) {
+    console.error("Email not sent — RESEND_API_KEY is not configured:", subject, "to", to);
     return false;
   }
   try {
-    await mailTransport.sendMail({ from: `"ClearQ" <${SMTP_USER}>`, to, subject, html });
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: MAIL_FROM, to, subject, html }),
+    });
+    if (!res.ok) {
+      console.error("Email send failed:", res.status, await res.text());
+      return false;
+    }
     return true;
   } catch (e) {
     console.error("Email send failed:", e.message);
