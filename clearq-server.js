@@ -363,9 +363,13 @@ async function bcryptHash(password) {
 const mailTransport = SMTP_PASS
   ? nodemailer.createTransport({
       host: "mail.privateemail.com",
-      port: 465,
-      secure: true,
+      port: 587,
+      secure: false, // STARTTLS on 587 — port 465 (implicit TLS) is more commonly blocked by cloud hosts
+      requireTLS: true,
       auth: { user: SMTP_USER, pass: SMTP_PASS },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
     })
   : null;
 
