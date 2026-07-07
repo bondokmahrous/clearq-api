@@ -6,9 +6,11 @@
 <title>ClearQ — Owner Dashboard</title>
 <style>
 :root {
-  --navy:#0f172a; --navy-mid:#1e293b; --navy-light:#334155;
-  --blue:#3b82f6; --green:#22c55e; --amber:#f59e0b; --red:#ef4444;
-  --white:#f8fafc; --gray:#94a3b8; --gray-dark:#64748b;
+  --navy:#F4F6F7; --navy-mid:#FFFFFF; --navy-light:#E2E8F0;
+  --blue:#3FBDB0; --blue-dark:#21867B; --blue-light:#14A395;
+  --green:#22c55e; --amber:#f59e0b; --red:#ef4444;
+  --white:#0f172a; --gray:#94a3b8; --gray-dark:#64748b;
+  --blue-dim:#E6F7F5; --green-dim:#DCFCE7; --amber-dim:#FEF3C7; --red-dim:#FEE2E2;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--navy);color:var(--white);min-height:100vh;}
@@ -35,8 +37,8 @@ input,select{font-family:inherit;}
 .sidebar-logo-name{font-size:16px;font-weight:800;}
 .sidebar-logo-sub{font-size:10px;color:var(--gray);margin-top:1px;}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:600;color:var(--gray);cursor:pointer;border-radius:0;transition:all 0.15s;border:none;background:none;width:100%;text-align:left;}
-.nav-item:hover{color:var(--white);background:rgba(255,255,255,0.05);}
-.nav-item.active{color:var(--white);background:rgba(59,130,246,0.15);border-right:2px solid var(--blue);}
+.nav-item:hover{color:var(--white);background:rgba(0,0,0,0.04);}
+.nav-item.active{color:var(--blue-dark);background:var(--blue-dim);border-right:2px solid var(--blue);}
 .nav-icon{font-size:16px;width:20px;text-align:center;}
 .sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--navy-light);}
 .sidebar-user{font-size:12px;color:var(--gray);margin-bottom:8px;}
@@ -71,21 +73,21 @@ input,select{font-family:inherit;}
 .drp-nav-btn{background:none;border:none;color:var(--white);font-size:15px;cursor:pointer;padding:4px 7px;border-radius:6px;}
 .drp-nav-btn:hover{background:var(--navy-light);}
 .drp-label{font-size:12px;font-weight:600;color:var(--white);min-width:150px;text-align:center;white-space:nowrap;}
-.drp-datepick{background:var(--navy);border:1px solid var(--navy-light);border-radius:6px;color:var(--white);font-size:12px;padding:4px 6px;color-scheme:dark;}
+.drp-datepick{background:var(--navy);border:1px solid var(--navy-light);border-radius:6px;color:var(--white);font-size:12px;padding:4px 6px;color-scheme:light;}
 
 /* TABLE */
 .table-wrap{background:var(--navy-mid);border-radius:12px;border:1px solid var(--navy-light);overflow:hidden;}
 .table-header{display:grid;grid-template-columns:1fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr 1fr;padding:12px 16px;border-bottom:1px solid var(--navy-light);font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;}
-.table-row{display:grid;grid-template-columns:1fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr 1fr;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;transition:background 0.1s;}
+.table-row{display:grid;grid-template-columns:1fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr 1fr;padding:13px 16px;border-bottom:1px solid var(--navy-light);align-items:center;transition:background 0.1s;}
 .table-row:last-child{border-bottom:none;}
-.table-row:hover{background:rgba(255,255,255,0.03);}
+.table-row:hover{background:var(--navy);}
 .td{font-size:13px;color:var(--white);}
 .td-sub{font-size:11px;color:var(--gray);margin-top:2px;}
 .badge{display:inline-block;border-radius:5px;padding:3px 8px;font-size:11px;font-weight:700;}
-.badge-pending{background:rgba(59,130,246,0.15);color:#60a5fa;}
-.badge-progress{background:rgba(245,158,11,0.15);color:#fbbf24;}
-.badge-done{background:rgba(34,197,94,0.15);color:#4ade80;}
-.badge-cancelled{background:rgba(239,68,68,0.15);color:#f87171;}
+.badge-pending{background:var(--blue-dim);color:var(--blue-dark);}
+.badge-progress{background:var(--amber-dim);color:#b45309;}
+.badge-done{background:var(--green-dim);color:#166534;}
+.badge-cancelled{background:var(--red-dim);color:#b91c1c;}
 
 /* SHOP CARDS */
 .shops-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
@@ -495,7 +497,7 @@ async function loadOverview() {
     // Render stats
     document.getElementById('overview-stats').innerHTML = `
       <div class="stat-card"><div class="stat-label">Today's Bookings</div><div class="stat-val" style="color:var(--blue)">${totalToday}</div><div class="stat-sub">across all centres</div></div>
-      <div class="stat-card"><div class="stat-label">In Queue</div><div class="stat-val" style="color:#60a5fa">${totalPending}</div><div class="stat-sub">waiting</div></div>
+      <div class="stat-card"><div class="stat-label">In Queue</div><div class="stat-val" style="color:var(--blue-dark)">${totalPending}</div><div class="stat-sub">waiting</div></div>
       <div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-val" style="color:var(--amber)">${totalActive}</div><div class="stat-sub">being washed</div></div>
       <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-val" style="color:var(--green)">${totalDone}</div><div class="stat-sub">today</div></div>
       <div class="stat-card"><div class="stat-label">Today's Revenue</div><div class="stat-val" style="color:var(--green)">${totalRevenue.toLocaleString()}</div><div class="stat-sub">EGP</div></div>
@@ -737,7 +739,7 @@ async function loadCentres() {
         <div class="shop-card">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <div class="shop-name">${s.name}</div>
-            <span class="shop-badge" style="background:${isActive ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)'};color:${isActive ? '#4ade80' : '#f87171'}">${isActive ? 'Active' : 'Inactive'}</span>
+            <span class="shop-badge" style="background:${isActive ? 'var(--green-dim)' : 'var(--red-dim)'};color:${isActive ? '#166534' : '#b91c1c'}">${isActive ? 'Active' : 'Inactive'}</span>
           </div>
           <div class="shop-city">📍 ${s.address}</div>
           <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
