@@ -483,13 +483,13 @@ html, body {
 <div class="landing" id="landing-page">
 
   <div class="lp-hero">
-    <div class="lp-badge">🔴 Wash without the wait</div>
+    <div class="lp-badge">Wash without the wait</div>
     <div class="lp-h1">See car wash <span>queues</span>, live.</div>
     <div class="lp-sub">Real wait times at every wash centre, updated live. Book instantly. Drive straight in.</div>
 
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:32px;">
       <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()" style="width:100%;max-width:320px;padding:15px 24px;font-size:16px;">Book a Wash Now</button>
-      <button onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;">Sign in</span></button>
+      <button id="lp-signin-link" onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;">Sign in</span></button>
     </div>
 
     <!-- Live bay board -->
@@ -499,18 +499,6 @@ html, body {
         <div class="lp-mock-title" id="lp-mock-title">HD CarWash · The Block Green 4</div>
       </div>
       <div class="lp-bays" id="lp-bays"></div>
-    </div>
-
-    <!-- Location -->
-    <div class="lp-phone-mock" style="margin-top:12px;text-align:left;">
-      <div id="lp-loc-map" style="width:100%;height:120px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:rgba(255,255,255,0.08);"></div>
-      <div style="display:flex;align-items:flex-start;gap:8px;">
-        <span style="font-size:14px;line-height:1.3;">📍</span>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#fff;" id="lp-loc-address">—</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px;display:none;" id="lp-loc-desc"></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1013,6 +1001,9 @@ function renderShops() {
     const effectiveWaitMins = calcQueueWait(qd, s);
     const qColor = effectiveWaitMins === 0 ? '#22c55e' : effectiveWaitMins < 20 ? '#f59e0b' : '#ef4444';
     const mapsUrl = s.lat && s.lng ? `https://maps.google.com/?q=${s.lat},${s.lng}` : '#';
+    const staticMapUrl = s.lat && s.lng
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${s.lat},${s.lng}&zoom=15&size=600x220&scale=2&markers=color:0x3FBDB0%7C${s.lat},${s.lng}&key=AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as`
+      : null;
 
     // Use live services if available, fall back to shop's price fields
     const liveSvcs = services[s.id];
@@ -1067,6 +1058,8 @@ function renderShops() {
       </div>
       ${svcsHtml}
       <div class="wash-hours" style="padding:0 13px 11px;font-size:11px;color:#64748b;">🕘 ${s.openTime} – ${s.closeTime}</div>
+      ${staticMapUrl ? `<img src="${staticMapUrl}" alt="Map location" style="width:100%;height:120px;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
+      ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
       <div class="card-bottom">
         <div class="drive-info">📍 ${s.city}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank">Open in Maps →</a>
@@ -2659,29 +2652,6 @@ function updateLandingMock() {
   const centresEl = document.getElementById('lp-centres');
   if (shops.length && centresEl) centresEl.textContent = shops.length;
   updateLandingLiveTicker();
-  window.googleMapsReadyPromise.then(initLandingLocation);
-}
-
-let landingMapInitialized = false;
-function initLandingLocation() {
-  const shop = shops.find(s => s.id === 6);
-  if (!shop) return;
-  const addrEl = document.getElementById('lp-loc-address');
-  const descEl = document.getElementById('lp-loc-desc');
-  if (addrEl) addrEl.textContent = [shop.address, shop.city].filter(Boolean).join(', ');
-  if (descEl) {
-    if (shop.locationDescription) { descEl.textContent = shop.locationDescription; descEl.style.display = 'block'; }
-    else { descEl.style.display = 'none'; }
-  }
-  if (landingMapInitialized || !shop.lat || !shop.lng) return;
-  const container = document.getElementById('lp-loc-map');
-  if (!container) return;
-  landingMapInitialized = true;
-  const map = new google.maps.Map(container, {
-    center: { lat: shop.lat, lng: shop.lng }, zoom: 15,
-    disableDefaultUI: true, gestureHandling: 'none', keyboardShortcuts: false,
-  });
-  new google.maps.Marker({ position: { lat: shop.lat, lng: shop.lng }, map });
 }
 
 function updateLandingLiveTicker() {
