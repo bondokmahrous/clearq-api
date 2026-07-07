@@ -1638,6 +1638,18 @@ function setStar(n) {
   document.getElementById('rm-star-label').textContent = starLabels[n] || '';
 }
 
+async function checkPendingReviewPrompt() {
+  if (!currentUser) return;
+  try {
+    const token = localStorage.getItem('cq_token');
+    const res = await fetch(`${API}/api/users/me/bookings`, { headers: token ? {'Authorization':'Bearer '+token} : {} });
+    if (!res.ok) return;
+    const bookings = await res.json();
+    const unrated = bookings.find(b => b.status === 'completed' && !b.hasRating);
+    if (unrated) showUserRating(unrated.shopName, unrated.id, unrated.shopId);
+  } catch(e) {}
+}
+
 function showUserRating(shopName, bookingId, shopId) {
   document.getElementById('rm-centre').textContent = shopName;
   document.getElementById('rm-booking-id').value = bookingId || '';
@@ -2245,6 +2257,7 @@ async function doLogin2() {
     renderAccount();
     setTimeout(checkLocationPermission, 800);
     setTimeout(requestPushPermission, 1500);
+    setTimeout(checkPendingReviewPrompt, 2500);
     toast('Welcome back, ' + data.user.name + '!');
   } catch(e) {
     err.textContent = e.message || 'Incorrect email or password';
@@ -2513,7 +2526,7 @@ async function _doLoadBookings() {
       const shopName = b.shopName || 'Wash Centre';
       const el = document.createElement('div');
       el.className = 'booking-item';
-      const rateBtn = b.status === 'completed' ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3FBDB0;font-weight:600;cursor:pointer;">⭐ Rate this wash</button>` : '';
+      const rateBtn = (b.status === 'completed' && !b.hasRating) ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3FBDB0;font-weight:600;cursor:pointer;">⭐ Rate this wash</button>` : '';
       el.innerHTML = `<div class="bi-top"><div><div class="bi-name">${shopName}</div><div class="bi-detail">${b.washType||''} · ${dateStr}</div></div><div class="bi-status" style="background:${sc}22;color:${sc};font-weight:700">${sl}</div></div><div class="bi-times"><div class="bi-time-item"><div class="bi-time-v">${startTime}</div><div class="bi-time-l">Start</div></div><div class="bi-time-item"><div class="bi-time-v">${readyTime}</div><div class="bi-time-l">Ready by</div></div><div class="bi-time-item"><div class="bi-time-v">${b.price||'—'} EGP</div><div class="bi-time-l">Price</div></div></div>${rateBtn}`;
       list.appendChild(el);
     });
@@ -2738,6 +2751,7 @@ function enterApp() {
   document.getElementById('view-user').classList.add('active');
   setTimeout(checkLocationPermission, 800);
   setTimeout(requestPushPermission, 2000);
+  setTimeout(checkPendingReviewPrompt, 2500);
 }
 
 function scrollToHow() {

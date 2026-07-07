@@ -381,6 +381,61 @@ async function sendEmail(to, subject, html) {
   }
 }
 
+function fmtCairoTime(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleTimeString("en-US", { timeZone: "Africa/Cairo", hour: "numeric", minute: "2-digit" });
+}
+
+const BOOKING_EMAIL_COPY = {
+  confirmed: {
+    subject: (shopName) => `Booking confirmed at ${shopName}`,
+    heading: "Booking Confirmed ✅",
+    body: (b, shopName) => `
+      <p>Hi ${b.customer_name || ""},</p>
+      <p>Your <strong>${b.wash_type}</strong> wash at <strong>${shopName}</strong> is confirmed.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:6px 0;color:#64748b;">Estimated start</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(b.eta_arrival_at)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b;">Ready by</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(b.eta_ready_at)}</td></tr>
+        <tr><td style="padding:6px 0;color:#64748b;">Price</td><td style="padding:6px 0;font-weight:700;text-align:right;">${b.price} EGP</td></tr>
+      </table>
+      <p style="color:#64748b;font-size:12px;">Drive straight in when it's time — no need to wait in line.</p>`,
+  },
+  started: {
+    subject: (shopName) => `Your wash has started at ${shopName}`,
+    heading: "Your wash has started 🚗",
+    body: (b, shopName) => `
+      <p>Hi ${b.customer_name || ""},</p>
+      <p>Your <strong>${b.wash_type}</strong> wash at <strong>${shopName}</strong> is now underway.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:6px 0;color:#64748b;">Ready by</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(b.eta_ready_at)}</td></tr>
+      </table>`,
+  },
+  done: {
+    subject: (shopName) => `Your car is ready at ${shopName}`,
+    heading: "Your car is ready ✅",
+    body: (b, shopName) => `
+      <p>Hi ${b.customer_name || ""},</p>
+      <p>Your <strong>${b.wash_type}</strong> wash at <strong>${shopName}</strong> is complete — come pick it up whenever you're ready.</p>
+      <p style="margin-top:20px;">Enjoyed it? Leave a rating next time you open the ClearQ app — it helps a lot.</p>`,
+  },
+};
+
+async function sendBookingEmail(booking, shopName, type) {
+  try {
+    if (!booking.user_id) return;
+    const user = await db1(`SELECT email, name FROM wash_users WHERE id=$1`, [booking.user_id]);
+    if (!user?.email) return;
+    const copy = BOOKING_EMAIL_COPY[type];
+    if (!copy) return;
+    await sendEmail(user.email, copy.subject(shopName), `
+      <div style="font-family:sans-serif;max-width:420px;margin:0 auto;">
+        <h2 style="color:#21867B;">ClearQ</h2>
+        <h3 style="margin-bottom:4px;">${copy.heading}</h3>
+        ${copy.body(booking, shopName)}
+      </div>`);
+  } catch (e) { console.error("sendBookingEmail failed:", e.message); }
+}
+
 // ─── HTTP HELPERS ─────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -853,6 +908,7 @@ self.addEventListener('notificationclick', e => {
       );
       // Notify partner of new booking
       try { await notifyPartner(shopId, { title: 'New Booking!', body: `${customerName} booked a ${washType} wash`, icon: '/icon-192.png' }); } catch(e) {}
+      sendBookingEmail(created, s.name, 'confirmed');
       return respond(res, 201, booking(created));
     }
 
@@ -1173,6 +1229,7 @@ self.addEventListener('notificationclick', e => {
           if (userRow) await notifyUser(userRow.id, { title: 'Your wash has started! 🚗', body: `Your car is being washed at ${(await db1('SELECT name FROM wash_shops WHERE id=$1',[shopId]))?.name}`, icon: '/icon-192.png' });
         }
       } catch(e) {}
+      sendBookingEmail(updated, s.name, 'started');
       return respond(res, 200, booking(updated));
     }
 
@@ -1206,6 +1263,7 @@ self.addEventListener('notificationclick', e => {
         const userRow = await db1(`SELECT id FROM wash_users WHERE phone=$1`, [b.customer_phone]);
         if (userRow) await notifyUser(userRow.id, { title: 'Your car is ready! ✅', body: `Your wash at ${(await db1('SELECT name FROM wash_shops WHERE id=$1',[shopId]))?.name} is complete. Come pick it up!`, icon: '/icon-192.png' });
       } catch(e) {}
+      sendBookingEmail(updated, s.name, 'done');
 
       return respond(res, 200, booking(updated));
     }
@@ -1840,12 +1898,14 @@ self.addEventListener('notificationclick', e => {
       const payload = verifyJWT(getToken(req));
       if (!payload?.userId) return respond(res, 401, { error: "Unauthorized" });
       const rows = await db(
-        `SELECT b.*, s.name as shop_name FROM wash_bookings b
+        `SELECT b.*, s.name as shop_name,
+                EXISTS(SELECT 1 FROM wash_ratings r WHERE r.booking_id = b.id) as has_rating
+         FROM wash_bookings b
          JOIN wash_shops s ON s.id = b.shop_id
          WHERE b.user_id = $1 ORDER BY b.created_at DESC LIMIT 100`,
         [payload.userId]
       );
-      return respond(res, 200, rows.map(b => ({ ...booking(b), shopName: b.shop_name })));
+      return respond(res, 200, rows.map(b => ({ ...booking(b), shopName: b.shop_name, hasRating: b.has_rating })));
     }
 
     return respond(res, 404, { error: "Route not found", path: p });
