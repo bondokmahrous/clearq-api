@@ -1375,7 +1375,7 @@ async function loadServices() {
 
 function renderServices() {
   const grid = document.getElementById('services-grid');
-  grid.innerHTML = currentServices.filter(s=>!s._deleted).map((s,i)=>`
+  grid.innerHTML = currentServices.map((s,i)=>`
     <div class="service-card" id="svc-card-${s.id||'new'+i}">
       <div class="svc-card-hd">
         <div>
@@ -1477,57 +1477,25 @@ async function loadSettings() {
       fetch(API+'/api/wash/shops/'+currentShopId).then(r=>r.json())
     ]);
     shopSettings = {...settings, ...shop};
+    if (!currentServices.length) currentServices = await api('/api/partners/shop/'+currentShopId+'/services');
     renderSettings();
   } catch {}
 }
 
 function renderSettings() {
   const s = shopSettings;
+  const svcRows = currentServices.length
+    ? currentServices.map(sv => `
+      <div class="settings-row">
+        <div class="settings-label">${sv.name||'Untitled'}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--white)">${sv.price||0} EGP <span style="color:var(--gray);font-weight:400;font-size:12px">· ${sv.durationMins||30} min</span></div>
+      </div>`).join('')
+    : `<div class="settings-row"><div style="font-size:12px;color:var(--gray)">No services set up yet</div></div>`;
   document.getElementById('settings-grid').innerHTML = `
     <div class="settings-card">
-      <div class="settings-card-title">Pricing</div>
-      <div class="settings-row">
-        <div class="settings-label">Exterior wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-pe" value="${s.priceExterior||0}"> <span style="color:var(--gray);font-size:12px">EGP</span>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">Interior wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-pi" value="${s.priceInterior||0}"> <span style="color:var(--gray);font-size:12px">EGP</span>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">Full wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-pf" value="${s.priceFull||0}"> <span style="color:var(--gray);font-size:12px">EGP</span>
-        </div>
-      </div>
-      <button class="settings-save-btn" onclick="savePricing(this)">Save Pricing</button>
-    </div>
-
-    <div class="settings-card">
-      <div class="settings-card-title">Wash Duration (minutes)</div>
-      <div class="settings-row">
-        <div class="settings-label">Exterior wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-me" value="${s.minsExterior||30}"> <span style="color:var(--gray);font-size:12px">min</span>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">Interior wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-mi" value="${s.minsInterior||30}"> <span style="color:var(--gray);font-size:12px">min</span>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">Full wash</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input class="settings-input" type="number" id="set-mf" value="${s.minsFull||45}"> <span style="color:var(--gray);font-size:12px">min</span>
-        </div>
-      </div>
-      <button class="settings-save-btn" onclick="saveDurations(this)">Save Durations</button>
+      <div class="settings-card-title">Services &amp; Pricing</div>
+      ${svcRows}
+      <div style="font-size:11px;color:var(--gray);margin-top:10px;">Prices and durations shown to customers come from your Services list — edit them in the <a onclick="showView('services')" style="color:var(--blue-light);cursor:pointer;">Services &amp; Prices</a> tab.</div>
     </div>
 
     <div class="settings-card">
@@ -1567,38 +1535,6 @@ function renderSettings() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-async function savePricing(btn) {
-  spin(btn);
-  try {
-    await api('/api/partners/shop/'+currentShopId+'/settings',{
-      method:'PATCH', body:JSON.stringify({
-        priceExterior:Number(document.getElementById('set-pe').value),
-        priceInterior:Number(document.getElementById('set-pi').value),
-        priceFull:Number(document.getElementById('set-pf').value),
-      })
-    });
-    toast('✓ Pricing updated','success','💰');
-    loadSettings();
-  } catch(e) { toast(e.message,'error','❌'); }
-  finally { unspin(btn); btn.textContent='Save Pricing'; }
-}
-
-async function saveDurations(btn) {
-  spin(btn);
-  try {
-    await api('/api/partners/shop/'+currentShopId+'/settings',{
-      method:'PATCH', body:JSON.stringify({
-        minsExterior:Number(document.getElementById('set-me').value),
-        minsInterior:Number(document.getElementById('set-mi').value),
-        minsFull:Number(document.getElementById('set-mf').value),
-      })
-    });
-    toast('✓ Durations updated','success','⏱️');
-    loadSettings();
-  } catch(e) { toast(e.message,'error','❌'); }
-  finally { unspin(btn); btn.textContent='Save Durations'; }
-}
 
 async function saveHours(btn) {
   spin(btn);

@@ -635,7 +635,8 @@ async function loadManage() {
 
 function renderManage() {
   let html=`<div class="ms"><div class="ms-t">Services &amp; Prices</div>`;
-  editServices.filter(s=>!s._deleted).forEach((s,i)=>{
+  editServices.forEach((s,i)=>{
+    if (s._deleted) return;
     html+=`<div class="sr">
       <div class="sr-row"><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">🗑</button></div>
       <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)">
