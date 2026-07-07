@@ -195,6 +195,18 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
         <button class="lo-btn" onclick="doLogout()">⏻</button>
       </div>
     </div>
+    <div id="wait-banner" style="display:flex;align-items:center;gap:14px;background:#E6F7F5;border:1px solid #3FBDB0;border-radius:var(--radius);padding:11px 14px;margin-bottom:10px;">
+      <div>
+        <div style="font-size:22px;font-weight:800;color:#21867B;line-height:1;" id="wait-mins">—</div>
+        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">min wait</div>
+      </div>
+      <div style="width:1px;height:30px;background:#3FBDB0;opacity:0.3;"></div>
+      <div>
+        <div style="font-size:22px;font-weight:800;color:#21867B;line-height:1;" id="wait-inline">—</div>
+        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">in line now</div>
+      </div>
+      <div style="font-size:11px;color:var(--gray-dark);margin-left:auto;">Tell walk-ins this ↑</div>
+    </div>
     <div class="sc-row">
       <div class="sc" style="background:#E6F7F5"><div class="sc-num" id="chip-p">0</div><div class="sc-lbl">Pending</div></div>
       <div class="sc" style="background:#FEF3C7"><div class="sc-num" id="chip-i">0</div><div class="sc-lbl">In Progress</div></div>
@@ -453,16 +465,22 @@ function minsUntil(d) { return d?Math.round((new Date(d).getTime()-Date.now())/6
 async function loadQueue(silent=false) {
   const shopId = partnerShop?.id; if (!shopId) return;
   try {
-    const [qRes,sRes,staleRes] = await Promise.all([
+    const [qRes,sRes,staleRes,waitRes] = await Promise.all([
       fetch(`${API}/api/partners/shop/${shopId}/queue`,{headers:authH()}),
       fetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()}),
-      fetch(`${API}/api/partners/shop/${shopId}/stale-bookings`,{headers:authH()})
+      fetch(`${API}/api/partners/shop/${shopId}/stale-bookings`,{headers:authH()}),
+      fetch(`${API}/api/wash/queue/${shopId}`)
     ]);
     if (!qRes.ok) throw new Error();
     const bookings = (await qRes.json()).filter(b=>b.status!=='cancelled');
     partnerServices = sRes.ok ? await sRes.json() : [];
     renderQueue(bookings);
     renderStaleBookings(staleRes.ok ? await staleRes.json() : []);
+    if (waitRes.ok) {
+      const wd = await waitRes.json();
+      document.getElementById('wait-mins').textContent = wd.minsUntilNextFree === 0 ? 'None' : wd.minsUntilNextFree;
+      document.getElementById('wait-inline').textContent = wd.queueCount ?? 0;
+    }
     document.getElementById('offline-bar').classList.remove('show');
   } catch { if (!silent) document.getElementById('offline-bar').classList.add('show'); }
 }
