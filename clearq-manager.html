@@ -997,7 +997,10 @@ function onShopChange() {
 // ─── POLLING ─────────────────────────────────────────────────
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(loadCurrentView, 5000);
+  // Skip views with editable forms — re-rendering mid-edit would wipe out unsaved typing and steal focus
+  pollInterval = setInterval(() => {
+    if (currentViewName !== 'services' && currentViewName !== 'settings') loadCurrentView();
+  }, 5000);
 }
 
 let currentViewName = 'queue';
