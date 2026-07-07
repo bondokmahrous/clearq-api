@@ -655,10 +655,6 @@ html, body {
       </div>
       <button class="lang-btn" onclick="toggleLang()">عربي</button>
     </div>
-    <div class="search-bar">
-      <span style="color:rgba(255,255,255,0.6)">🔍</span>
-      <input type="text" placeholder="Search by name or area..." id="search" oninput="filterWashes()">
-    </div>
   </div>
 
   <!-- Location banner -->
@@ -876,7 +872,6 @@ function toggleLang() {
   isArabic = !isArabic;
   document.querySelector('.lang-btn').textContent = isArabic ? 'English' : 'عربي';
   document.querySelector('.brand-sub').textContent = isArabic ? 'ابحث واحجز غسيل سيارتك' : 'Find & book a car wash near you';
-  document.querySelector('#search').placeholder = isArabic ? 'ابحث بالاسم أو المنطقة...' : 'Search by name or area...';
 }
 
 // ─── USER: LOAD SHOPS ───────────────────────────────────────────
@@ -984,7 +979,7 @@ function getStartReady(q, shop, svcDuration) {
 }
 
 function renderShops() {
-  const q = document.getElementById('search').value.toLowerCase();
+  const q = (document.getElementById('search')?.value || '').toLowerCase();
   const list = shops.filter(s => {
     const mc = currentCity === 'All' || s.city === currentCity;
     const ms = !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
