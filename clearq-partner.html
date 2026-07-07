@@ -667,15 +667,17 @@ async function saveWorkingHours(btn) {
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
   const shopId=partnerShop?.id;
   try {
-    const updated = await (await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
       openTime:document.getElementById('wh-open').value,
       closeTime:document.getElementById('wh-close').value,
       slotDurationMins:Number(document.getElementById('wh-slot').value),
-    })})).json();
+    })});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
     toast('✓ Working hours saved');
-  } catch { toast('Error saving'); }
+  } catch(e) { toast('⚠️ '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Hours';}
 }
 
@@ -683,13 +685,15 @@ async function saveLocationDescription(btn) {
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
   const shopId=partnerShop?.id;
   try {
-    const updated = await (await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
       locationDescription:document.getElementById('loc-desc').value,
-    })})).json();
+    })});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
     toast('✓ Location description saved');
-  } catch { toast('Error saving'); }
+  } catch(e) { toast('⚠️ '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Description';}
 }
 
@@ -701,16 +705,20 @@ async function saveServices() {
   const btn=document.querySelector('.dsv');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
   const shopId=partnerShop?.id;
-  try {
-    for(const s of editServices){
-      if(s._deleted&&s.id) await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'DELETE',headers:authH()});
-      else if(s.isNew&&!s._deleted) await fetch(`${API}/api/partners/shop/${shopId}/services`,{method:'POST',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:1})});
-      else if(s.id&&!s._deleted) await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'PUT',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:s.isActive??1})});
-    }
-    toast('✓ Services saved');
-    loadManage();
-  } catch { toast('Error saving'); }
-  finally{btn.disabled=false;btn.textContent='Save Changes';}
+  const failed=[];
+  for(const s of editServices){
+    try {
+      let res;
+      if(s._deleted&&s.id) res=await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'DELETE',headers:authH()});
+      else if(s.isNew&&!s._deleted) res=await fetch(`${API}/api/partners/shop/${shopId}/services`,{method:'POST',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:1})});
+      else if(s.id&&!s._deleted) res=await fetch(`${API}/api/partners/shop/${shopId}/services/${s.id}`,{method:'PUT',headers:authH(),body:JSON.stringify({name:s.name,description:s.description||'',price:Number(s.price),durationMins:Number(s.durationMins),displayOrder:s.displayOrder,isActive:s.isActive??1})});
+      if(res&&!res.ok) failed.push(s.name||'(unnamed)');
+    } catch { failed.push(s.name||'(unnamed)'); }
+  }
+  if(failed.length) toast('⚠️ Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
+  else toast('✓ Services saved');
+  loadManage();
+  btn.disabled=false;btn.textContent='Save Changes';
 }
 
 // WALK-IN
