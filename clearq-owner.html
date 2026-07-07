@@ -64,6 +64,14 @@ input,select{font-family:inherit;}
 .search-input::placeholder{color:var(--gray);}
 .search-input:focus{border-color:var(--blue);}
 .refresh-btn{background:var(--blue);border:none;border-radius:8px;padding:8px 16px;color:#fff;font-size:13px;font-weight:600;}
+.drp{display:flex;align-items:center;gap:2px;background:var(--navy-mid);border:1px solid var(--navy-light);border-radius:8px;padding:4px;}
+.drp-mode{background:none;border:none;color:var(--gray);font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;cursor:pointer;}
+.drp-mode.active{background:var(--blue);color:#fff;}
+.drp-nav{display:flex;align-items:center;gap:4px;border-left:1px solid var(--navy-light);padding-left:8px;margin-left:4px;}
+.drp-nav-btn{background:none;border:none;color:var(--white);font-size:15px;cursor:pointer;padding:4px 7px;border-radius:6px;}
+.drp-nav-btn:hover{background:var(--navy-light);}
+.drp-label{font-size:12px;font-weight:600;color:var(--white);min-width:150px;text-align:center;white-space:nowrap;}
+.drp-datepick{background:var(--navy);border:1px solid var(--navy-light);border-radius:6px;color:var(--white);font-size:12px;padding:4px 6px;color-scheme:dark;}
 
 /* TABLE */
 .table-wrap{background:var(--navy-mid);border-radius:12px;border:1px solid var(--navy-light);overflow:hidden;}
@@ -192,12 +200,18 @@ input,select{font-family:inherit;}
           <option value="reservation">Website Only</option>
           <option value="walkin">Walk-in Only</option>
         </select>
-        <select class="filter-select" id="filter-date" onchange="loadBookings()">
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="all">All Time</option>
-        </select>
+        <div class="drp">
+          <button class="drp-mode active" data-mode="day" onclick="setDateMode('day')">Day</button>
+          <button class="drp-mode" data-mode="week" onclick="setDateMode('week')">Week</button>
+          <button class="drp-mode" data-mode="month" onclick="setDateMode('month')">Month</button>
+          <button class="drp-mode" data-mode="all" onclick="setDateMode('all')">All Time</button>
+          <div class="drp-nav" id="drp-nav-wrap">
+            <button class="drp-nav-btn" onclick="shiftDate(-1)">‹</button>
+            <span class="drp-label" id="drp-label">—</span>
+            <button class="drp-nav-btn" onclick="shiftDate(1)">›</button>
+            <input class="drp-datepick" type="date" id="drp-datepick" onchange="pickDate(this.value)">
+          </div>
+        </div>
         <input class="search-input" type="text" id="search-bookings" placeholder="Search customer..." oninput="loadBookings()">
         <button class="refresh-btn" onclick="loadBookings()">↻ Refresh</button>
       </div>
@@ -394,6 +408,7 @@ function doLogout() {
 // ─── INIT ────────────────────────────────────────────────────────
 async function init() {
   document.getElementById('overview-date').textContent = new Date().toLocaleDateString('en-EG', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  renderDrpLabel();
   await loadShops();
   loadOverview();
 }
@@ -549,26 +564,95 @@ async function loadOverview() {
   }
 }
 
+// ─── BOOKINGS DATE RANGE PICKER ────────────────────────────────────
+let dateMode = 'day';
+let refDate = new Date();
+
+function fmtYMD(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+function startOfWeek(d) {
+  // Saturday-start week
+  const offset = (d.getDay() + 1) % 7;
+  const s = new Date(d);
+  s.setDate(d.getDate() - offset);
+  s.setHours(0, 0, 0, 0);
+  return s;
+}
+function endOfWeek(d) {
+  const s = startOfWeek(d);
+  const e = new Date(s);
+  e.setDate(s.getDate() + 6);
+  return e;
+}
+function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function endOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0); }
+
+function getDateRange() {
+  if (dateMode === 'day') { const s = fmtYMD(refDate); return { from: s, to: s }; }
+  if (dateMode === 'week') return { from: fmtYMD(startOfWeek(refDate)), to: fmtYMD(endOfWeek(refDate)) };
+  if (dateMode === 'month') return { from: fmtYMD(startOfMonth(refDate)), to: fmtYMD(endOfMonth(refDate)) };
+  return { from: null, to: null };
+}
+
+function renderDrpLabel() {
+  const label = document.getElementById('drp-label');
+  if (dateMode === 'day') {
+    const isToday = fmtYMD(refDate) === fmtYMD(new Date());
+    label.textContent = (isToday ? 'Today · ' : '') + refDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  } else if (dateMode === 'week') {
+    const s = startOfWeek(refDate), e = endOfWeek(refDate);
+    label.textContent = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' + e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } else if (dateMode === 'month') {
+    label.textContent = refDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  } else {
+    label.textContent = 'All Time';
+  }
+  document.getElementById('drp-datepick').value = fmtYMD(refDate);
+}
+
+function setDateMode(mode) {
+  dateMode = mode;
+  document.querySelectorAll('.drp-mode').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('drp-nav-wrap').style.visibility = mode === 'all' ? 'hidden' : 'visible';
+  renderDrpLabel();
+  loadBookings();
+}
+
+function shiftDate(delta) {
+  const d = new Date(refDate);
+  if (dateMode === 'day') d.setDate(d.getDate() + delta);
+  else if (dateMode === 'week') d.setDate(d.getDate() + delta * 7);
+  else if (dateMode === 'month') d.setMonth(d.getMonth() + delta);
+  refDate = d;
+  renderDrpLabel();
+  loadBookings();
+}
+
+function pickDate(value) {
+  if (!value) return;
+  refDate = new Date(value + 'T00:00:00');
+  renderDrpLabel();
+  loadBookings();
+}
+
 // ─── BOOKINGS ────────────────────────────────────────────────────
 async function loadBookings() {
   const centreFilter = document.getElementById('filter-centre').value;
   const statusFilter = document.getElementById('filter-status').value;
-  const dateFilter = document.getElementById('filter-date').value;
   const search = document.getElementById('search-bookings').value.toLowerCase();
-  
+
   document.getElementById('bookings-table').innerHTML = '<div class="loading"><div class="spin"></div></div>';
 
   try {
-    const today = new Date().toISOString().slice(0, 10);
     let allRows = [];
+    const { from, to } = getDateRange();
 
     // Build query params
     const params = new URLSearchParams();
     if (centreFilter) params.set('shopId', centreFilter);
     if (statusFilter) params.set('status', statusFilter);
-    if (dateFilter === 'today') params.set('from', today);
-    else if (dateFilter === 'week') { const d = new Date(); d.setDate(d.getDate()-7); params.set('from', d.toISOString().slice(0,10)); }
-    else if (dateFilter === 'month') { const d = new Date(); d.setDate(d.getDate()-30); params.set('from', d.toISOString().slice(0,10)); }
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
     params.set('limit', '500');
 
     const res = await fetch(`${API}/api/owner/bookings?${params}`, {
@@ -582,7 +666,6 @@ async function loadBookings() {
       if (statusFilter && b.status !== statusFilter) return false;
       if (sourceFilter && b.kind !== sourceFilter) return false;
       if (search && !b.customerName?.toLowerCase().includes(search) && !b.customerPhone?.includes(search)) return false;
-      if (dateFilter === 'today' && b.scheduledDate !== today) return false;
       return true;
     });
 

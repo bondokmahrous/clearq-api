@@ -1599,9 +1599,10 @@ self.addEventListener('notificationclick', e => {
       const shopId = url.searchParams.get('shopId');
       const status = url.searchParams.get('status');
       const dateFrom = url.searchParams.get('from');
+      const dateTo = url.searchParams.get('to');
       let q = `SELECT b.*, s.name as shop_name, u.email as user_email, u.name as account_name,
                       uc.make as car_make, uc.model as car_make_model, uc.color as car_color, uc.car_type as car_body_type
-               FROM wash_bookings b 
+               FROM wash_bookings b
                JOIN wash_shops s ON s.id = b.shop_id
                LEFT JOIN wash_users u ON u.id = b.user_id
                LEFT JOIN user_cars uc ON uc.id = b.car_id
@@ -1611,6 +1612,7 @@ self.addEventListener('notificationclick', e => {
       if (shopId) { q += ` AND b.shop_id=$${i++}`; params.push(shopId); }
       if (status) { q += ` AND b.status=$${i++}`; params.push(status); }
       if (dateFrom) { q += ` AND b.scheduled_date >= $${i++}`; params.push(dateFrom); }
+      if (dateTo) { q += ` AND b.scheduled_date <= $${i++}`; params.push(dateTo); }
       q += ` ORDER BY b.created_at DESC LIMIT $${i}`;
       params.push(limit);
       const rows = await db(q, params);
