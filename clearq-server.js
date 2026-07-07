@@ -20,6 +20,7 @@ const VAPID_PUBLIC_KEY = 'BIoeWmSUr0DFx8VAIwKMRXVBaSFVwY9JLrdEG9srDh_4jt5NyPns3n
 const VAPID_PRIVATE_KEY = 'jt5NyPns3nB587BzRuZxjfPsDlVzyqbMdOd_WDs5PnM';
 const VAPID_SUBJECT = 'mailto:bondokmahrous@gmail.com';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as';
+const OWNER_KEY = 'Bondok@23'; // must match OWNER_PASSWORD in clearq-owner.html
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
@@ -1353,7 +1354,7 @@ self.addEventListener('notificationclick', e => {
 
     // ─── OWNER: SHOP & PARTNER MANAGEMENT ──────────────────────────────
     function checkOwnerKey(req) {
-      return req.headers['x-owner-key'] === 'clearq2026owner';
+      return req.headers['x-owner-key'] === OWNER_KEY;
     }
 
     // GET /owner/shops — full shop list with partner info
@@ -1482,7 +1483,7 @@ self.addEventListener('notificationclick', e => {
     // GET /owner/customers — aggregated customer profiles across all shops
     if (m === "GET" && p === "/owner/customers") {
       const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== 'clearq2026owner') return respond(res, 401, { error: "Unauthorized" });
+      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const search = url.searchParams.get('search') || '';
       let q = `
         SELECT 
@@ -1515,7 +1516,7 @@ self.addEventListener('notificationclick', e => {
     // GET /owner/customers/:phone/history — full booking history for one customer
     if (m === "GET" && /^\/owner\/customers\/[^\/]+\/history$/.test(p)) {
       const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== 'clearq2026owner') return respond(res, 401, { error: "Unauthorized" });
+      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const phone = decodeURIComponent(p.split("/")[3]);
       const rows = await db(
         `SELECT b.*, s.name as shop_name FROM wash_bookings b
@@ -1534,7 +1535,7 @@ self.addEventListener('notificationclick', e => {
     // GET /owner/customers — all registered customers with their cars
     if (m === "GET" && p === "/owner/customers") {
       const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== 'clearq2026owner') return respond(res, 401, { error: "Unauthorized" });
+      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const search = url.searchParams.get('search');
       let q = `SELECT u.*, 
                  (SELECT COUNT(*) FROM wash_bookings WHERE user_id = u.id AND status='completed') as total_washes,
@@ -1562,7 +1563,7 @@ self.addEventListener('notificationclick', e => {
     // GET /owner/bookings — all bookings across all shops (owner only)
     if (m === "GET" && p === "/owner/bookings") {
       const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== 'clearq2026owner') return respond(res, 401, { error: "Unauthorized" });
+      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const limit = url.searchParams.get('limit') || 200;
       const shopId = url.searchParams.get('shopId');
       const status = url.searchParams.get('status');
@@ -1600,7 +1601,7 @@ self.addEventListener('notificationclick', e => {
     // GET /owner/stats — summary stats for owner dashboard
     if (m === "GET" && p === "/owner/stats") {
       const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== 'clearq2026owner') return respond(res, 401, { error: "Unauthorized" });
+      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const today = new Date().toISOString().slice(0,10);
       const stats = await db(`
         SELECT 
