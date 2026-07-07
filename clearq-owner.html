@@ -310,17 +310,6 @@ input,select{font-family:inherit;}
       </div>
     </div>
 
-    <!-- CUSTOMERS -->
-    <div class="page" id="page-customers">
-      <div class="page-title">Customers</div>
-      <div class="page-sub">All registered users and their cars</div>
-      <div class="filters-row">
-        <input class="search-input" type="text" id="search-customers" placeholder="Search name, email, phone..." oninput="loadCustomers()" style="width:280px;">
-        <button class="refresh-btn" onclick="loadCustomers()">↻ Refresh</button>
-      </div>
-      <div id="customers-list"><div class="loading"><div class="spin"></div></div></div>
-    </div>
-
     <!-- RATINGS -->
     <div class="page" id="page-ratings">
       <div class="page-title">Customer Reviews</div>
@@ -1007,51 +996,6 @@ async function openCustomerHistory(phone, name) {
 
 function closeCustomerModal() {
   document.getElementById('customer-modal-bg').style.display = 'none';
-}
-
-// ─── CUSTOMERS ───────────────────────────────────────────────────
-async function loadCustomers() {
-  const search = document.getElementById('search-customers').value.trim();
-  document.getElementById('customers-list').innerHTML = '<div class="loading"><div class="spin"></div></div>';
-  try {
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    const res = await fetch(`${API}/api/owner/customers?${params}`, { headers: {'x-owner-key': OWNER_PASSWORD} });
-    if (!res.ok) throw new Error('Failed');
-    const customers = await res.json();
-    if (!customers.length) {
-      document.getElementById('customers-list').innerHTML = '<div class="loading" style="color:var(--gray)">No customers found</div>';
-      return;
-    }
-    document.getElementById('customers-list').innerHTML = customers.map(c => `
-      <div class="table-wrap" style="padding:16px 18px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:${c.cars.length ? '12px' : '0'};">
-          <div>
-            <div style="font-size:15px;font-weight:700;">${c.name}</div>
-            <div style="font-size:12px;color:var(--gray);margin-top:2px;">${c.email} · ${c.phone || 'No phone'}</div>
-            <div style="font-size:11px;color:var(--gray);margin-top:2px;">Joined ${new Date(c.createdAt).toLocaleDateString('en-EG')}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:18px;font-weight:800;color:var(--green);">${c.totalSpent.toLocaleString()} EGP</div>
-            <div style="font-size:11px;color:var(--gray);">${c.totalWashes} washes completed</div>
-          </div>
-        </div>
-        ${c.cars.length ? `
-          <div style="display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--navy-light);padding-top:12px;">
-            ${c.cars.map(car => `
-              <div style="background:var(--navy);border-radius:8px;padding:8px 12px;font-size:12px;">
-                <span style="font-weight:600;">${[car.color, car.make, car.model].filter(Boolean).join(' ')}</span>
-                ${car.licensePlate ? `<span style="color:var(--gray);margin-left:6px;">· ${car.licensePlate}</span>` : ''}
-                ${car.isDefault ? '<span style="background:rgba(59,130,246,0.15);color:#60a5fa;border-radius:4px;padding:1px 6px;margin-left:6px;font-size:10px;">Default</span>' : ''}
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-      </div>
-    `).join('');
-  } catch(e) {
-    document.getElementById('customers-list').innerHTML = '<div class="loading" style="color:var(--red)">Error loading customers</div>';
-  }
 }
 
 // ─── NAVIGATION ─────────────────────────────────────────────────
