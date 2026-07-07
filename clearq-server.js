@@ -223,6 +223,8 @@ async function initDB() {
   // Add user_id and car_id to bookings for linking to accounts
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS user_id INT REFERENCES wash_users(id)`);
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS car_id INT`);
+  // Free-text directions the wash centre can set (e.g. "blue gate next to the Total station")
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS location_description TEXT`);
   // Migrate existing user car_model/license_plate into user_cars as their first car
   await db(`
     INSERT INTO user_cars (user_id, model, license_plate, is_default)
@@ -389,6 +391,7 @@ function shop(s) {
     minsExterior: s.mins_exterior, minsInterior: s.mins_interior, minsFull: s.mins_full,
     priceExterior: s.price_exterior, priceInterior: s.price_interior, priceFull: s.price_full,
     maxWorkers: s.max_workers, isActive: s.is_active, lat: s.lat, lng: s.lng,
+    locationDescription: s.location_description,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -1090,14 +1093,14 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description });
     }
 
     // PATCH /partners/shop/:id/settings
     if (m === "PATCH" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const body = await readBody(req);
       const numericMap = { priceExterior:"price_exterior", priceInterior:"price_interior", priceFull:"price_full", minsExterior:"mins_exterior", minsInterior:"mins_interior", minsFull:"mins_full", slotDurationMins:"slot_duration_mins" };
-      const textMap = { openTime:"open_time", closeTime:"close_time" };
+      const textMap = { openTime:"open_time", closeTime:"close_time", locationDescription:"location_description" };
       const sets = []; const vals = []; let i = 1;
       for (const [k,col] of Object.entries(numericMap)) {
         if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(+body[k]); }

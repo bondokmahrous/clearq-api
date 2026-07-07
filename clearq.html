@@ -500,6 +500,18 @@ html, body {
       </div>
       <div class="lp-bays" id="lp-bays"></div>
     </div>
+
+    <!-- Location -->
+    <div class="lp-phone-mock" style="margin-top:12px;text-align:left;">
+      <div id="lp-loc-map" style="width:100%;height:120px;border-radius:12px;overflow:hidden;margin-bottom:10px;background:rgba(255,255,255,0.08);"></div>
+      <div style="display:flex;align-items:flex-start;gap:8px;">
+        <span style="font-size:14px;line-height:1.3;">📍</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#fff;" id="lp-loc-address">—</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px;display:none;" id="lp-loc-desc"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Simple 3 steps -->
@@ -2647,6 +2659,29 @@ function updateLandingMock() {
   const centresEl = document.getElementById('lp-centres');
   if (shops.length && centresEl) centresEl.textContent = shops.length;
   updateLandingLiveTicker();
+  window.googleMapsReadyPromise.then(initLandingLocation);
+}
+
+let landingMapInitialized = false;
+function initLandingLocation() {
+  const shop = shops.find(s => s.id === 6);
+  if (!shop) return;
+  const addrEl = document.getElementById('lp-loc-address');
+  const descEl = document.getElementById('lp-loc-desc');
+  if (addrEl) addrEl.textContent = [shop.address, shop.city].filter(Boolean).join(', ');
+  if (descEl) {
+    if (shop.locationDescription) { descEl.textContent = shop.locationDescription; descEl.style.display = 'block'; }
+    else { descEl.style.display = 'none'; }
+  }
+  if (landingMapInitialized || !shop.lat || !shop.lng) return;
+  const container = document.getElementById('lp-loc-map');
+  if (!container) return;
+  landingMapInitialized = true;
+  const map = new google.maps.Map(container, {
+    center: { lat: shop.lat, lng: shop.lng }, zoom: 15,
+    disableDefaultUI: true, gestureHandling: 'none', keyboardShortcuts: false,
+  });
+  new google.maps.Marker({ position: { lat: shop.lat, lng: shop.lng }, map });
 }
 
 function updateLandingLiveTicker() {
