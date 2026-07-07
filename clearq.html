@@ -624,7 +624,39 @@ html, body {
       <input class="su-input" type="password" id="li-password" placeholder="Your password">
       <div class="su-err" id="su-err3"></div>
       <button class="su-btn" id="su-btn3" onclick="doLogin2()">Sign In</button>
+      <div class="su-link" onclick="showForgotPassword()">Forgot password?</div>
       <div class="su-link" onclick="showStep(1)">New user? <span>Create account</span></div>
+    </div>
+
+    <!-- STEP 4: Forgot password — request code -->
+    <div class="signup-step" id="su-step4">
+      <div class="signup-title">Reset your password</div>
+      <div class="signup-sub">Enter your email and we'll send you a reset code</div>
+      <label class="su-label">Email address</label>
+      <input class="su-input" type="email" id="fp-email" placeholder="you@example.com">
+      <div class="su-err" id="su-err4"></div>
+      <button class="su-btn" id="su-btn4" onclick="requestPasswordReset()">Send Reset Code</button>
+      <div class="su-link" onclick="showStep(3)">← Back to sign in</div>
+    </div>
+
+    <!-- STEP 5: Forgot password — enter code + new password -->
+    <div class="signup-step" id="su-step5">
+      <div class="signup-title">Check your email</div>
+      <div class="signup-sub">Enter the 6-digit code we sent, and your new password</div>
+      <div class="otp-boxes">
+        <input class="otp-box" type="text" maxlength="1" id="rc0" oninput="rcNext(0)" onkeydown="rcBack(event,0)">
+        <input class="otp-box" type="text" maxlength="1" id="rc1" oninput="rcNext(1)" onkeydown="rcBack(event,1)">
+        <input class="otp-box" type="text" maxlength="1" id="rc2" oninput="rcNext(2)" onkeydown="rcBack(event,2)">
+        <input class="otp-box" type="text" maxlength="1" id="rc3" oninput="rcNext(3)" onkeydown="rcBack(event,3)">
+        <input class="otp-box" type="text" maxlength="1" id="rc4" oninput="rcNext(4)" onkeydown="rcBack(event,4)">
+        <input class="otp-box" type="text" maxlength="1" id="rc5" oninput="rcNext(5)" onkeydown="rcBack(event,5)">
+      </div>
+      <label class="su-label" style="margin-top:14px;">New password</label>
+      <input class="su-input" type="password" id="rc-password" placeholder="At least 6 characters">
+      <div class="su-err" id="su-err5"></div>
+      <button class="su-btn" id="su-btn5" onclick="confirmPasswordReset()">Reset Password</button>
+      <div class="su-link" onclick="requestPasswordReset(true)">Didn't receive it? <span>Resend code</span></div>
+      <div class="su-link" onclick="showStep(3)">← Back to sign in</div>
     </div>
   </div>
 </div>
@@ -2218,6 +2250,81 @@ async function doLogin2() {
     err.textContent = e.message || 'Incorrect email or password';
   } finally {
     btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+function showForgotPassword() {
+  const err4 = document.getElementById('su-err4'); if (err4) err4.textContent = '';
+  const emailEl = document.getElementById('li-email');
+  document.getElementById('fp-email').value = emailEl ? emailEl.value.trim() : '';
+  showStep(4);
+}
+
+async function requestPasswordReset(isResend) {
+  const email = document.getElementById('fp-email').value.trim();
+  const errId = isResend ? 'su-err5' : 'su-err4';
+  const err = document.getElementById(errId);
+  err.textContent = '';
+  if (!email || !email.includes('@')) { err.textContent = 'Please enter a valid email'; if (!isResend) return; }
+  const btn = document.getElementById(isResend ? null : 'su-btn4');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'; }
+  try {
+    const res = await fetch(`${API}/api/users/forgot-password`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email})
+    });
+    if (!res.ok) throw new Error('Something went wrong. Please try again.');
+    ['rc0','rc1','rc2','rc3','rc4','rc5'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    toast(isResend ? '✓ Code resent' : '✓ Reset code sent to your email');
+    showStep(5);
+    document.getElementById('rc0')?.focus();
+  } catch(e) {
+    err.textContent = e.message || 'Something went wrong. Please try again.';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Code'; }
+  }
+}
+
+function rcNext(i) {
+  const el = document.getElementById('rc'+i);
+  if (el.value && i < 5) document.getElementById('rc'+(i+1)).focus();
+}
+function rcBack(e, i) {
+  if (e.key === 'Backspace' && !e.target.value && i > 0) document.getElementById('rc'+(i-1)).focus();
+}
+
+async function confirmPasswordReset() {
+  const email = document.getElementById('fp-email').value.trim();
+  const code = ['rc0','rc1','rc2','rc3','rc4','rc5'].map(id => document.getElementById(id).value).join('');
+  const newPassword = document.getElementById('rc-password').value;
+  const err = document.getElementById('su-err5');
+  err.textContent = '';
+  if (code.length !== 6) { err.textContent = 'Please enter the 6-digit code'; return; }
+  if (!newPassword || newPassword.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  const btn = document.getElementById('su-btn5');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  try {
+    const res = await fetch(`${API}/api/users/reset-password`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email, code, newPassword})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not reset password');
+    localStorage.setItem('cq_token', data.token);
+    currentUser = data.user;
+    localStorage.setItem('cq_user', JSON.stringify(currentUser));
+    document.getElementById('signup-overlay').classList.remove('open');
+    document.getElementById('landing-page').classList.remove('show');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-user').classList.add('active');
+    renderAccount();
+    toast('✓ Password reset — welcome back, ' + data.user.name + '!');
+  } catch(e) {
+    err.textContent = e.message || 'Could not reset password';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reset Password';
   }
 }
 

@@ -10,6 +10,7 @@ const { Pool } = require("pg");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const nodemailer = require("nodemailer");
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || "3000", 10);
@@ -21,6 +22,8 @@ const VAPID_PRIVATE_KEY = 'jt5NyPns3nB587BzRuZxjfPsDlVzyqbMdOd_WDs5PnM';
 const VAPID_SUBJECT = 'mailto:bondokmahrous@gmail.com';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as';
 const OWNER_KEY = 'Bondok@23'; // must match OWNER_PASSWORD in clearq-owner.html
+const SMTP_USER = process.env.SMTP_USER || 'info@clearq.online';
+const SMTP_PASS = process.env.SMTP_PASS;
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
@@ -225,6 +228,9 @@ async function initDB() {
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS car_id INT`);
   // Free-text directions the wash centre can set (e.g. "blue gate next to the Total station")
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS location_description TEXT`);
+  // Password reset: short-lived hashed code + expiry per user
+  await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT`);
+  await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ`);
   // Migrate existing user car_model/license_plate into user_cars as their first car
   await db(`
     INSERT INTO user_cars (user_id, model, license_plate, is_default)
@@ -350,6 +356,30 @@ async function bcryptHash(password) {
     } catch {
       return password; // dev fallback
     }
+  }
+}
+
+// ─── EMAIL (Namecheap Private Email SMTP) ─────────────────────────────────────
+const mailTransport = SMTP_PASS
+  ? nodemailer.createTransport({
+      host: "mail.privateemail.com",
+      port: 465,
+      secure: true,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    })
+  : null;
+
+async function sendEmail(to, subject, html) {
+  if (!mailTransport) {
+    console.error("Email not sent — SMTP_PASS is not configured:", subject, "to", to);
+    return false;
+  }
+  try {
+    await mailTransport.sendMail({ from: `"ClearQ" <${SMTP_USER}>`, to, subject, html });
+    return true;
+  } catch (e) {
+    console.error("Email send failed:", e.message);
+    return false;
   }
 }
 
@@ -1676,6 +1706,44 @@ self.addEventListener('notificationclick', e => {
       if (!user) return respond(res, 401, { error: "Incorrect email or password" });
       const valid = await bcryptCompare(password, user.password_hash);
       if (!valid) return respond(res, 401, { error: "Incorrect email or password" });
+      const token = signJWT({ userId: user.id, email: user.email });
+      return respond(res, 200, { token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone, carModel: user.car_model, licensePlate: user.license_plate } });
+    }
+
+    // POST /users/forgot-password — always responds success, doesn't reveal whether the email exists
+    if (m === "POST" && p === "/users/forgot-password") {
+      const { email } = await readBody(req);
+      if (!email) return respond(res, 400, { error: "email required" });
+      const user = await db1(`SELECT id, name FROM wash_users WHERE email=$1`, [email.toLowerCase().trim()]);
+      if (user) {
+        const code = String(crypto.randomInt(100000, 1000000));
+        const codeHash = await bcryptHash(code);
+        const expires = new Date(Date.now() + 15 * 60000);
+        await db(`UPDATE wash_users SET reset_code_hash=$1, reset_code_expires=$2, updated_at=NOW() WHERE id=$3`, [codeHash, expires, user.id]);
+        await sendEmail(email.toLowerCase().trim(), "Your ClearQ password reset code",
+          `<div style="font-family:sans-serif;max-width:420px;margin:0 auto;">
+            <h2 style="color:#21867B;">ClearQ</h2>
+            <p>Hi ${user.name || ''},</p>
+            <p>Use this code to reset your password. It expires in 15 minutes.</p>
+            <div style="font-size:28px;font-weight:800;letter-spacing:6px;background:#E6F7F5;color:#21867B;padding:14px 20px;border-radius:8px;text-align:center;margin:16px 0;">${code}</div>
+            <p style="color:#64748b;font-size:12px;">If you didn't request this, you can safely ignore this email.</p>
+          </div>`);
+      }
+      return respond(res, 200, { success: true });
+    }
+
+    // POST /users/reset-password
+    if (m === "POST" && p === "/users/reset-password") {
+      const { email, code, newPassword } = await readBody(req);
+      if (!email || !code || !newPassword) return respond(res, 400, { error: "email, code and newPassword required" });
+      if (newPassword.length < 6) return respond(res, 400, { error: "Password must be at least 6 characters" });
+      const user = await db1(`SELECT * FROM wash_users WHERE email=$1`, [email.toLowerCase().trim()]);
+      if (!user || !user.reset_code_hash || !user.reset_code_expires) return respond(res, 400, { error: "Invalid or expired code" });
+      if (new Date(user.reset_code_expires) < new Date()) return respond(res, 400, { error: "Code has expired — request a new one" });
+      const valid = await bcryptCompare(code, user.reset_code_hash);
+      if (!valid) return respond(res, 400, { error: "Invalid or expired code" });
+      const hash = await bcryptHash(newPassword);
+      await db(`UPDATE wash_users SET password_hash=$1, reset_code_hash=NULL, reset_code_expires=NULL, updated_at=NOW() WHERE id=$2`, [hash, user.id]);
       const token = signJWT({ userId: user.id, email: user.email });
       return respond(res, 200, { token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone, carModel: user.car_model, licensePlate: user.license_plate } });
     }
