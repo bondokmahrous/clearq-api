@@ -1635,7 +1635,7 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && p === "/owner/stats") {
       const ownerKey = req.headers['x-owner-key'];
       if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
-      const today = new Date().toISOString().slice(0,10);
+      const todayStr = today();
       const stats = await db(`
         SELECT 
           s.id, s.name, s.max_workers,
@@ -1656,7 +1656,7 @@ self.addEventListener('notificationclick', e => {
         WHERE s.is_active = 1
         GROUP BY s.id, s.name, s.max_workers
         ORDER BY s.id
-      `, [today]);
+      `, [todayStr]);
       return respond(res, 200, stats);
     }
 
