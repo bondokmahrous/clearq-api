@@ -617,25 +617,63 @@ async function getQueueState(shopId) {
 async function simulateBayQueue(shopId, opts = {}) {
   const { maxBays, defaultDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
-
-  // Answering "when could a new booking start" — whether it's a specific customer's real ETA,
-  // or the generic "if someone booked right now" wait shown before they've even opened the
-  // modal — always folds that hypothetical arrival into the same arrival-ordered list as every
-  // other pending booking and runs it through the exact same assignment below. That's what lets
-  // a customer arriving soon slot into a gap ahead of a booking reserved for hours from now,
-  // instead of being told to wait for reservations that haven't even happened yet.
-  const hypotheticalArrival = opts.hypotheticalArrival || new Date(nowMs);
+  const requestedArrival = (opts.hypotheticalArrival || new Date(nowMs)).getTime();
   const hypotheticalDur = opts.hypotheticalDurationMins || defaultDur;
-  const hypothetical = {
-    __hypothetical: true,
-    eta_arrival_at: hypotheticalArrival,
-    eta_ready_at: null,
-    duration_mins: hypotheticalDur,
-  };
-  const simPending = [...pending, hypothetical].sort((a, b) => arrivalMs(a) - arrivalMs(b));
 
-  const startTimes = assignBays(maxBays, active, simPending, defaultDur, nowMs);
-  const hypotheticalStart = startTimes.get(hypothetical);
+  // Answering "when could a new booking actually start" — whether it's a specific customer's
+  // real ETA, or the generic "if someone booked right now" wait shown before they've even
+  // opened the modal — must never come at the cost of an already-promised reservation. Simply
+  // inserting the hypothetical at its earliest possible time and letting arrival order sort it
+  // ahead of real bookings (the first version of this fix) let a purely hypothetical "arriving
+  // now" preview jump the queue in front of real reservations arriving at nearly the same time,
+  // silently pushing them later in the math than what they were actually promised — the same
+  // problem the walk-in block exists to prevent, just here in the preview math instead of a
+  // real booking. So: compute the baseline (what every real booking gets with no hypothetical
+  // at all), then search forward from the requested arrival for the earliest moment a
+  // hypothetical booking can be inserted without pushing any real booking past its own baseline.
+  const baselineSorted = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
+  const baselineStarts = assignBays(maxBays, active, baselineSorted, defaultDur, nowMs);
+
+  // Candidate times worth checking are exactly the moments bay availability can change —
+  // no need to search continuously between them.
+  const candidates = new Set([Math.max(nowMs, requestedArrival)]);
+  for (const b of active) {
+    const dur = bookingDurationMins(b, defaultDur);
+    const finishAt = b.eta_ready_at
+      ? new Date(b.eta_ready_at).getTime()
+      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
+    candidates.add(finishAt + BAY_HANDOFF_BUFFER_MS);
+  }
+  for (const b of pending) {
+    candidates.add(new Date(b.eta_arrival_at).getTime());
+    candidates.add(baselineStarts.get(b) + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS);
+  }
+  const sortedCandidates = [...candidates].filter(t => t >= requestedArrival).sort((a, b) => a - b);
+
+  let hypotheticalStart = null;
+  for (const candidateArrival of sortedCandidates) {
+    const hypothetical = {
+      __hypothetical: true,
+      eta_arrival_at: new Date(candidateArrival),
+      eta_ready_at: null,
+      duration_mins: hypotheticalDur,
+    };
+    const withHyp = [...pending, hypothetical].sort((a, b) => arrivalMs(a) - arrivalMs(b));
+    const withHypStarts = assignBays(maxBays, active, withHyp, defaultDur, nowMs);
+    const displaces = pending.some(b => withHypStarts.get(b) > baselineStarts.get(b) + 60000);
+    if (!displaces) {
+      hypotheticalStart = withHypStarts.get(hypothetical);
+      break;
+    }
+  }
+  if (hypotheticalStart === null) {
+    // Every candidate we checked would displace someone (shouldn't normally happen — the point
+    // after everything real clears is always safe) — fall back to right after the last real
+    // booking finishes.
+    hypotheticalStart = Math.max(requestedArrival, nowMs, ...baselineSorted.map(b =>
+      baselineStarts.get(b) + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS
+    ));
+  }
 
   if (opts.hypotheticalArrival) {
     return { maxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
