@@ -542,17 +542,57 @@ async function inProgressCount(shopId) {
 // without inserting anything — used by POST /wash/reservations to price a new booking.
 const BAY_HANDOFF_BUFFER_MS = 10 * 60000; // slack after every wash before a bay counts as free again, in case it runs long
 
-async function simulateBayQueue(shopId, opts = {}) {
+function bookingDurationMins(b, defaultDur) {
+  if (b.eta_ready_at && b.eta_arrival_at) {
+    const dur = Math.round((new Date(b.eta_ready_at) - new Date(b.eta_arrival_at)) / 60000);
+    if (dur >= 5) return dur;
+  }
+  return parseInt(b.duration_mins) || defaultDur;
+}
+
+// Runs the shared arrival-ordered bay assignment used everywhere a "when would this booking
+// actually get a bay" answer is needed. `items` should already be sorted by arrival time.
+// Returns a Map from each item to its assigned start time (ms) — including active washes,
+// so callers can compare a real booking's own promised arrival against what it would actually
+// get once everything (including any hypothetical items folded into `items`) is assigned.
+function assignBays(maxBays, active, items, defaultDur, nowMs) {
+  let bays = Array(maxBays).fill(nowMs);
+  const startTimes = new Map();
+
+  for (const b of active) {
+    bays.sort((a, x) => a - x);
+    const dur = bookingDurationMins(b, defaultDur);
+    const finishAt = b.eta_ready_at
+      ? new Date(b.eta_ready_at).getTime()
+      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
+    startTimes.set(b, new Date(b.wash_started_at || b.created_at).getTime());
+    bays[0] = finishAt + BAY_HANDOFF_BUFFER_MS;
+  }
+
+  for (const b of items) {
+    bays.sort((a, x) => a - x);
+    const dur = bookingDurationMins(b, defaultDur);
+    const bayFreeAt = bays[0];
+    // Booking can't start until customer arrives OR bay is free, whichever is LATER
+    const arriveAt = b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : nowMs;
+    const startAt = Math.max(bayFreeAt, arriveAt);
+    startTimes.set(b, startAt);
+    bays[0] = startAt + dur * 60000 + BAY_HANDOFF_BUFFER_MS;
+  }
+
+  return startTimes;
+}
+
+async function getQueueState(shopId) {
   const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
   const maxBays = s?.max_workers || 3;
   const defaultDur = s?.slot_duration_mins || 30;
-  const nowMs = Date.now();
 
   // Exclude bookings that were clearly forgotten (should have finished hours ago but were
   // never marked done) — otherwise a stale booking from days ago silently distorts live wait
   // times for real customers. These still show up in the partner/manager "Needs Attention" list.
   const allBookings = await db(
-    `SELECT b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
+    `SELECT b.id, b.customer_name, b.wash_type, b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
             b.created_at, b.kind, COALESCE(sv.duration_mins, $2) as duration_mins
      FROM wash_bookings b
      LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
@@ -571,6 +611,13 @@ async function simulateBayQueue(shopId, opts = {}) {
   // today but arriving sooner.
   const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
 
+  return { maxBays, defaultDur, pending, active, freeBays, arrivalMs };
+}
+
+async function simulateBayQueue(shopId, opts = {}) {
+  const { maxBays, defaultDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
+  const nowMs = Date.now();
+
   // Answering "when could a new booking start" — whether it's a specific customer's real ETA,
   // or the generic "if someone booked right now" wait shown before they've even opened the
   // modal — always folds that hypothetical arrival into the same arrival-ordered list as every
@@ -579,48 +626,16 @@ async function simulateBayQueue(shopId, opts = {}) {
   // instead of being told to wait for reservations that haven't even happened yet.
   const hypotheticalArrival = opts.hypotheticalArrival || new Date(nowMs);
   const hypotheticalDur = opts.hypotheticalDurationMins || defaultDur;
-  const simPending = [...pending, {
+  const hypothetical = {
     __hypothetical: true,
     eta_arrival_at: hypotheticalArrival,
     eta_ready_at: null,
     duration_mins: hypotheticalDur,
-  }];
-  simPending.sort((a, b) => arrivalMs(a) - arrivalMs(b));
+  };
+  const simPending = [...pending, hypothetical].sort((a, b) => arrivalMs(a) - arrivalMs(b));
 
-  // QUEUE SIMULATION:
-  // Every booking (active + pending + the hypothetical one) occupies a bay slot, each leaving
-  // BAY_HANDOFF_BUFFER_MS of slack before the bay counts as free for whatever's next.
-  let bays = Array(maxBays).fill(nowMs);
-
-  // 1. Assign active washes to bays (already in progress)
-  for (const b of active) {
-    bays.sort((a, x) => a - x);
-    const dur = parseInt(b.duration_mins) || defaultDur;
-    const finishAt = b.eta_ready_at
-      ? new Date(b.eta_ready_at).getTime()
-      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
-    bays[0] = finishAt + BAY_HANDOFF_BUFFER_MS;
-  }
-
-  // 2. Assign pending + hypothetical bookings to bays in arrival order
-  let hypotheticalStart = nowMs;
-  for (const b of simPending) {
-    bays.sort((a, x) => a - x);
-    // Get real duration from eta_ready_at - eta_arrival_at if both exist
-    let dur;
-    if (b.eta_ready_at && b.eta_arrival_at) {
-      dur = Math.round((new Date(b.eta_ready_at) - new Date(b.eta_arrival_at)) / 60000);
-      if (dur < 5) dur = parseInt(b.duration_mins) || defaultDur;
-    } else {
-      dur = parseInt(b.duration_mins) || defaultDur;
-    }
-    const bayFreeAt = bays[0];
-    // Booking can't start until customer arrives OR bay is free, whichever is LATER
-    const arriveAt = new Date(b.eta_arrival_at).getTime();
-    const startAt = Math.max(bayFreeAt, arriveAt);
-    if (b.__hypothetical) hypotheticalStart = startAt;
-    bays[0] = startAt + dur * 60000 + BAY_HANDOFF_BUFFER_MS;
-  }
+  const startTimes = assignBays(maxBays, active, simPending, defaultDur, nowMs);
+  const hypotheticalStart = startTimes.get(hypothetical);
 
   if (opts.hypotheticalArrival) {
     return { maxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
@@ -639,6 +654,31 @@ async function simulateBayQueue(shopId, opts = {}) {
     freeBays,
     minsUntilNextFree: waitMins,
   };
+}
+
+// Checks whether taking a walk-in right now (for durationMins) would push any already-pending
+// reservation's bay past its own promised arrival time — i.e. that customer would show up to
+// no bay ready even though the system told them one would be. If so, the walk-in can't be
+// added; whoever already has a promised slot keeps it. Returns the conflicting booking, or
+// null if the walk-in is safe to add.
+async function findWalkinConflict(shopId, durationMins) {
+  const { maxBays, defaultDur, pending, active, arrivalMs } = await getQueueState(shopId);
+  const nowMs = Date.now();
+  const dur = durationMins || defaultDur;
+
+  const withoutWalkin = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
+  const promisedStarts = assignBays(maxBays, active, withoutWalkin, defaultDur, nowMs);
+
+  const walkin = { __walkin: true, eta_arrival_at: new Date(nowMs), eta_ready_at: null, duration_mins: dur };
+  const withWalkin = [...pending, walkin].sort((a, b) => arrivalMs(a) - arrivalMs(b));
+  const actualStarts = assignBays(maxBays, active, withWalkin, defaultDur, nowMs);
+
+  for (const b of pending) {
+    // Being reassigned to a different bay at the same time is fine — only a real conflict if
+    // the walk-in pushes them later than what they were already promised (small tolerance for rounding).
+    if (actualStarts.get(b) > promisedStarts.get(b) + 60000) return b;
+  }
+  return null;
 }
 
 async function getFreeBay(shopId, maxWorkers) {
@@ -1351,6 +1391,15 @@ self.addEventListener('notificationclick', e => {
 
       const { price, durationMins } = await resolveService(shopId, washType);
       const now = new Date();
+
+      const conflict = await findWalkinConflict(shopId, durationMins);
+      if (conflict) {
+        return respond(res, 409, {
+          error: `Can't add this walk-in — ${conflict.customer_name || 'a customer'}'s ${conflict.wash_type || 'booking'} is arriving before this ${durationMins}-min wash would finish, and there's no other bay for them.`,
+          conflictingBookingId: conflict.id,
+        });
+      }
+
       const freeBay = await getFreeBay(shopId, s.max_workers);
 
       if (freeBay !== null) {

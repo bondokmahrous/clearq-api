@@ -817,13 +817,13 @@ async function api(path, opts={}) {
   }
 }
 
-function toast(msg, type='success', icon='') {
+function toast(msg, type='success', icon='', dur=4000) {
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
   el.className = 'toast '+type;
   el.innerHTML = (icon?`<span>${icon}</span>`:'') + `<span>${msg}</span>`;
   wrap.appendChild(el);
-  setTimeout(() => el.remove(), 4000);
+  setTimeout(() => el.remove(), dur);
 }
 
 function fmtTime(iso) {
@@ -1616,7 +1616,7 @@ async function submitWalkIn() {
     toast(result?.linkedToAccount ? `✓ Linked to ${name}'s ClearQ account` : '✓ Walk-in added: '+name,'success','🚗');
     loadQueue(true);
     loadBays();
-  } catch(e) { toast(e.message,'error','❌'); }
+  } catch(e) { toast(e.message,'error','❌',7000); }
   finally { unspin(btn); btn.textContent='Add Walk-in'; }
 }
 

@@ -738,7 +738,7 @@ async function addWalkIn(){
     closeWI();
     toast(result?.linkedToAccount ? `✓ Walk-in added — linked to ${name}'s ClearQ account` : `✓ Walk-in added: ${name}`);
     loadQueue();loadBays();
-  }catch(e){toast('Error: '+e.message);}
+  }catch(e){toast('⚠️ '+e.message, 7000);}
   finally{btn.disabled=false;btn.textContent='Add';}
 }
 
