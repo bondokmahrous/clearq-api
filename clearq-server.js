@@ -588,6 +588,22 @@ async function getQueueState(shopId) {
   const maxBays = s?.max_workers || 3;
   const defaultDur = s?.slot_duration_mins || 30;
 
+  // The longest currently-active service this shop offers — used as the assumed duration for
+  // the generic "if someone booked right now" preview shown before a customer has picked a
+  // service. Using the shop's short slot interval (e.g. 30 min) there under-promised: it can
+  // slot into gaps a longer, more commonly-booked service (e.g. a 60-min full wash) can't, so
+  // the number shown looked far more available than what most customers would actually get
+  // once they picked a real service. Erring toward the longest duration means the shown wait
+  // is never an underestimate, whichever service they end up choosing.
+  const maxServiceDur = await db1(
+    `SELECT GREATEST(
+       COALESCE((SELECT MAX(duration_mins) FROM wash_services WHERE shop_id=$1 AND is_active=1), 0),
+       COALESCE($2, 0), COALESCE($3, 0), COALESCE($4, 0)
+     ) as dur`,
+    [shopId, s?.mins_exterior, s?.mins_interior, s?.mins_full]
+  );
+  const longestServiceDur = maxServiceDur?.dur > 0 ? maxServiceDur.dur : defaultDur;
+
   // Exclude bookings that were clearly forgotten (should have finished hours ago but were
   // never marked done) — otherwise a stale booking from days ago silently distorts live wait
   // times for real customers. These still show up in the partner/manager "Needs Attention" list.
@@ -611,14 +627,17 @@ async function getQueueState(shopId) {
   // today but arriving sooner.
   const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
 
-  return { maxBays, defaultDur, pending, active, freeBays, arrivalMs };
+  return { maxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs };
 }
 
 async function simulateBayQueue(shopId, opts = {}) {
-  const { maxBays, defaultDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
+  const { maxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
   const requestedArrival = (opts.hypotheticalArrival || new Date(nowMs)).getTime();
-  const hypotheticalDur = opts.hypotheticalDurationMins || defaultDur;
+  // A caller with a specific service in mind (the booking modal) passes its real duration.
+  // The generic "if someone booked right now" preview has no service picked yet, so it assumes
+  // the shop's longest one — never showing a wait shorter than what any actual booking would get.
+  const hypotheticalDur = opts.hypotheticalDurationMins || longestServiceDur;
 
   // Answering "when could a new booking actually start" — whether it's a specific customer's
   // real ETA, or the generic "if someone booked right now" wait shown before they've even
