@@ -1202,15 +1202,19 @@ function fmtTime(date) {
   return date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
 }
 
-function calcTimes(etaMins, waitMins, durationMins, qd, shop) {
-  const now = new Date();
-  // queueWait = how long until a bay is free for a NEW customer
-  const queueWait = waitMins || calcQueueWait(qd, shop);
-  // If customer is driving, their wash starts when they arrive OR when queue clears (whichever later)
-  const effectiveWait = Math.max(etaMins || 0, queueWait);
-  const start = new Date(now.getTime() + effectiveWait * 60000);
-  const ready = new Date(start.getTime() + (durationMins || 30) * 60000);
-  return { startStr: fmtTime(start), readyStr: fmtTime(ready), effectiveWait };
+// Asks the backend to run the real bay-assignment simulation for a hypothetical arrival, so
+// whatever's shown in the booking modal is guaranteed to match what actually gets booked.
+// Approximating this client-side (e.g. Math.max(driveTime, genericQueueWait)) can't tell whether
+// *this specific* arrival collides with other bookings arriving around the same time — it only
+// checks the arrival time against a single generic number, not the real bay simulation.
+async function fetchBookingPreview(shopId, driveMins, washType) {
+  try {
+    const params = new URLSearchParams({ shopId, driveMins: Math.max(0, Math.round(driveMins || 0)), washType });
+    const res = await fetch(`${API}/api/wash/reservations/preview?${params}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins };
+  } catch { return null; }
 }
 
 
@@ -1328,7 +1332,7 @@ async function proceedToBookingModal(shopId) {
       const card = document.createElement('div');
       card.className = 'svc-card';
       card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${s.price} EGP</div><div class="svc-dur">${s.durationMins} min</div>`;
-      card.onclick = () => {
+      card.onclick = async () => {
         document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
         card.classList.add('sel');
         selectedSvc = s;
@@ -1337,12 +1341,11 @@ async function proceedToBookingModal(shopId) {
           return;
         }
         // Recalculate times with selected service duration
-        const qd2 = queues[selectedWash.id] || {};
-        const qWait2 = calcQueueWait(qd2, selectedWash);
-        const {startStr, readyStr, effectiveWait} = calcTimes(etaResult?.etaMinutes, qWait2, s.durationMins, qd2, selectedWash);
-        document.getElementById('bm-w').textContent = effectiveWait;
-        document.getElementById('bm-start').textContent = startStr;
-        document.getElementById('bm-ready').textContent = readyStr;
+        const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, s.name);
+        if (!preview || selectedSvc !== s || bookingMode !== 'now') return; // stale response — service or mode changed while this was loading
+        document.getElementById('bm-w').textContent = preview.effectiveWait;
+        document.getElementById('bm-start').textContent = preview.startStr;
+        document.getElementById('bm-ready').textContent = preview.readyStr;
       };
       grid.appendChild(card);
     });
@@ -1393,8 +1396,7 @@ async function proceedToBookingModal(shopId) {
   
   getOrRequestLocation().then(async loc => {
     userLocation = loc;
-    const qd = queues[shopId] || {};
-    const serverWaitMins = qd.minsUntilNextFree || 0;
+    const svc = selectedSvc || (services[shopId] && services[shopId][0]);
 
     if (loc) {
       locStatus.textContent = '🗺️ Calculating travel time...';
@@ -1402,34 +1404,25 @@ async function proceedToBookingModal(shopId) {
       etaResult = eta;
       if (bookingMode !== 'now') return; // user switched to Schedule while this was loading
       const driveMins = eta?.etaMinutes || 0;
-      const svc = selectedSvc || (services[shopId] && services[shopId][0]);
-      const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
-      // Wait = max(drive time, queue wait) so bay is ready when you arrive
-      const effectiveWait = Math.max(driveMins, serverWaitMins);
-      const now = new Date();
-      const startStr = fmtTime(new Date(now.getTime() + effectiveWait * 60000));
-      const readyStr = fmtTime(new Date(now.getTime() + effectiveWait * 60000 + dur * 60000));
-      document.getElementById('bm-w').textContent = serverWaitMins;
-      document.getElementById('bm-start').textContent = startStr;
-      document.getElementById('bm-ready').textContent = readyStr;
+      const preview = await fetchBookingPreview(shopId, driveMins, svc ? svc.name : 'full');
+      if (bookingMode !== 'now' || !preview) return;
+      document.getElementById('bm-w').textContent = preview.effectiveWait;
+      document.getElementById('bm-start').textContent = preview.startStr;
+      document.getElementById('bm-ready').textContent = preview.readyStr;
       locStatus.innerHTML = `✅ ~${driveMins} min drive · Bay will be ready when you arrive`;
       locStatus.style.background = '#f0fdf4';
       locStatus.style.borderColor = '#bbf7d0';
       locStatus.style.color = '#166534';
     } else {
-      if (bookingMode !== 'now') return; // user switched to Schedule while this was loading
       locStatus.innerHTML = '⚠️ Location not available — allow location access for accurate timing';
       locStatus.style.background = '#fefce8';
       locStatus.style.borderColor = '#fde68a';
       locStatus.style.color = '#92400e';
-      const svc = selectedSvc || (services[shopId] && services[shopId][0]);
-      const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
-      const now = new Date();
-      const startStr = fmtTime(new Date(now.getTime() + serverWaitMins * 60000));
-      const readyStr = fmtTime(new Date(now.getTime() + serverWaitMins * 60000 + dur * 60000));
-      document.getElementById('bm-w').textContent = serverWaitMins;
-      document.getElementById('bm-start').textContent = startStr;
-      document.getElementById('bm-ready').textContent = readyStr;
+      const preview = await fetchBookingPreview(shopId, 0, svc ? svc.name : 'full');
+      if (bookingMode !== 'now' || !preview) return; // user switched to Schedule while this was loading
+      document.getElementById('bm-w').textContent = preview.effectiveWait;
+      document.getElementById('bm-start').textContent = preview.startStr;
+      document.getElementById('bm-ready').textContent = preview.readyStr;
     }
   });
 }
@@ -1488,17 +1481,22 @@ function onSlotTimeChange() {
   renderSchedulePreview();
 }
 
-function renderSchedulePreview() {
+async function renderSchedulePreview() {
   if (!selectedSlotTime) return;
   const svc = selectedSvc || (services[selectedWash.id] && services[selectedWash.id][0]);
-  const dur = svc ? svc.durationMins : (selectedWash.minsFull || 45);
-  const readyDate = new Date(selectedSlotTime.getTime() + dur * 60000);
+  const requestedSlotTime = selectedSlotTime;
   document.getElementById('bm-w').textContent = '—';
-  document.getElementById('bm-start').textContent = fmtTime(selectedSlotTime);
-  document.getElementById('bm-ready').textContent = fmtTime(readyDate);
+  document.getElementById('bm-start').textContent = '...';
+  document.getElementById('bm-ready').textContent = '...';
+  const driveMins = (requestedSlotTime.getTime() - Date.now()) / 60000;
+  const preview = await fetchBookingPreview(selectedWash.id, driveMins, svc ? svc.name : 'full');
+  if (selectedSlotTime !== requestedSlotTime || bookingMode !== 'schedule') return; // stale — slot or mode changed while this was loading
+  if (!preview) return;
+  document.getElementById('bm-start').textContent = preview.startStr;
+  document.getElementById('bm-ready').textContent = preview.readyStr;
 }
 
-function setBookingMode(mode) {
+async function setBookingMode(mode) {
   bookingMode = mode;
   const nowBtn = document.getElementById('when-now-btn');
   const schedBtn = document.getElementById('when-schedule-btn');
@@ -1519,13 +1517,15 @@ function setBookingMode(mode) {
   } else {
     slotSelect.style.display = 'none';
     locStatus.style.display = 'flex';
-    const qd = queues[selectedWash.id] || {};
-    const qWait = calcQueueWait(qd, selectedWash);
     const svc = selectedSvc || (services[selectedWash.id] && services[selectedWash.id][0]);
-    const {startStr, readyStr, effectiveWait} = calcTimes(etaResult?.etaMinutes, qWait, svc ? svc.durationMins : (selectedWash.minsFull || 45), qd, selectedWash);
-    document.getElementById('bm-w').textContent = effectiveWait;
-    document.getElementById('bm-start').textContent = startStr;
-    document.getElementById('bm-ready').textContent = readyStr;
+    document.getElementById('bm-w').textContent = '...';
+    document.getElementById('bm-start').textContent = '...';
+    document.getElementById('bm-ready').textContent = '...';
+    const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, svc ? svc.name : 'full');
+    if (bookingMode !== 'now' || !preview) return; // stale — user switched modes while this was loading
+    document.getElementById('bm-w').textContent = preview.effectiveWait;
+    document.getElementById('bm-start').textContent = preview.startStr;
+    document.getElementById('bm-ready').textContent = preview.readyStr;
   }
 }
 

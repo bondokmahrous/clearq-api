@@ -965,6 +965,33 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 200, booking(b));
     }
 
+    // GET /wash/reservations/preview — read-only version of the same simulation POST
+    // /wash/reservations uses to price a real booking. The customer app calls this while the
+    // booking modal is open (service selection, drive time arriving, switching Now/Schedule) so
+    // whatever's previewed is guaranteed to match what actually gets booked — previously the
+    // frontend approximated this client-side with Math.max(driveTime, genericQueueWait), which
+    // doesn't check whether *this specific* arrival time actually collides with other bookings
+    // arriving around the same moment, and could show an earlier time than confirming would give.
+    if (m === "GET" && p === "/wash/reservations/preview") {
+      const shopId = +url.searchParams.get("shopId");
+      const driveMins = Math.max(0, parseFloat(url.searchParams.get("driveMins")) || 0);
+      const washType = url.searchParams.get("washType");
+      if (!shopId || !washType) return respond(res, 400, { error: "shopId and washType required" });
+      const { durationMins } = await resolveService(shopId, washType);
+      const now = new Date();
+      const requestedArrival = new Date(now.getTime() + driveMins * 60000);
+      const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
+      const waitMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
+      const etaArrival = new Date(now.getTime() + waitMins * 60000);
+      const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
+      return respond(res, 200, {
+        etaArrivalAt: etaArrival.toISOString(),
+        etaReadyAt: etaReady.toISOString(),
+        waitMins,
+        durationMins,
+      });
+    }
+
     // POST /wash/reservations
     if (m === "POST" && p === "/wash/reservations") {
       const body = await readBody(req);
