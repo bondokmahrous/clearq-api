@@ -540,6 +540,8 @@ async function inProgressCount(shopId) {
 // so a booking scheduled for later today is accounted for the same way in both places.
 // opts.hypotheticalArrival lets a caller ask "if someone arrived at this time, when would their bay free up?"
 // without inserting anything — used by POST /wash/reservations to price a new booking.
+const BAY_HANDOFF_BUFFER_MS = 10 * 60000; // slack after every wash before a bay counts as free again, in case it runs long
+
 async function simulateBayQueue(shopId, opts = {}) {
   const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
   const maxBays = s?.max_workers || 3;
@@ -568,12 +570,26 @@ async function simulateBayQueue(shopId, opts = {}) {
   // otherwise a slot booked hours ahead gets simulated as if it happens before a walk-in booked later
   // today but arriving sooner.
   const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
-  pending.sort((a, b) => arrivalMs(a) - arrivalMs(b));
+
+  // Answering "when could a new booking start" — whether it's a specific customer's real ETA,
+  // or the generic "if someone booked right now" wait shown before they've even opened the
+  // modal — always folds that hypothetical arrival into the same arrival-ordered list as every
+  // other pending booking and runs it through the exact same assignment below. That's what lets
+  // a customer arriving soon slot into a gap ahead of a booking reserved for hours from now,
+  // instead of being told to wait for reservations that haven't even happened yet.
+  const hypotheticalArrival = opts.hypotheticalArrival || new Date(nowMs);
+  const hypotheticalDur = opts.hypotheticalDurationMins || defaultDur;
+  const simPending = [...pending, {
+    __hypothetical: true,
+    eta_arrival_at: hypotheticalArrival,
+    eta_ready_at: null,
+    duration_mins: hypotheticalDur,
+  }];
+  simPending.sort((a, b) => arrivalMs(a) - arrivalMs(b));
 
   // QUEUE SIMULATION:
-  // Every booking (active + pending) occupies a bay slot.
-  // A new customer waits until the soonest bay is free AFTER
-  // all existing bookings are assigned.
+  // Every booking (active + pending + the hypothetical one) occupies a bay slot, each leaving
+  // BAY_HANDOFF_BUFFER_MS of slack before the bay counts as free for whatever's next.
   let bays = Array(maxBays).fill(nowMs);
 
   // 1. Assign active washes to bays (already in progress)
@@ -583,11 +599,12 @@ async function simulateBayQueue(shopId, opts = {}) {
     const finishAt = b.eta_ready_at
       ? new Date(b.eta_ready_at).getTime()
       : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
-    bays[0] = finishAt;
+    bays[0] = finishAt + BAY_HANDOFF_BUFFER_MS;
   }
 
-  // 2. Assign pending bookings to bays in arrival order
-  for (const b of pending) {
+  // 2. Assign pending + hypothetical bookings to bays in arrival order
+  let hypotheticalStart = nowMs;
+  for (const b of simPending) {
     bays.sort((a, x) => a - x);
     // Get real duration from eta_ready_at - eta_arrival_at if both exist
     let dur;
@@ -599,28 +616,20 @@ async function simulateBayQueue(shopId, opts = {}) {
     }
     const bayFreeAt = bays[0];
     // Booking can't start until customer arrives OR bay is free, whichever is LATER
-    const arriveAt = b.eta_arrival_at
-      ? new Date(b.eta_arrival_at).getTime()
-      : nowMs;
+    const arriveAt = new Date(b.eta_arrival_at).getTime();
     const startAt = Math.max(bayFreeAt, arriveAt);
-    bays[0] = startAt + dur * 60000;
+    if (b.__hypothetical) hypotheticalStart = startAt;
+    bays[0] = startAt + dur * 60000 + BAY_HANDOFF_BUFFER_MS;
   }
 
-  // 3. Optionally fold in a hypothetical new booking to see when ITS bay would actually free up,
-  // given every existing reservation (scheduled or not) — without inserting anything.
   if (opts.hypotheticalArrival) {
-    bays.sort((a, x) => a - x);
-    const bayFreeAt = bays[0];
-    const arriveAt = opts.hypotheticalArrival.getTime();
-    const hypotheticalStart = Math.max(bayFreeAt, arriveAt);
     return { maxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
   }
 
-  // 4. New customer (no specific arrival given) waits until soonest bay is free
-  bays.sort((a, x) => a - x);
-  const nextFree = bays[0];
-  const waitMins = nextFree > nowMs
-    ? Math.max(1, Math.round((nextFree - nowMs) / 60000))
+  // New customer with no specific arrival given — treat as arriving right now (case above,
+  // hypotheticalArrival defaulted to nowMs) and report how long until their bay is ready.
+  const waitMins = hypotheticalStart > nowMs
+    ? Math.max(1, Math.round((hypotheticalStart - nowMs) / 60000))
     : 0;
 
   return {
@@ -891,7 +900,7 @@ self.addEventListener('notificationclick', e => {
       // bays physically busy right now — see simulateBayQueue for why that distinction matters.
       const driveMins = etaMinutesOverride || 0;
       const requestedArrival = new Date(now.getTime() + driveMins * 60000);
-      const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival });
+      const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
       const startMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
       const etaArrival = new Date(now.getTime() + startMins * 60000);
       const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
