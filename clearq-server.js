@@ -556,7 +556,9 @@ function bookingDurationMins(b, defaultDur) {
 // so callers can compare a real booking's own promised arrival against what it would actually
 // get once everything (including any hypothetical items folded into `items`) is assigned.
 function assignBays(maxBays, active, items, defaultDur, nowMs) {
-  let bays = Array(maxBays).fill(nowMs);
+  // Guard against every bay being marked unavailable at once — an empty bays[] would make
+  // bays[0] undefined and poison every downstream Math.max() with NaN.
+  let bays = Array(Math.max(1, maxBays)).fill(nowMs);
   const startTimes = new Map();
 
   for (const b of active) {
@@ -619,19 +621,25 @@ async function getQueueState(shopId) {
 
   const pending = allBookings.filter(b => b.status === 'pending' && b.kind !== 'maintenance');
   const active = allBookings.filter(b => b.status === 'in_progress' && b.kind !== 'maintenance');
+  const maintenanceCount = allBookings.filter(b => b.status === 'in_progress' && b.kind === 'maintenance').length;
   const occupiedBays = allBookings.filter(b => b.status === 'in_progress').length;
   const freeBays = Math.max(0, maxBays - occupiedBays);
+  // A bay a partner has marked unavailable isn't doing a wash — it just isn't there for the
+  // simulation to hand out. maintenanceCount is excluded from `active` (it's not a real booking
+  // with a finish time), so without this, assignBays() would still treat that bay as an empty,
+  // instantly-available slot no real or hypothetical booking ever claims — understating the wait.
+  const effectiveMaxBays = Math.max(0, maxBays - maintenanceCount);
 
   // Process pending bookings in the order they'll actually arrive, not the order they were booked —
   // otherwise a slot booked hours ahead gets simulated as if it happens before a walk-in booked later
   // today but arriving sooner.
   const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
 
-  return { maxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs };
+  return { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs };
 }
 
 async function simulateBayQueue(shopId, opts = {}) {
-  const { maxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
+  const { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
   const requestedArrival = (opts.hypotheticalArrival || new Date(nowMs)).getTime();
   // A caller with a specific service in mind (the booking modal) passes its real duration.
@@ -651,7 +659,7 @@ async function simulateBayQueue(shopId, opts = {}) {
   // at all), then search forward from the requested arrival for the earliest moment a
   // hypothetical booking can be inserted without pushing any real booking past its own baseline.
   const baselineSorted = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-  const baselineStarts = assignBays(maxBays, active, baselineSorted, defaultDur, nowMs);
+  const baselineStarts = assignBays(effectiveMaxBays, active, baselineSorted, defaultDur, nowMs);
 
   // Candidate times worth checking are exactly the moments bay availability can change —
   // no need to search continuously between them.
@@ -678,7 +686,7 @@ async function simulateBayQueue(shopId, opts = {}) {
       duration_mins: hypotheticalDur,
     };
     const withHyp = [...pending, hypothetical].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-    const withHypStarts = assignBays(maxBays, active, withHyp, defaultDur, nowMs);
+    const withHypStarts = assignBays(effectiveMaxBays, active, withHyp, defaultDur, nowMs);
     const displaces = pending.some(b => withHypStarts.get(b) > baselineStarts.get(b) + 60000);
     if (!displaces) {
       hypotheticalStart = withHypStarts.get(hypothetical);
@@ -719,16 +727,16 @@ async function simulateBayQueue(shopId, opts = {}) {
 // added; whoever already has a promised slot keeps it. Returns the conflicting booking, or
 // null if the walk-in is safe to add.
 async function findWalkinConflict(shopId, durationMins) {
-  const { maxBays, defaultDur, pending, active, arrivalMs } = await getQueueState(shopId);
+  const { effectiveMaxBays, defaultDur, pending, active, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
   const dur = durationMins || defaultDur;
 
   const withoutWalkin = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-  const promisedStarts = assignBays(maxBays, active, withoutWalkin, defaultDur, nowMs);
+  const promisedStarts = assignBays(effectiveMaxBays, active, withoutWalkin, defaultDur, nowMs);
 
   const walkin = { __walkin: true, eta_arrival_at: new Date(nowMs), eta_ready_at: null, duration_mins: dur };
   const withWalkin = [...pending, walkin].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-  const actualStarts = assignBays(maxBays, active, withWalkin, defaultDur, nowMs);
+  const actualStarts = assignBays(effectiveMaxBays, active, withWalkin, defaultDur, nowMs);
 
   for (const b of pending) {
     // Being reassigned to a different bay at the same time is fine — only a real conflict if
