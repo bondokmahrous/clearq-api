@@ -1192,6 +1192,10 @@ function renderQueueTable(bookings) {
         <td><span class="status-pill ${b.status}">${statusLabel(b.status)}</span></td>
         <td class="hide-mobile" style="font-size:12px;color:var(--gray)">
           ${b.status==='in_progress'?'Started '+minsAgo(b.washStartedAt):b.status==='completed'?'Done '+minsAgo(b.washFinishedAt):b.etaArrivalAt?'ETA '+fmtTime(b.etaArrivalAt):'—'}
+          ${(b.status==='in_progress'||b.status==='pending')&&b.etaReadyAt?(() => {
+            const isLate = new Date(b.etaReadyAt) < new Date();
+            return `<div style="margin-top:2px;${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?'⚠️ Should\'ve finished ':(b.status==='in_progress'?'Done by ':'Ready by ')}${fmtTime(b.etaReadyAt)}</div>`;
+          })():''}
         </td>
         <td>
           <div class="action-btns">

@@ -461,6 +461,7 @@ function svcLabel(name) { const s=partnerServices.find(sv=>sv.name===name); retu
 function statusColor(st) { return st==='in_progress'?'#f59e0b':st==='completed'?'#22c55e':st==='cancelled'?'#ef4444':'#3FBDB0'; }
 function minsAgo(d) { return d?Math.floor((Date.now()-new Date(d).getTime())/60000):0; }
 function minsUntil(d) { return d?Math.round((new Date(d).getTime()-Date.now())/60000):0; }
+function fmtTime(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('en-EG',{hour:'numeric',minute:'2-digit',hour12:true}); }
 
 async function loadQueue(silent=false) {
   const shopId = partnerShop?.id; if (!shopId) return;
@@ -525,6 +526,10 @@ function renderQueue(bookings) {
     html+=`<div class="gh"><div class="gdot" style="background:${color}"></div><div class="glabel">${title}</div><div class="gcount">${list.length}</div></div>`;
     list.forEach(b=>{
       const ip=b.status==='in_progress',cp=b.status==='completed',wi=b.kind==='walkin';
+      const isLate = !cp && b.etaReadyAt && new Date(b.etaReadyAt) < new Date();
+      const doneByLine = (!cp && b.etaReadyAt)
+        ? `<div class="eta" style="${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?'⚠️ Should\'ve been done by ':(ip?'Done by ':'Ready by ')}${fmtTime(b.etaReadyAt)}</div>`
+        : '';
       html+=`<div class="bc ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
         <div class="bc-top">
           <div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
@@ -534,6 +539,7 @@ function renderQueue(bookings) {
         </div>
         <div class="bc-mid">
           <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Started '+minsAgo(b.washStartedAt)+' min ago':'Arrives in ~'+minsUntil(b.etaArrivalAt)+' min'}</div>
+          ${doneByLine}
           ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
         </div>
         ${!cp?`<div class="bc-acts">
