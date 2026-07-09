@@ -1183,7 +1183,7 @@ self.addEventListener('notificationclick', e => {
     // GET /partners/shop/:id/queue
     if (m === "GET" && /\/partners\/shop\/\d+\/queue$/.test(p)) {
       const bookings = await db(
-        `SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date=$2 AND kind != 'scheduled' ORDER BY created_at DESC`,
+        `SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date=$2 AND kind NOT IN ('scheduled','maintenance') ORDER BY created_at DESC`,
         [shopId, today()]
       );
       return respond(res, 200, bookings.map(booking));
@@ -1262,7 +1262,8 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/dashboard$/.test(p)) {
       const date = url.searchParams.get("date") || today();
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
-      const bookings = await db(`SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date=$2 ORDER BY scheduled_time`, [shopId, date]);
+      const bookings = (await db(`SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date=$2 ORDER BY scheduled_time`, [shopId, date]))
+        .filter(b => b.kind !== 'maintenance');
       const ratingRow = await db1(`SELECT AVG(stars)::numeric(3,1) as avg FROM wash_ratings WHERE shop_id=$1`, [shopId]);
       const completed = bookings.filter(b => b.status === "completed");
       return respond(res, 200, {
