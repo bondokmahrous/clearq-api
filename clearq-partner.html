@@ -145,8 +145,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 @keyframes spin{to{transform:rotate(360deg);}}
 .ls{display:flex;align-items:center;justify-content:center;padding:50px 20px;flex-direction:column;gap:12px;}
 .ls p{color:var(--gray);font-size:13px;}
-.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;border:1px solid #1e293b;border-radius:11px;padding:10px 18px;font-size:13px;font-weight:600;z-index:500;display:none;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.3);}
-.toast.show{display:block;}
+.toast{position:fixed;top:66px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;border:1px solid #1e293b;border-radius:11px;padding:10px 18px;font-size:13px;font-weight:600;z-index:500;display:none;align-items:center;gap:7px;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,0.3);}
+.toast.show{display:flex;}
 @media(min-width:480px){body{max-width:480px;margin:0 auto;}.toast{left:50%;}}
 </style>
 </head>
@@ -183,7 +183,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 
 <!-- DASHBOARD -->
 <div class="dash" id="dash">
-  <div class="offline-bar" id="offline-bar">📶 Offline — changes will sync when reconnected</div>
+  <div class="offline-bar" id="offline-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>Offline — changes will sync when reconnected</div>
   <div class="ph">
     <div class="ph-row">
       <div>
@@ -191,8 +191,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
         <div class="ph-date" id="dash-date"></div>
       </div>
       <div class="ph-actions">
-        <button class="wi-btn" onclick="openWI()">＋ Walk-in</button>
-        <button class="lo-btn" onclick="doLogout()">⏻</button>
+        <button class="wi-btn" onclick="openWI()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Walk-in</button>
+        <button class="lo-btn" onclick="doLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
       </div>
     </div>
     <div id="wait-banner" style="display:flex;align-items:center;gap:14px;background:#E6F7F5;border:1px solid #3FBDB0;border-radius:var(--radius);padding:11px 14px;margin-bottom:10px;">
@@ -214,11 +214,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
     </div>
   </div>
   <div class="ptabs">
-    <button class="ptab active" onclick="setPTab('queue',this)"><span class="ptab-icon">📋</span>Queue</button>
-    <button class="ptab" onclick="setPTab('bays',this)"><span class="ptab-icon">🏢</span>Bays</button>
-    <button class="ptab" onclick="setPTab('summary',this)"><span class="ptab-icon">📊</span>Summary</button>
-    <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon">👥</span>Customers</button>
-    <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon">⚙️</span>Manage</button>
+    <button class="ptab active" onclick="setPTab('queue',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span>Queue</button>
+    <button class="ptab" onclick="setPTab('bays',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg></span>Bays</button>
+    <button class="ptab" onclick="setPTab('summary',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Summary</button>
+    <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Customers</button>
+    <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Manage</button>
   </div>
   <div class="psec active" id="psec-queue"><div id="stale-c"></div><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
   <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p>Loading bays...</p></div></div></div>
@@ -237,7 +237,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
   <div style="background:var(--navy-mid,#1e293b);border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:80vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <div style="font-size:16px;font-weight:700;color:#0f172a;" id="cust-history-title">Customer History</div>
-      <button onclick="closeCustHistory()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button>
+      <button onclick="closeCustHistory()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;display:flex;align-items:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="cust-history-list"></div>
   </div>
@@ -273,6 +273,25 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 <script>
 const API = 'https://clearq.online';
 
+// Inline icon set — replaces emoji throughout this dashboard with plain line icons.
+const ICONS = {
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  alert: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  wifiOff: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
+  clipboard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+  building: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg>',
+  barChart: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  users: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  settings: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  car: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2-6a2 2 0 0 1 2-1h10a2 2 0 0 1 2 1l2 6"/><rect x="1" y="13" width="22" height="6" rx="2"/><circle cx="6.5" cy="19" r="1.5" fill="currentColor" stroke="none"/><circle cx="17.5" cy="19" r="1.5" fill="currentColor" stroke="none"/></svg>',
+  walkIn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  smartphone: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  lock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  unlock: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+};
+
 // Push notifications
 let swReg = null;
 let lastPendingCount = 0;
@@ -304,7 +323,7 @@ async function enableNotifs() {
       method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+partnerToken},
       body: JSON.stringify({subscription:sub, shopId:partnerShop?.id})
     });
-    toast('✓ Notifications enabled');
+    toast(`${ICONS.check} Notifications enabled`);
   } catch(e) { toast('Could not enable notifications'); }
 }
 
@@ -313,7 +332,7 @@ function checkNewBookings(bookings) {
   if (pending > lastPendingCount && lastPendingCount > 0) {
     const diff = pending - lastPendingCount;
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🚗 New Booking!', {body:`${diff} new booking${diff>1?'s':''} waiting`, icon:'/icon-192.png'});
+      new Notification('New Booking!', {body:`${diff} new booking${diff>1?'s':''} waiting`, icon:'/icon-192.png'});
     }
   }
   lastPendingCount = pending;
@@ -336,7 +355,7 @@ async function apiFetch(url, opts={}) {
 
 function toast(msg, dur=3000) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.innerHTML = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), dur);
 }
@@ -442,7 +461,7 @@ async function openCustHistory(phone, name) {
     document.getElementById('cust-history-list').innerHTML = history.map(b => `
       <div style="background:var(--navy,#0f172a);border-radius:9px;padding:12px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:13px;font-weight:600;color:#0f172a;">${svcLabel(b.washType)} ${b.kind==='walkin'?'🚶':'📱'}</div>
+          <div style="font-size:13px;font-weight:600;color:#0f172a;display:flex;align-items:center;gap:5px;">${svcLabel(b.washType)} ${b.kind==='walkin'?ICONS.walkIn:ICONS.smartphone}</div>
           <div style="font-size:12px;font-weight:700;color:#4ade80;">${b.price} EGP</div>
         </div>
         <div style="font-size:11px;color:#94a3b8;margin-top:4px;">${new Date(b.createdAt).toLocaleDateString('en-EG',{day:'numeric',month:'short',year:'numeric'})} · ${b.status}</div>
@@ -497,15 +516,15 @@ function renderStaleBookings(list) {
   const el = document.getElementById('stale-c');
   if (!list.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="ms" style="border:1.5px solid #FEF3C7;background:#FFFBEB;border-radius:var(--radius);padding:11px 13px;margin-bottom:14px;">
-    <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:9px;">⚠️ Needs attention — ${list.length} forgotten booking${list.length===1?'':'s'}</div>
+    <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:9px;display:flex;align-items:center;gap:5px;">${ICONS.alert} Needs attention — ${list.length} forgotten booking${list.length===1?'':'s'}</div>
     ${list.map(b => `<div class="bc" id="bc-${b.id}" style="border-color:#FEF3C7;margin-bottom:7px;">
       <div class="bc-top">
         <div class="bc-left"><div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div></div></div>
         <div class="bc-right"><div class="bl" style="color:#92400E;">${overdueLabel(b.etaReadyAt)}</div><div class="wb">${svcLabel(b.washType)}</div></div>
       </div>
       <div class="bc-acts">
-        <button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">✓ Mark Completed</button>
-        <button class="abtn" style="background:#7f1d1d" onclick="doAction(${b.id},'cancel',this)">✕ Cancel</button>
+        <button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check} Mark Completed</button>
+        <button class="abtn" style="background:#7f1d1d" onclick="doAction(${b.id},'cancel',this)">${ICONS.x} Cancel</button>
       </div>
     </div>`).join('')}
   </div>`;
@@ -528,7 +547,7 @@ function renderQueue(bookings) {
       const ip=b.status==='in_progress',cp=b.status==='completed',wi=b.kind==='walkin';
       const isLate = !cp && b.etaReadyAt && new Date(b.etaReadyAt) < new Date();
       const doneByLine = (!cp && b.etaReadyAt)
-        ? `<div class="eta" style="${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?'⚠️ Should\'ve been done by ':(ip?'Done by ':'Ready by ')}${fmtTime(b.etaReadyAt)}</div>`
+        ? `<div class="eta" style="${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?ICONS.alert+' Should\'ve been done by ':(ip?'Done by ':'Ready by ')}${fmtTime(b.etaReadyAt)}</div>`
         : '';
       html+=`<div class="bc ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
         <div class="bc-top">
@@ -544,7 +563,7 @@ function renderQueue(bookings) {
         </div>
         ${!cp?`<div class="bc-acts">
           ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start')">▶ Start</button>`:''}
-          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done')">✓ Done</button>`:''}
+          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done')">${ICONS.check} Done</button>`:''}
         </div>`:''}
       </div>`;
     });
@@ -561,7 +580,7 @@ async function doAction(id, action, btn) {
   if (btn) { btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
   try {
     await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${id}/${action}`,{method:'PATCH',headers:authH()});
-    toast(action==='done'?'✓ Wash completed':action==='cancel'?'Booking cancelled':'Wash started');
+    toast(action==='done'?`${ICONS.check} Wash completed`:action==='cancel'?'Booking cancelled':'Wash started');
     loadQueue(); loadBays();
   } catch(e) {
     toast('Error: '+e.message);
@@ -593,14 +612,14 @@ function renderBays(data) {
       <div class="bay-hd"><div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div><div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div></div>
       <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#7c3aed">${bay.reason||'Unavailable'}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:`<div class="bay-avail">Available</div>`}</div>
       <div class="bay-acts">
-        ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">＋ Walk-in</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">🔒</button>`:''}
-        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">🔓 Available</button>`:''}
-        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">✓ Done</button>`:''}
+        ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">${ICONS.plus} Walk-in</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">${ICONS.lock}</button>`:''}
+        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Available</button>`:''}
+        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">${ICONS.check} Done</button>`:''}
         ${bay.state==='incoming'&&bay.booking?`<button class="bbtn" style="background:#3FBDB0" onclick="doAction(${bay.booking.id},'start')">▶ Start</button>`:''}
       </div>
     </div>`;
   });
-  html+='</div><div style="margin-top:14px;display:flex;gap:8px"><button onclick="addBay()" style="background:#E6F7F5;border:none;border-radius:7px;padding:9px 14px;color:var(--blue-light);font-size:12px;font-weight:600;cursor:pointer">＋ Add Bay</button><button onclick="removeBay()" style="background:#F3E8FF;border:none;border-radius:7px;padding:9px 14px;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer">− Remove Bay</button></div>';
+  html+=`</div><div style="margin-top:14px;display:flex;gap:8px"><button onclick="addBay()" style="background:#E6F7F5;border:none;border-radius:7px;padding:9px 14px;color:var(--blue-light);font-size:12px;font-weight:600;cursor:pointer">${ICONS.plus} Add Bay</button><button onclick="removeBay()" style="background:#F3E8FF;border:none;border-radius:7px;padding:9px 14px;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer">− Remove Bay</button></div>`;
   document.getElementById('bays-c').innerHTML=html;
 }
 
@@ -644,12 +663,12 @@ function renderManage() {
   editServices.forEach((s,i)=>{
     if (s._deleted) return;
     html+=`<div class="sr">
-      <div class="sr-row"><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">🗑</button></div>
+      <div class="sr-row"><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">${ICONS.trash}</button></div>
       <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)">
       <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Duration:</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min</span></div>
     </div>`;
   });
-  html+=`<button class="asv" onclick="aSvc()">＋ Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>
+  html+=`<button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>
   <div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
     <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
@@ -682,8 +701,8 @@ async function saveWorkingHours(btn) {
     if (!res.ok) throw new Error(updated?.error || 'Save failed');
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast('✓ Working hours saved');
-  } catch(e) { toast('⚠️ '+(e.message||'Error saving')+' — try again', 6000); }
+    toast(`${ICONS.check} Working hours saved`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Hours';}
 }
 
@@ -698,8 +717,8 @@ async function saveLocationDescription(btn) {
     if (!res.ok) throw new Error(updated?.error || 'Save failed');
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast('✓ Location description saved');
-  } catch(e) { toast('⚠️ '+(e.message||'Error saving')+' — try again', 6000); }
+    toast(`${ICONS.check} Location description saved`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Description';}
 }
 
@@ -721,8 +740,8 @@ async function saveServices() {
       if(res&&!res.ok) failed.push(s.name||'(unnamed)');
     } catch { failed.push(s.name||'(unnamed)'); }
   }
-  if(failed.length) toast('⚠️ Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
-  else toast('✓ Services saved');
+  if(failed.length) toast(ICONS.alert+' Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
+  else toast(`${ICONS.check} Services saved`);
   loadManage();
   btn.disabled=false;btn.textContent='Save Changes';
 }
@@ -742,9 +761,9 @@ async function addWalkIn(){
   try{
     const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})});
     closeWI();
-    toast(result?.linkedToAccount ? `✓ Walk-in added — linked to ${name}'s ClearQ account` : `✓ Walk-in added: ${name}`);
+    toast(result?.linkedToAccount ? `${ICONS.check} Walk-in added — linked to ${name}'s ClearQ account` : `${ICONS.check} Walk-in added: ${name}`);
     loadQueue();loadBays();
-  }catch(e){toast('⚠️ '+e.message, 7000);}
+  }catch(e){toast(ICONS.alert+' '+e.message, 7000);}
   finally{btn.disabled=false;btn.textContent='Add';}
 }
 
