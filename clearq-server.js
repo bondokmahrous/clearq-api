@@ -227,6 +227,11 @@ async function initDB() {
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS car_id INT`);
   // Free-text directions the wash centre can set (e.g. "blue gate next to the Total station")
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS location_description TEXT`);
+  // Ghost/test shops: hidden from the public shop list and owner revenue aggregates, reachable
+  // only via a secret URL carrying this slug — lets the owner test real bookings/dashboards
+  // without touching real centres or polluting real business stats.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS secret_slug TEXT`);
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_test INT DEFAULT 0`);
   // Password reset: short-lived hashed code + expiry per user
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT`);
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ`);
@@ -474,7 +479,7 @@ function shop(s) {
     minsExterior: s.mins_exterior, minsInterior: s.mins_interior, minsFull: s.mins_full,
     priceExterior: s.price_exterior, priceInterior: s.price_interior, priceFull: s.price_full,
     maxWorkers: s.max_workers, isActive: s.is_active, lat: s.lat, lng: s.lng,
-    locationDescription: s.location_description,
+    locationDescription: s.location_description, isTest: !!s.is_test,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -942,6 +947,15 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && p === "/wash/shops") {
       const shops = await db(`SELECT * FROM wash_shops WHERE is_active=1 ORDER BY id`);
       return respond(res, 200, shops.map(shop));
+    }
+
+    // GET /wash/shops/ghost/:slug — looks up a hidden test shop by its secret slug, bypassing
+    // is_active entirely. Never listed anywhere; only reachable if you have the exact link.
+    if (m === "GET" && /^\/wash\/shops\/ghost\/[^/]+$/.test(p)) {
+      const slug = decodeURIComponent(p.split("/")[4]);
+      const s = await db1(`SELECT * FROM wash_shops WHERE secret_slug=$1`, [slug]);
+      if (!s) return respond(res, 404, { error: "Not found" });
+      return respond(res, 200, shop(s));
     }
 
     // GET /wash/shops/:id
@@ -1614,18 +1628,19 @@ self.addEventListener('notificationclick', e => {
       if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
       const { name, address, city, phone, lat, lng, openTime, closeTime, maxWorkers,
               priceExterior, priceInterior, priceFull, minsExterior, minsInterior, minsFull,
-              username, password } = await readBody(req);
+              username, password, isActive, isTest, secretSlug } = await readBody(req);
       if (!name || !username || !password) return respond(res, 400, { error: "name, username, password required" });
       const existing = await db1(`SELECT id FROM wash_partners WHERE username=$1`, [username.toLowerCase().trim()]);
       if (existing) return respond(res, 409, { error: "Username already taken" });
       const [newShop] = await db(
         `INSERT INTO wash_shops (name,address,city,phone,lat,lng,open_time,close_time,max_workers,
-          price_exterior,price_interior,price_full,mins_exterior,mins_interior,mins_full,is_active,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,1,NOW(),NOW()) RETURNING *`,
+          price_exterior,price_interior,price_full,mins_exterior,mins_interior,mins_full,is_active,is_test,secret_slug,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW()) RETURNING *`,
         [name.trim(), address||'', city||'Sheikh Zayed', phone||'', lat||null, lng||null,
          openTime||'09:00', closeTime||'22:00', maxWorkers||3,
          priceExterior||150, priceInterior||150, priceFull||250,
-         minsExterior||20, minsInterior||25, minsFull||45]
+         minsExterior||20, minsInterior||25, minsFull||45,
+         isActive === undefined ? 1 : (isActive ? 1 : 0), isTest ? 1 : 0, secretSlug || null]
       );
       const hash = await bcryptHash(password);
       await db(
@@ -1818,7 +1833,10 @@ self.addEventListener('notificationclick', e => {
                WHERE 1=1`;
       const params = [];
       let i = 1;
+      // Ghost/test shops only show up here if explicitly filtered to by shopId — otherwise
+      // they'd clutter the real "All Bookings" list with test data.
       if (shopId) { q += ` AND b.shop_id=$${i++}`; params.push(shopId); }
+      else { q += ` AND s.is_test = 0`; }
       if (status) { q += ` AND b.status=$${i++}`; params.push(status); }
       if (dateFrom) { q += ` AND b.scheduled_date >= $${i++}`; params.push(dateFrom); }
       if (dateTo) { q += ` AND b.scheduled_date <= $${i++}`; params.push(dateTo); }
