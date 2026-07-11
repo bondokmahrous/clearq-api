@@ -1481,6 +1481,7 @@ self.addEventListener('notificationclick', e => {
       const bookingId = +parts[parts.length-2];
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
+      if (b.status !== "in_progress") return respond(res, 409, { error: `Booking is ${b.status}, not in progress — can't mark it done.` });
 
       // No real wash finishes in seconds — this catches an accidental instant Start-then-Done
       // (e.g. a second tap landing on the Done button that appears in the same spot right after
