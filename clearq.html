@@ -1120,7 +1120,7 @@ function renderShops() {
       <div class="card-top">
         <div class="card-row1">
           <div>
-            <div class="wash-name">${s.name}</div>
+            <div class="wash-name">${s.name}${s.isPaused ? ` <span style="display:inline-block;vertical-align:middle;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">Temporarily Unavailable</span>` : ''}</div>
             <div class="wash-addr">📍 ${s.address}</div>
             ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;">(${s.ratingCount || 0} reviews)</span></div>` : ''}
           </div>
@@ -1131,7 +1131,7 @@ function renderShops() {
           </div>
         </div>
         ${s.isPaused
-          ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">Not accepting online bookings right now — please check back later</div>`
+          ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">Temporarily unavailable — not accepting online bookings right now</div>`
           : `<div class="stats-grid">
           <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">in line</div></div>
           <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">min wait</div></div>
@@ -1306,6 +1306,11 @@ async function requestLocationFromModal() {
 }
 
 async function checkLocationBeforeBooking(shopId) {
+  const shopForCheck = shops.find(s => s.id === shopId);
+  if (shopForCheck?.isPaused) {
+    toast('This centre is temporarily unavailable — not accepting online bookings right now');
+    return;
+  }
   // Already have a fresh cached location — go straight to booking
   if (cachedLocation && (Date.now() - locationTimestamp) < LOCATION_MAX_AGE) {
     return proceedToBookingModal(shopId);
@@ -2554,10 +2559,12 @@ function refreshMapPins() {
     card.style.minWidth = '230px';
     card.innerHTML = `
       <div class="mcm-name">${s.name}</div>
-      <div class="mcm-queue" style="color:${qColor};font-weight:700;">${qCount === 0 && waitMins === 0 ? '✓ No wait' : waitMins + ' min wait'}</div>
+      <div class="mcm-queue" style="color:${s.isPaused ? '#b91c1c' : qColor};font-weight:700;">${s.isPaused ? 'Temporarily unavailable' : (qCount === 0 && waitMins === 0 ? '✓ No wait' : waitMins + ' min wait')}</div>
       <div class="mcm-addr">📍 ${s.address}</div>
       <div style="display:flex;gap:6px;margin:10px 0;">${priceHtml}</div>
-      <button class="mcm-book" onclick="checkLocationBeforeBooking(${s.id})">Book Now</button>`;
+      ${s.isPaused
+        ? `<button class="mcm-book" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book Now</button>`
+        : `<button class="mcm-book" onclick="checkLocationBeforeBooking(${s.id})">Book Now</button>`}`;
     cards.appendChild(card);
   });
 }
