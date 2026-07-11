@@ -1443,26 +1443,43 @@ self.addEventListener('notificationclick', e => {
       const now = new Date();
       const eta = new Date(now.getTime() + durationMins * 60000);
 
+      // The Bay tab shows each pending booking as "next up" in a specific bay (see
+      // predictNextUpByBay above). Starting it from there should honor that exact bay, not
+      // silently land it in whichever bay happens to be lowest-numbered — otherwise the bay
+      // shown on screen and the bay it actually starts in can disagree. requestedBay is only
+      // ever a hint the caller already displayed; if it's no longer free, this fails cleanly
+      // rather than substituting a different bay (auto-pick still applies with no requestedBay,
+      // e.g. from the Queue tab, which has no specific-bay context to honor).
+      const { bayNumber: requestedBay } = await readBody(req);
+      const requestedBayInt = requestedBay != null ? +requestedBay : null;
+
       // Bay number is computed inside this same UPDATE (not read separately beforehand) and
       // the WHERE guard re-checks bay availability at write time too — see withBayRetry() above
       // for why this is still safe under concurrent Start requests.
       const updated = await withBayRetry(() => db1(
         `UPDATE wash_bookings SET status='in_progress',
-           bay_number=(
+           bay_number=COALESCE($5::int, (
              SELECT bn FROM generate_series(1, $1::int) AS bn
              WHERE bn NOT IN (
                SELECT bay_number FROM wash_bookings WHERE shop_id=$2 AND status='in_progress' AND bay_number IS NOT NULL
              )
              ORDER BY bn LIMIT 1
-           ),
+           )),
            arrived_at=NOW(), wash_started_at=NOW(), eta_ready_at=$3, updated_at=NOW()
          WHERE id=$4
            AND (SELECT COUNT(*) FROM wash_bookings WHERE shop_id=$2 AND status='in_progress' AND bay_number IS NOT NULL) < $1
+           AND ($5::int IS NULL OR NOT EXISTS (
+             SELECT 1 FROM wash_bookings WHERE shop_id=$2 AND status='in_progress' AND bay_number=$5::int
+           ))
          RETURNING *`,
-        [s.max_workers, shopId, eta, bookingId]
+        [s.max_workers, shopId, eta, bookingId, requestedBayInt]
       ));
       if (!updated) {
-        return respond(res, 409, { error: `All ${s.max_workers} bays are occupied. Wait for a bay to free up.` });
+        return respond(res, 409, {
+          error: requestedBayInt != null
+            ? `Bay ${requestedBayInt} isn't free anymore — refresh and try again.`
+            : `All ${s.max_workers} bays are occupied. Wait for a bay to free up.`
+        });
       }
       // Notify user their wash has started
       try {

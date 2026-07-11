@@ -1252,10 +1252,12 @@ function renderQueueTable(bookings) {
     </tbody></table>`;
 }
 
-async function doAction(bookingId, action, btn) {
+async function doAction(bookingId, action, btn, bayNumber) {
   if (btn) spin(btn);
   try {
-    await api('/api/partners/shop/'+currentShopId+'/reservations/'+bookingId+'/'+action,{method:'PATCH'});
+    const opts = {method:'PATCH'};
+    if (bayNumber != null) opts.body = JSON.stringify({bayNumber});
+    await api('/api/partners/shop/'+currentShopId+'/reservations/'+bookingId+'/'+action,opts);
     toast(action==='done'?'Wash completed':action==='cancel'?'Booking cancelled':'Wash started','success',action==='done'?ICONS.checkCircle:action==='cancel'?ICONS.check:ICONS.car);
     loadQueue(true);
     loadBays();
@@ -1338,7 +1340,7 @@ function renderBays(data) {
           <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Set Available</button>`:
         (bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`
           <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check} Mark Done</button>`:''}
-        ${nu?`<button class="bay-btn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this)">▶ Start Wash</button>`:''}
+        ${nu?`<button class="bay-btn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this,${bay.bayNumber})">▶ Start Wash</button>`:''}
       </div>
     </div>`;
   }).join('');

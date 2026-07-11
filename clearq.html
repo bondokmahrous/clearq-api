@@ -1066,12 +1066,26 @@ function renderShops() {
   });
   document.getElementById('result-count').textContent = `${list.length} wash${list.length!==1?'es':''} found`;
   const container = document.getElementById('washes-list');
-  container.innerHTML = '';
 
   if (!list.length) {
-    container.innerHTML = '<div class="loading-screen"><p>No wash centres found.</p></div>';
+    // Only replace when not already showing this — avoids the same destroy/rebuild flicker
+    // this whole function is otherwise designed to prevent.
+    if (!container.querySelector('.no-washes-empty')) {
+      container.innerHTML = '<div class="loading-screen no-washes-empty"><p>No wash centres found.</p></div>';
+    }
     return;
   }
+
+  // Update existing cards in place (by shop id) instead of clearing the container and
+  // rebuilding every card from scratch on every 8s poll / post-booking refresh. Destroying and
+  // recreating the whole list made the container briefly collapse to zero height, which is what
+  // was causing both the visible "glitch" and the scroll position jumping — the browser clamps
+  // scrollTop to the page's new (temporarily much shorter) height, then doesn't restore it once
+  // the cards repopulate and the page grows back.
+  const keepIds = new Set(list.map(s => 'wash-card-' + s.id));
+  [...container.children].forEach(child => {
+    if (!keepIds.has(child.id)) child.remove();
+  });
 
   list.forEach(s => {
     const qd = queues[s.id] || {};
@@ -1114,8 +1128,12 @@ function renderShops() {
       </div>`;
     }
 
-    const card = document.createElement('div');
-    card.className = 'wash-card';
+    let card = document.getElementById('wash-card-' + s.id);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'wash-card-' + s.id;
+      card.className = 'wash-card';
+    }
     card.innerHTML = `
       <div class="card-top">
         <div class="card-row1">
