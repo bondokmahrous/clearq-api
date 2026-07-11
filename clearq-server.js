@@ -236,6 +236,12 @@ async function initDB() {
   // short-staffed) without touching individual bays or is_active — walk-ins are unaffected,
   // that's a staff-at-the-counter decision, not something this toggle needs to control.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_paused INT DEFAULT 0`);
+  // Hard guarantee against two active washes ever colliding on the same physical bay — found
+  // this happening for real (two concurrent "Start" clicks both saw the same bay as free before
+  // either write landed). The application-level check-then-assign in the /start endpoint can't
+  // fully close that race on its own, so this constraint is the actual source of truth: the DB
+  // itself will reject a duplicate (shop_id, bay_number) among in_progress bookings.
+  await db(`CREATE UNIQUE INDEX IF NOT EXISTS uniq_shop_active_bay ON wash_bookings (shop_id, bay_number) WHERE status = 'in_progress' AND bay_number IS NOT NULL`);
   // Password reset: short-lived hashed code + expiry per user
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT`);
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ`);
@@ -597,8 +603,8 @@ function assignBays(maxBays, active, items, defaultDur, nowMs) {
 // Predicts which pending booking will most likely land in each currently-free bay next, purely
 // for the Bay Status display — lets staff see "who's coming" per bay instead of just an empty
 // "Ready for next customer" card. This is informational only: it doesn't write bay_number
-// anywhere, and getFreeBay() still makes the real call at Start time based on whatever's
-// actually free then. Deliberately a separate, self-contained pass rather than a change to
+// anywhere — the /start and walk-in endpoints still make the real, race-safe call based on
+// whatever's actually free then. Deliberately a separate, self-contained pass rather than a change to
 // assignBays()/getQueueState() — those are relied on everywhere for actual wait-time promises,
 // and this is purely a display prediction that shouldn't risk touching that logic.
 async function predictNextUpByBay(shopId) {
@@ -806,16 +812,18 @@ async function findWalkinConflict(shopId, durationMins) {
   return null;
 }
 
-async function getFreeBay(shopId, maxWorkers) {
-  const occupied = await db(
-    `SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL`,
-    [shopId]
-  );
-  const taken = new Set(occupied.map(r => r.bay_number));
-  for (let i = 1; i <= maxWorkers; i++) {
-    if (!taken.has(i)) return i;
+// Retries `fn` when it fails on the uniq_shop_active_bay constraint (Postgres code 23505) —
+// meaning another concurrent request claimed the same bay first. A handful of attempts is
+// plenty; this only ever fires when two Start/walk-in requests genuinely race each other.
+async function withBayRetry(fn) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (e.code === '23505' && e.constraint === 'uniq_shop_active_bay' && attempt < 4) continue;
+      throw e;
+    }
   }
-  return null;
 }
 
 // ─── PUSH NOTIFICATIONS ──────────────────────────────────────────────────────
@@ -1431,15 +1439,31 @@ self.addEventListener('notificationclick', e => {
         return respond(res, 409, { error: `All ${s.max_workers} bays are occupied. Wait for a bay to free up.` });
       }
 
-      const freeBay = await getFreeBay(shopId, s.max_workers);
       const { durationMins } = await resolveService(shopId, b.wash_type);
       const now = new Date();
       const eta = new Date(now.getTime() + durationMins * 60000);
 
-      const [updated] = await db(
-        `UPDATE wash_bookings SET status='in_progress', bay_number=$1, arrived_at=NOW(), wash_started_at=NOW(), eta_ready_at=$2, updated_at=NOW() WHERE id=$3 RETURNING *`,
-        [freeBay, eta, bookingId]
-      );
+      // Bay number is computed inside this same UPDATE (not read separately beforehand) and
+      // the WHERE guard re-checks bay availability at write time too — see withBayRetry() above
+      // for why this is still safe under concurrent Start requests.
+      const updated = await withBayRetry(() => db1(
+        `UPDATE wash_bookings SET status='in_progress',
+           bay_number=(
+             SELECT bn FROM generate_series(1, $1::int) AS bn
+             WHERE bn NOT IN (
+               SELECT bay_number FROM wash_bookings WHERE shop_id=$2 AND status='in_progress' AND bay_number IS NOT NULL
+             )
+             ORDER BY bn LIMIT 1
+           ),
+           arrived_at=NOW(), wash_started_at=NOW(), eta_ready_at=$3, updated_at=NOW()
+         WHERE id=$4
+           AND (SELECT COUNT(*) FROM wash_bookings WHERE shop_id=$2 AND status='in_progress' AND bay_number IS NOT NULL) < $1
+         RETURNING *`,
+        [s.max_workers, shopId, eta, bookingId]
+      ));
+      if (!updated) {
+        return respond(res, 409, { error: `All ${s.max_workers} bays are occupied. Wait for a bay to free up.` });
+      }
       // Notify user their wash has started
       try {
         if (b.clerk_user_id || b.customer_phone) {
@@ -1569,24 +1593,30 @@ self.addEventListener('notificationclick', e => {
         });
       }
 
-      const freeBay = await getFreeBay(shopId, s.max_workers);
-
-      if (freeBay !== null) {
-        const eta = new Date(now.getTime() + durationMins * 60000);
-        const [created] = await db(
-          `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,user_id,car_id,created_at,updated_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,'in_progress','paid','walkin',$8,NOW(),NOW(),$9,$10,$11,$12,$13,NOW(),NOW()) RETURNING *`,
-          [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, freeBay, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId]
-        );
-        return respond(res, 201, { ...booking(created), linkedToAccount: !!linkedUserId });
-      } else {
-        const [created] = await db(
-          `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,user_id,car_id,created_at,updated_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','walkin',$8,$9,$10,$11,NOW(),NOW()) RETURNING *`,
-          [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, finalPlate, finalCarModel, linkedUserId, linkedCarId]
-        );
-        return respond(res, 201, { ...booking(created), linkedToAccount: !!linkedUserId });
-      }
+      // Bay number (if any is free) is computed inside this same INSERT rather than read
+      // separately beforehand — see withBayRetry() above for why that matters under concurrent
+      // walk-in/Start requests. Falls back to a pending walk-in (no bay yet) when none is free.
+      const eta = new Date(now.getTime() + durationMins * 60000);
+      const created = await withBayRetry(() => db1(
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,user_id,car_id,created_at,updated_at)
+         SELECT $1,$2,$3,$4,$5,$6,$7,
+           CASE WHEN bay.bn IS NOT NULL THEN 'in_progress' ELSE 'pending' END,
+           'paid','walkin', bay.bn,
+           CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
+           CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
+           CASE WHEN bay.bn IS NOT NULL THEN $8::timestamptz END,
+           $9,$10,$11,$12,NOW(),NOW()
+         FROM (
+           SELECT (
+             SELECT bn FROM generate_series(1, $13::int) AS bn
+             WHERE bn NOT IN (SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL)
+             ORDER BY bn LIMIT 1
+           ) AS bn
+         ) bay
+         RETURNING *`,
+        [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId, s.max_workers]
+      ));
+      return respond(res, 201, { ...booking(created), linkedToAccount: !!linkedUserId });
     }
 
     // PATCH /partners/shop/:id/bays/:bayNumber
