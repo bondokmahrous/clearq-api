@@ -232,6 +232,10 @@ async function initDB() {
   // without touching real centres or polluting real business stats.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS secret_slug TEXT`);
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_test INT DEFAULT 0`);
+  // Lets a centre stop taking new online bookings temporarily (overwhelmed, closing early,
+  // short-staffed) without touching individual bays or is_active — walk-ins are unaffected,
+  // that's a staff-at-the-counter decision, not something this toggle needs to control.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_paused INT DEFAULT 0`);
   // Password reset: short-lived hashed code + expiry per user
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT`);
   await db(`ALTER TABLE wash_users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ`);
@@ -479,7 +483,7 @@ function shop(s) {
     minsExterior: s.mins_exterior, minsInterior: s.mins_interior, minsFull: s.mins_full,
     priceExterior: s.price_exterior, priceInterior: s.price_interior, priceFull: s.price_full,
     maxWorkers: s.max_workers, isActive: s.is_active, lat: s.lat, lng: s.lng,
-    locationDescription: s.location_description, isTest: !!s.is_test,
+    locationDescription: s.location_description, isTest: !!s.is_test, isPaused: !!s.is_paused,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -1023,6 +1027,7 @@ self.addEventListener('notificationclick', e => {
       }
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Shop not found" });
+      if (s.is_paused) return respond(res, 409, { error: "This wash centre isn't accepting online bookings right now. Please check back later." });
 
       // Identify the logged-in user (if any) from the auth token
       const authPayload = verifyJWT(getToken(req));
@@ -1333,20 +1338,24 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused });
     }
 
     // PATCH /partners/shop/:id/settings
     if (m === "PATCH" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const body = await readBody(req);
       const numericMap = { priceExterior:"price_exterior", priceInterior:"price_interior", priceFull:"price_full", minsExterior:"mins_exterior", minsInterior:"mins_interior", minsFull:"mins_full", slotDurationMins:"slot_duration_mins" };
-      const textMap = { openTime:"open_time", closeTime:"close_time", locationDescription:"location_description" };
+      const textMap = { openTime:"open_time", closeTime:"close_time", locationDescription:"location_description", phone:"phone" };
+      const boolMap = { isPaused: "is_paused" };
       const sets = []; const vals = []; let i = 1;
       for (const [k,col] of Object.entries(numericMap)) {
         if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(+body[k]); }
       }
       for (const [k,col] of Object.entries(textMap)) {
         if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(String(body[k])); }
+      }
+      for (const [k,col] of Object.entries(boolMap)) {
+        if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(body[k] ? 1 : 0); }
       }
       if (!sets.length) return respond(res, 400, { error: "No valid fields" });
       vals.push(shopId);

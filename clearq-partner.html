@@ -45,6 +45,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 .dash.show{display:block;}
 .offline-bar{display:none;background:#FEF3C7;padding:7px 15px;font-size:11px;color:#92400E;align-items:center;gap:5px;}
 .offline-bar.show{display:flex;}
+.paused-bar{display:none;background:#7c2d12;padding:7px 15px;font-size:11px;color:#fed7aa;align-items:center;gap:5px;}
+.paused-bar.show{display:flex;}
 .ph{background:var(--navy-mid);border-bottom:1px solid var(--navy-light);padding:14px 16px 12px;}
 .ph-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
 .ph-shop{font-size:17px;font-weight:700;color:var(--white);}
@@ -184,6 +186,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 <!-- DASHBOARD -->
 <div class="dash" id="dash">
   <div class="offline-bar" id="offline-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>Offline — changes will sync when reconnected</div>
+  <div class="paused-bar" id="paused-bar">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>
+    Not accepting online bookings — <a href="javascript:void(0)" onclick="togglePauseBookings()" style="color:#fed7aa;text-decoration:underline;font-weight:700;">Resume</a>
+  </div>
   <div class="ph">
     <div class="ph-row">
       <div>
@@ -192,6 +198,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
       </div>
       <div class="ph-actions">
         <button class="wi-btn" onclick="openWI()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Walk-in</button>
+        <button class="lo-btn" id="pause-btn" onclick="togglePauseBookings()" title="Pause new online bookings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></button>
         <button class="lo-btn" onclick="doLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
       </div>
     </div>
@@ -400,6 +407,7 @@ function showDash() {
   document.getElementById('dash').classList.add('show');
   document.getElementById('dash-name').textContent = partnerShop?.name || 'Wash Centre';
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-EG',{weekday:'long',month:'short',day:'numeric'});
+  renderPauseState();
   loadQueue(); loadBays(); loadSummary(); loadManage();
   if (queuePoll) clearInterval(queuePoll);
   queuePoll = setInterval(() => { loadQueue(true); loadBays(true); }, 5000);
@@ -678,10 +686,11 @@ function renderManage() {
     </select></div></div>
     <button class="dsv" style="margin-top:10px" onclick="saveWorkingHours(this)">Save Hours</button>
   </div>
-  <div class="ms"><div class="ms-t">Location Description</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Shown to customers to help them find you, e.g. "Blue gate next to the Total station"</div>
-    <textarea id="loc-desc" rows="3" placeholder="Describe how to find your centre..." style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;resize:vertical;font-family:inherit;">${escHtml(partnerShop?.locationDescription||'')}</textarea>
-    <button class="dsv" style="margin-top:10px" onclick="saveLocationDescription(this)">Save Description</button>
+  <div class="ms"><div class="ms-t">Contact &amp; Directions</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Both shown to customers — the phone number so they can call in case of an issue, the description to help them find you.</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Phone number</span><input type="tel" id="shop-phone" placeholder="+20 100 000 0000" value="${escHtml(partnerShop?.phone||'')}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <textarea id="loc-desc" rows="3" placeholder="Describe how to find your centre..." style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-top:10px;">${escHtml(partnerShop?.locationDescription||'')}</textarea>
+    <button class="dsv" style="margin-top:10px" onclick="saveContactInfo(this)">Save Contact Info</button>
   </div>`;
   document.getElementById('mgmt-c').innerHTML=html;
 }
@@ -706,20 +715,48 @@ async function saveWorkingHours(btn) {
   finally{btn.disabled=false;btn.textContent='Save Hours';}
 }
 
-async function saveLocationDescription(btn) {
+function renderPauseState() {
+  const paused = !!partnerShop?.isPaused;
+  const btn = document.getElementById('pause-btn');
+  const bar = document.getElementById('paused-bar');
+  if (btn) {
+    btn.innerHTML = paused
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>';
+    btn.title = paused ? 'Resume online bookings' : 'Pause new online bookings';
+    btn.style.color = paused ? '#f87171' : '';
+  }
+  if (bar) bar.classList.toggle('show', paused);
+}
+
+async function togglePauseBookings() {
+  const next = !partnerShop?.isPaused;
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({isPaused: next})});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    partnerShop = {...partnerShop, ...updated};
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    renderPauseState();
+    toast(next ? `${ICONS.alert} Bookings paused` : `${ICONS.check} Bookings resumed`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+}
+
+async function saveContactInfo(btn) {
   btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
   const shopId=partnerShop?.id;
   try {
     const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+      phone:document.getElementById('shop-phone').value,
       locationDescription:document.getElementById('loc-desc').value,
     })});
     const updated = await res.json();
     if (!res.ok) throw new Error(updated?.error || 'Save failed');
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Location description saved`);
+    toast(`${ICONS.check} Contact info saved`);
   } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
-  finally{btn.disabled=false;btn.textContent='Save Description';}
+  finally{btn.disabled=false;btn.textContent='Save Contact Info';}
 }
 
 function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}

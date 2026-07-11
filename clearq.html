@@ -806,6 +806,22 @@ html, body {
 </div>
 
 <!-- Rating modal -->
+<div class="rating-bg" id="booking-confirmed-modal">
+  <div class="rating-box">
+    <div class="rating-icon">✅</div>
+    <div class="rating-title">Booking Confirmed!</div>
+    <div class="rating-centre" id="bcm-shop"></div>
+    <div class="info-row" style="display:flex;justify-content:space-around;margin-bottom:20px;">
+      <div class="info-item"><div class="info-v" id="bcm-service">—</div><div class="info-l">service</div></div>
+      <div class="info-item"><div class="info-v blue" id="bcm-start">—</div><div class="info-l">start</div></div>
+      <div class="info-item"><div class="info-v blue" id="bcm-ready">—</div><div class="info-l">ready by</div></div>
+      <div class="info-item"><div class="info-v" id="bcm-price">—</div><div class="info-l">price</div></div>
+    </div>
+    <button onclick="closeBookingConfirmedModal(true)" style="width:100%;background:#3FBDB0;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">View My Booking</button>
+    <button onclick="closeBookingConfirmedModal(false)" style="background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;">Done</button>
+  </div>
+</div>
+
 <div class="review-nudge" id="review-nudge">
   <div class="review-nudge-icon">⭐</div>
   <div class="review-nudge-text">How was your wash?<div class="review-nudge-sub" id="rn-shop-name"></div></div>
@@ -1109,20 +1125,25 @@ function renderShops() {
             ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;">(${s.ratingCount || 0} reviews)</span></div>` : ''}
           </div>
           <div class="wash-meta">
-            <button class="book-btn" onclick="checkLocationBeforeBooking(${s.id})">Book</button>
+            ${s.isPaused
+              ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book</button>`
+              : `<button class="book-btn" onclick="checkLocationBeforeBooking(${s.id})">Book</button>`}
           </div>
         </div>
-        <div class="stats-grid">
+        ${s.isPaused
+          ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">Not accepting online bookings right now — please check back later</div>`
+          : `<div class="stats-grid">
           <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">in line</div></div>
           <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">min wait</div></div>
           <div class="stat"><div class="stat-v" style="color:var(--blue)">${startStr}</div><div class="stat-l">your start</div></div>
           <div class="stat"><div class="stat-v" style="color:var(--blue)">${readyStr}</div><div class="stat-l">ready by</div></div>
-        </div>
+        </div>`}
       </div>
       ${svcsHtml}
       <div class="wash-hours" style="padding:0 13px 11px;font-size:11px;color:#64748b;">🕘 ${s.openTime} – ${s.closeTime}</div>
       ${staticMapUrl ? `<img src="${staticMapUrl}" alt="Map location" style="width:100%;height:120px;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
       ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
+      ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
       <div class="card-bottom">
         <div class="drive-info">📍 ${s.city}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank">Open in Maps →</a>
@@ -1628,9 +1649,14 @@ async function confirmBooking() {
     // Show confirmed times from server (uses actual ETA-based scheduling)
     const confirmedStart = booking.etaArrivalAt ? fmtTime(new Date(booking.etaArrivalAt)) : document.getElementById('bm-start').textContent;
     const confirmedReady = booking.etaReadyAt ? fmtTime(new Date(booking.etaReadyAt)) : document.getElementById('bm-ready').textContent;
-    
-    toast(`✓ Booked at ${selectedWash.name}! Ready by ${confirmedReady}`);
-    showNotif('📋', 'Booking confirmed!', `${selectedWash.name} · Ready by ${confirmedReady}`, 
+
+    document.getElementById('bcm-shop').textContent = selectedWash.name;
+    document.getElementById('bcm-service').textContent = selectedSvc.name;
+    document.getElementById('bcm-start').textContent = confirmedStart;
+    document.getElementById('bcm-ready').textContent = confirmedReady;
+    document.getElementById('bcm-price').textContent = (booking.price || selectedSvc.price) + ' EGP';
+    document.getElementById('booking-confirmed-modal').classList.add('open');
+    showNotif('📋', 'Booking confirmed!', `${selectedWash.name} · Ready by ${confirmedReady}`,
       `showTab('bookings')`, 'View Booking');
     
     // Immediately update queue display — don't wait for next poll
@@ -1697,6 +1723,11 @@ function dismissReviewNudge() {
   if (nudgedReview) localStorage.setItem('dismissed_review_' + nudgedReview.id, '1');
   document.getElementById('review-nudge').classList.remove('show');
   nudgedReview = null;
+}
+
+function closeBookingConfirmedModal(goToBookings) {
+  document.getElementById('booking-confirmed-modal').classList.remove('open');
+  if (goToBookings) showTab('bookings');
 }
 
 function showUserRating(shopName, bookingId, shopId) {
