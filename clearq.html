@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <script>
+  // Browsers try to restore the last scroll position on a reload by default. On a page like
+  // this, where content (wash cards, view switches) loads and changes height asynchronously
+  // after the initial paint, that fights with the app's own rendering — the browser restores a
+  // scroll offset against whatever height the page happens to have at that moment, which can
+  // land well past where the final content actually is. Taking manual control and forcing the
+  // top on every load is the standard fix for this class of bug in JS-heavy pages.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  window.scrollTo(0, 0);
   window.googleMapsReadyPromise = new Promise(resolve => { window._resolveGoogleMapsReady = resolve; });
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as&callback=_resolveGoogleMapsReady"></script>
@@ -3073,8 +3081,9 @@ function startBookingStatusPoll() {}
 
 // ─── INIT ────────────────────────────────────────────────────────
 initServiceWorker();
-loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock());
+loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock()).finally(() => window.scrollTo(0, 0));
 showLanding();
+window.scrollTo(0, 0);
 
 </script>
 
