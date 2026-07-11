@@ -1818,7 +1818,7 @@ self.addEventListener('notificationclick', e => {
           COUNT(b.id) FILTER (WHERE b.kind='walkin') as walkin_bookings
         FROM wash_bookings b
         JOIN wash_shops s ON s.id = b.shop_id
-        WHERE b.customer_phone IS NOT NULL AND b.customer_phone != ''
+        WHERE b.customer_phone IS NOT NULL AND b.customer_phone != '' AND s.is_test = 0
       `;
       const params = [];
       if (search) {
