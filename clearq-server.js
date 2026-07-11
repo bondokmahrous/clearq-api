@@ -594,6 +594,57 @@ function assignBays(maxBays, active, items, defaultDur, nowMs) {
   return startTimes;
 }
 
+// Predicts which pending booking will most likely land in each currently-free bay next, purely
+// for the Bay Status display — lets staff see "who's coming" per bay instead of just an empty
+// "Ready for next customer" card. This is informational only: it doesn't write bay_number
+// anywhere, and getFreeBay() still makes the real call at Start time based on whatever's
+// actually free then. Deliberately a separate, self-contained pass rather than a change to
+// assignBays()/getQueueState() — those are relied on everywhere for actual wait-time promises,
+// and this is purely a display prediction that shouldn't risk touching that logic.
+async function predictNextUpByBay(shopId) {
+  const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
+  if (!s) return new Map();
+  const maxBays = s.max_workers;
+  const defaultDur = s.slot_duration_mins || 30;
+
+  const rows = await db(
+    `SELECT b.*, COALESCE(sv.duration_mins, $2) as duration_mins
+     FROM wash_bookings b
+     LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
+     WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')
+       AND (b.eta_ready_at IS NULL OR b.eta_ready_at > NOW() - INTERVAL '4 hours')`,
+    [shopId, defaultDur]
+  );
+  const occupied = rows.filter(b => b.status === 'in_progress' && b.bay_number != null);
+  const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
+  const pending = rows.filter(b => b.status === 'pending' && b.kind !== 'maintenance').sort((a, b) => arrivalMs(a) - arrivalMs(b));
+
+  const nowMs = Date.now();
+  const bayFreeAt = new Map();
+  for (let i = 1; i <= maxBays; i++) bayFreeAt.set(i, nowMs);
+  for (const b of occupied) {
+    const dur = bookingDurationMins(b, defaultDur);
+    const finishAt = b.eta_ready_at
+      ? new Date(b.eta_ready_at).getTime()
+      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
+    bayFreeAt.set(b.bay_number, finishAt + BAY_HANDOFF_BUFFER_MS);
+  }
+
+  const nextUpByBay = new Map();
+  for (const b of pending) {
+    let bestBay = null, bestFree = Infinity;
+    for (const [bayNum, freeAt] of bayFreeAt) {
+      if (freeAt < bestFree) { bestFree = freeAt; bestBay = bayNum; }
+    }
+    if (bestBay == null) break;
+    if (!nextUpByBay.has(bestBay)) nextUpByBay.set(bestBay, b);
+    const dur = bookingDurationMins(b, defaultDur);
+    const startAt = Math.max(bestFree, arrivalMs(b));
+    bayFreeAt.set(bestBay, startAt + dur * 60000 + BAY_HANDOFF_BUFFER_MS);
+  }
+  return nextUpByBay;
+}
+
 async function getQueueState(shopId) {
   const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
   const maxBays = s?.max_workers || 3;
@@ -1222,6 +1273,7 @@ self.addEventListener('notificationclick', e => {
         const ex = byBay.get(b.bay_number);
         if (!ex || b.status === "in_progress" || b.kind === "maintenance") byBay.set(b.bay_number, b);
       }
+      const nextUpByBay = await predictNextUpByBay(shopId);
       const bays = [];
       for (let i = 1; i <= s.max_workers; i++) {
         const b = byBay.get(i);
@@ -1232,7 +1284,8 @@ self.addEventListener('notificationclick', e => {
           else if (b.kind === "walkin") state = "walkin";
           else state = "incoming";
         }
-        bays.push({ bayNumber: i, state, booking: b && b.kind !== "maintenance" ? booking(b) : null, reason: b?.kind === "maintenance" ? b.notes : null });
+        const nextUp = (state === "free") ? nextUpByBay.get(i) : null;
+        bays.push({ bayNumber: i, state, booking: b && b.kind !== "maintenance" ? booking(b) : null, reason: b?.kind === "maintenance" ? b.notes : null, nextUp: nextUp ? booking(nextUp) : null });
       }
       return respond(res, 200, { shopId, maxBays: s.max_workers, bays });
     }

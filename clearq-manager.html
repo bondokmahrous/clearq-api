@@ -880,6 +880,10 @@ function minsLeft(iso) {
   const m = Math.max(0,Math.round((new Date(iso).getTime()-Date.now())/60000));
   return '~'+m+' min left';
 }
+function minsUntil(iso) {
+  if (!iso) return 0;
+  return Math.max(0,Math.round((new Date(iso).getTime()-Date.now())/60000));
+}
 
 function statusColor(s) {
   return s==='in_progress'?'var(--amber)':s==='completed'?'var(--green)':s==='cancelled'?'var(--red)':'var(--blue-light)';
@@ -1310,6 +1314,7 @@ function renderBays(data) {
   grid.innerHTML = bays.map(bay=>{
     const th = bayTheme(bay.state);
     const tl = bay.booking?.etaReadyAt ? minsLeft(bay.booking.etaReadyAt) : '';
+    const nu = bay.state==='free' ? bay.nextUp : null;
     return `<div class="bay-card" style="background:${th.bg};border-color:${th.border}">
       <div class="bay-card-hd">
         <div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div>
@@ -1320,6 +1325,9 @@ function renderBays(data) {
           bay.booking?`<div class="bay-customer">${bay.booking.customerName||'Walk-in'}</div>
             <div class="bay-service">${bay.booking.washType||''} ${bay.booking.licensePlate?'· '+bay.booking.licensePlate:''}</div>
             ${tl?`<div class="bay-eta">${tl}</div>`:''}`:
+          nu?`<div class="bay-empty">Ready for next customer</div>
+            <div class="bay-customer" style="margin-top:6px;font-size:12px;color:var(--blue-light);">Next: ${nu.customerName||'Walk-in'}</div>
+            <div class="bay-service">${nu.washType||''}${nu.etaArrivalAt?' · arrives ~'+minsUntil(nu.etaArrivalAt)+' min':''}</div>`:
           `<div class="bay-empty">Ready for next customer</div>`}
       </div>
       <div class="bay-actions">
@@ -1329,9 +1337,8 @@ function renderBays(data) {
         bay.state==='unavailable'?`
           <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Set Available</button>`:
         (bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`
-          <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check} Mark Done</button>`:
-        bay.state==='incoming'&&bay.booking?`
-          <button class="bay-btn" style="background:#3FBDB0" onclick="doAction(${bay.booking.id},'start',this)">▶ Start Wash</button>`:''}
+          <button class="bay-btn" style="background:var(--green-dim);color:var(--green);border:1px solid #166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check} Mark Done</button>`:''}
+        ${nu?`<button class="bay-btn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this)">▶ Start Wash</button>`:''}
       </div>
     </div>`;
   }).join('');
