@@ -1134,7 +1134,7 @@ function renderShops() {
       card.id = 'wash-card-' + s.id;
       card.className = 'wash-card';
     }
-    card.innerHTML = `
+    const newCardHtml = `
       <div class="card-top">
         <div class="card-row1">
           <div>
@@ -1166,6 +1166,13 @@ function renderShops() {
         <div class="drive-info">📍 ${s.city}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank">Open in Maps →</a>
       </div>`;
+    // Only touch the DOM if this card's content actually changed — a shop's card shouldn't
+    // reload its map image, reset button hover state, or repaint at all on a refresh triggered
+    // by booking a *different* shop, or by a poll tick that didn't change anything for it.
+    if (card._lastHtml !== newCardHtml) {
+      card.innerHTML = newCardHtml;
+      card._lastHtml = newCardHtml;
+    }
     container.appendChild(card);
   });
 }
