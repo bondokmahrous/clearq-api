@@ -1482,6 +1482,17 @@ self.addEventListener('notificationclick', e => {
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
 
+      // No real wash finishes in seconds — this catches an accidental instant Start-then-Done
+      // (e.g. a second tap landing on the Done button that appears in the same spot right after
+      // a card re-renders from Start) that a client-side disabled-button guard alone can't fully
+      // prevent, since it only protects against clicks that overlap the in-flight request itself.
+      if (b.status === "in_progress" && b.wash_started_at) {
+        const secondsSinceStart = (Date.now() - new Date(b.wash_started_at).getTime()) / 1000;
+        if (secondsSinceStart < 60) {
+          return respond(res, 409, { error: `This wash only started ${Math.max(1, Math.round(secondsSinceStart))}s ago — too soon to be finished. Wait a moment and try again if that's really what you meant.` });
+        }
+      }
+
       const [updated] = await db(
         `UPDATE wash_bookings SET status='completed', wash_finished_at=NOW(), updated_at=NOW() WHERE id=$1 RETURNING *`,
         [bookingId]

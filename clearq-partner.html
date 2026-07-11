@@ -571,8 +571,8 @@ function renderQueue(bookings) {
           ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
         </div>
         ${!cp?`<div class="bc-acts">
-          ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start')">▶ Start</button>`:''}
-          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done')">${ICONS.check} Done</button>`:''}
+          ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start',this)">▶ Start</button>`:''}
+          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check} Done</button>`:''}
         </div>`:''}
       </div>`;
     });
@@ -624,8 +624,8 @@ function renderBays(data) {
       <div class="bay-acts">
         ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">${ICONS.plus} Walk-in</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">${ICONS.lock}</button>`:''}
         ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Available</button>`:''}
-        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done')">${ICONS.check} Done</button>`:''}
-        ${nu?`<button class="bbtn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start')">▶ Start</button>`:''}
+        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check} Done</button>`:''}
+        ${nu?`<button class="bbtn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this)">▶ Start</button>`:''}
       </div>
     </div>`;
   });
