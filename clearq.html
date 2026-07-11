@@ -157,6 +157,18 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .rating-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;justify-content:center;align-items:center;padding:22px;}
 .rating-bg.open{display:flex;}
 .rating-box{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;animation:fadeIn 0.2s ease;}
+.shop-detail-box{background:#fff;border-radius:18px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;animation:fadeIn 0.2s ease;overflow:hidden;}
+.sd-header{padding:18px 20px 14px;border-bottom:1px solid #e8edf3;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
+.sd-close{background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;flex-shrink:0;}
+.sd-body{overflow-y:auto;padding:16px 20px 22px;}
+.sd-review{border-bottom:1px solid #f1f5f9;padding:14px 0;}
+.sd-review:last-child{border-bottom:none;}
+.sd-review-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.sd-review-name{font-size:13px;font-weight:700;color:#0f172a;}
+.sd-review-date{font-size:11px;color:#94a3b8;}
+.sd-review-stars{color:#f59e0b;font-size:13px;margin-bottom:6px;}
+.sd-review-comment{font-size:13px;color:#374151;line-height:1.5;margin-bottom:8px;}
+.sd-review-photo{width:100%;max-width:220px;border-radius:10px;display:block;cursor:pointer;}
 @keyframes fadeIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
 .rating-icon{font-size:44px;margin-bottom:10px;}
 .rating-title{font-size:19px;font-weight:800;color:#0f172a;margin-bottom:3px;}
@@ -806,6 +818,20 @@ html, body {
 </div>
 
 <!-- Rating modal -->
+<div class="rating-bg" id="shop-detail-modal">
+  <div class="shop-detail-box">
+    <div class="sd-header">
+      <div>
+        <div style="font-size:17px;font-weight:800;color:#0f172a;" id="sd-name"></div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px;" id="sd-address"></div>
+        <div style="font-size:12px;color:#f59e0b;font-weight:700;margin-top:4px;" id="sd-rating"></div>
+      </div>
+      <button class="sd-close" onclick="closeShopDetail()">✕</button>
+    </div>
+    <div class="sd-body" id="sd-body"></div>
+  </div>
+</div>
+
 <div class="rating-bg" id="booking-confirmed-modal">
   <div class="rating-box">
     <div class="rating-icon">✅</div>
@@ -901,7 +927,7 @@ async function apiFetch(url, options = {}) {
 }
 
 // ─── STATE ──────────────────────────────────────────────────────
-let shops = [], queues = {}, services = {};
+let shops = [], queues = {}, services = {}, ratingsData = {};
 let ghostShopId = null; // set in loadShops() if a valid secret ?g= slug is present
 let currentCity = 'All';
 let selectedWash = null, selectedSvc = null, selectedCarId = null;
@@ -976,6 +1002,7 @@ async function loadShops() {
           const rRes = await fetch(`${API}/api/wash/ratings/${s.id}`);
           if (rRes.ok) {
             const ratings = await rRes.json();
+            ratingsData[s.id] = ratings;
             if (ratings.length) {
               s.avgRating = (ratings.reduce((a, r) => a + r.stars, 0) / ratings.length).toFixed(1);
               s.ratingCount = ratings.length;
@@ -1133,19 +1160,21 @@ function renderShops() {
       card = document.createElement('div');
       card.id = 'wash-card-' + s.id;
       card.className = 'wash-card';
+      card.style.cursor = 'pointer';
     }
+    card.onclick = () => openShopDetail(s.id);
     const newCardHtml = `
       <div class="card-top">
         <div class="card-row1">
           <div>
             <div class="wash-name">${s.name}${s.isPaused ? ` <span style="display:inline-block;vertical-align:middle;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">Temporarily Unavailable</span>` : ''}</div>
             <div class="wash-addr">📍 ${s.address}</div>
-            ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;">(${s.ratingCount || 0} reviews)</span></div>` : ''}
+            ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;text-decoration:underline;">(${s.ratingCount || 0} review${s.ratingCount===1?'':'s'}) ›</span></div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:2px;text-decoration:underline;">See details ›</div>`}
           </div>
           <div class="wash-meta">
             ${s.isPaused
               ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book</button>`
-              : `<button class="book-btn" onclick="checkLocationBeforeBooking(${s.id})">Book</button>`}
+              : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">Book</button>`}
           </div>
         </div>
         ${s.isPaused
@@ -1161,10 +1190,10 @@ function renderShops() {
       <div class="wash-hours" style="padding:0 13px 11px;font-size:11px;color:#64748b;">🕘 ${s.openTime} – ${s.closeTime}</div>
       ${staticMapUrl ? `<img src="${staticMapUrl}" alt="Map location" style="width:100%;height:120px;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
       ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
-      ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
+      ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" onclick="event.stopPropagation()" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
       <div class="card-bottom">
         <div class="drive-info">📍 ${s.city}</div>
-        <a class="maps-link" href="${mapsUrl}" target="_blank">Open in Maps →</a>
+        <a class="maps-link" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">Open in Maps →</a>
       </div>`;
     // Only touch the DOM if this card's content actually changed — a shop's card shouldn't
     // reload its map image, reset button hover state, or repaint at all on a refresh triggered
@@ -1758,6 +1787,77 @@ function dismissReviewNudge() {
 function closeBookingConfirmedModal(goToBookings) {
   document.getElementById('booking-confirmed-modal').classList.remove('open');
   if (goToBookings) showTab('bookings');
+}
+
+function escHtmlSD(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function timeAgoSD(date) {
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
+
+function openShopDetail(shopId) {
+  const s = shops.find(x => x.id === shopId);
+  if (!s) return;
+  document.getElementById('sd-name').textContent = s.name;
+  document.getElementById('sd-address').textContent = s.address;
+  document.getElementById('sd-rating').textContent = s.avgRating
+    ? `★ ${s.avgRating} (${s.ratingCount || 0} review${s.ratingCount === 1 ? '' : 's'})`
+    : 'No reviews yet';
+
+  const reviews = ratingsData[shopId] || [];
+  let html = `<div style="margin-bottom:16px;">
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">Hours</div>
+      <div style="font-size:13px;color:#374151;">${escHtmlSD(s.openTime||'')} – ${escHtmlSD(s.closeTime||'')}</div>
+    </div>`;
+  if (s.locationDescription) {
+    html += `<div style="margin-bottom:16px;">
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">Directions</div>
+      <div style="font-size:13px;color:#374151;line-height:1.5;">${escHtmlSD(s.locationDescription)}</div>
+    </div>`;
+  }
+  if (s.phone) {
+    html += `<div style="margin-bottom:20px;">
+      <a href="tel:${escHtmlSD(s.phone.replace(/\s+/g,''))}" style="color:#21867B;font-weight:700;font-size:13px;text-decoration:none;">📞 ${escHtmlSD(s.phone)}</a>
+    </div>`;
+  }
+
+  html += `<div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px;">Reviews (${reviews.length})</div>`;
+  if (!reviews.length) {
+    html += `<div style="font-size:13px;color:#94a3b8;padding:20px 0;text-align:center;">No reviews yet — be the first!</div>`;
+  } else {
+    html += reviews.map(r => {
+      const name = r.user_name || r.customer_name || 'Anonymous';
+      const firstName = escHtmlSD(String(name).split(' ')[0]);
+      const stars = '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars);
+      const date = r.created_at ? timeAgoSD(new Date(r.created_at)) : '';
+      return `<div class="sd-review">
+        <div class="sd-review-top">
+          <div class="sd-review-name">${firstName}</div>
+          <div class="sd-review-date">${date}</div>
+        </div>
+        <div class="sd-review-stars">${stars}</div>
+        ${r.comment ? `<div class="sd-review-comment">${escHtmlSD(r.comment)}</div>` : ''}
+        ${r.photo_url ? `<img src="${escHtmlSD(r.photo_url)}" class="sd-review-photo" onclick="window.open('${escHtmlSD(r.photo_url)}','_blank')">` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('sd-body').innerHTML = html;
+  document.getElementById('shop-detail-modal').classList.add('open');
+}
+
+function closeShopDetail() {
+  document.getElementById('shop-detail-modal').classList.remove('open');
 }
 
 function showUserRating(shopName, bookingId, shopId) {
