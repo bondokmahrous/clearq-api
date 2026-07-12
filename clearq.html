@@ -1296,6 +1296,7 @@ function checkLocationPermission() {
 let userLocation = null;
 let etaResult = null;
 let etaLoading = false;
+let currentHoldId = null; // the in-progress hold reserving this customer's slot until they confirm or the modal closes
 
 async function fetchETA(shopId, lat, lng) {
   try {
@@ -1321,14 +1322,36 @@ function fmtTime(date) {
 // Approximating this client-side (e.g. Math.max(driveTime, genericQueueWait)) can't tell whether
 // *this specific* arrival collides with other bookings arriving around the same time — it only
 // checks the arrival time against a single generic number, not the real bay simulation.
+//
+// This actually places a short-lived hold (not a read-only preview) so the slot shown here is
+// briefly reserved — a second customer previewing around the same time sees it as taken instead
+// of both landing on the same "safe" slot and racing to confirm it. The hold expires on its own
+// if the customer never confirms, so this is safe to call on every service/time change.
 async function fetchBookingPreview(shopId, driveMins, washType) {
+  const previousHoldId = currentHoldId;
   try {
-    const params = new URLSearchParams({ shopId, driveMins: Math.max(0, Math.round(driveMins || 0)), washType });
-    const res = await fetch(`${API}/api/wash/reservations/preview?${params}`);
+    const body = { shopId, washType, etaMinutesOverride: Math.max(0, Math.round(driveMins || 0)) };
+    body.etaSource = bookingMode === 'schedule' ? 'scheduled' : (etaResult ? etaResult.source : undefined);
+    const res = await fetch(`${API}/api/wash/reservations/hold`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
     if (!res.ok) return null;
     const data = await res.json();
-    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins };
+    currentHoldId = data.holdId;
+    if (previousHoldId && previousHoldId !== currentHoldId) releaseHold(previousHoldId);
+    const start = new Date(data.etaArrivalAt);
+    const waitMins = Math.max(0, Math.round((start - Date.now()) / 60000));
+    return { startStr: fmtTime(start), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: waitMins };
   } catch { return null; }
+}
+
+// Best-effort release of an abandoned hold (modal closed, service/slot changed before confirming).
+// Purely a courtesy — holds expire on their own regardless, so failures here are safe to ignore.
+function releaseHold(holdId) {
+  if (!holdId) return;
+  fetch(`${API}/api/wash/reservations/hold/${holdId}`, { method: 'DELETE' }).catch(() => {});
 }
 
 
@@ -1411,6 +1434,8 @@ async function proceedToBookingModal(shopId) {
   userLocation = null;
   bookingMode = 'now';
   selectedSlotTime = null;
+  releaseHold(currentHoldId);
+  currentHoldId = null;
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
   document.getElementById('when-now-btn').style.background = '#E6F7F5';
@@ -1649,8 +1674,11 @@ async function setBookingMode(mode) {
 }
 
 function closeBModal(e) {
-  if (e.target === document.getElementById('booking-modal'))
+  if (e.target === document.getElementById('booking-modal')) {
     document.getElementById('booking-modal').classList.remove('open');
+    releaseHold(currentHoldId);
+    currentHoldId = null;
+  }
 }
 
 async function confirmBooking() {
@@ -1688,6 +1716,7 @@ async function confirmBooking() {
       carId: selectedCarId || null,
       carModel: selectedCar ? carLabel(selectedCar) : '',
       licensePlate: selectedCar?.licensePlate || '',
+      holdId: currentHoldId,
     };
     if (userLocation) {
       body.customerLat = userLocation.latitude;
@@ -1711,6 +1740,7 @@ async function confirmBooking() {
       throw new Error(d.error || d.message || 'Booking failed');
     }
     const booking = await res.json();
+    currentHoldId = null; // consumed by this booking — don't release it, it's now a real reservation
     document.getElementById('booking-modal').classList.remove('open');
     
     // Show confirmed times from server (uses actual ETA-based scheduling)
