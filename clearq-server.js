@@ -556,7 +556,6 @@ async function inProgressCount(shopId) {
 // opts.hypotheticalArrival lets a caller ask "if someone arrived at this time, when would their bay free up?"
 // without inserting anything — used by POST /wash/reservations to price a new booking.
 const BAY_HANDOFF_BUFFER_MS = 10 * 60000; // slack after every wash before a bay counts as free again, in case it runs long
-const HOLD_TTL_MS = 60 * 1000; // how long a booking/walk-in hold reserves a slot before it auto-expires if never confirmed
 
 function bookingDurationMins(b, defaultDur) {
   if (b.eta_ready_at && b.eta_arrival_at) {
@@ -652,7 +651,7 @@ async function predictNextUpByBay(shopId) {
   return nextUpByBay;
 }
 
-async function getQueueState(shopId, opts = {}) {
+async function getQueueState(shopId) {
   const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
   const maxBays = s?.max_workers || 3;
   const defaultDur = s?.slot_duration_mins || 30;
@@ -676,30 +675,17 @@ async function getQueueState(shopId, opts = {}) {
   // Exclude bookings that were clearly forgotten (should have finished hours ago but were
   // never marked done) — otherwise a stale booking from days ago silently distorts live wait
   // times for real customers. These still show up in the partner/manager "Needs Attention" list.
-  // A live (unexpired) 'held' booking counts exactly like 'pending' here — it's a short-lived
-  // placeholder reserving a slot while a customer/walk-in is still filling in the confirm step,
-  // so other customers' previews correctly see it as taken instead of racing for the same slot.
-  // Expired holds fall out of this WHERE clause on their own and get swept up by the cleanup
-  // query right below.
   const allBookings = await db(
     `SELECT b.id, b.customer_name, b.wash_type, b.status, b.eta_ready_at, b.wash_started_at, b.eta_arrival_at,
             b.created_at, b.kind, COALESCE(sv.duration_mins, $2) as duration_mins
      FROM wash_bookings b
      LEFT JOIN wash_services sv ON sv.shop_id = b.shop_id AND sv.name = b.wash_type AND sv.is_active = 1
-     WHERE b.shop_id = $1
-       AND (b.status IN ('pending','in_progress') OR (b.status = 'held' AND b.hold_expires_at > NOW()))
+     WHERE b.shop_id = $1 AND b.status IN ('pending','in_progress')
        AND (b.eta_ready_at IS NULL OR b.eta_ready_at > NOW() - INTERVAL '4 hours')`,
     [shopId, defaultDur]
   );
-  // Lazy cleanup — no cron needed, this runs on every real queue read anyway. Only reaches for
-  // holds that are well past expiry (not ones that just expired a second ago) so there's no
-  // chance of racing a request that's mid-conversion from hold to real booking.
-  db(`DELETE FROM wash_bookings WHERE shop_id=$1 AND status='held' AND hold_expires_at < NOW() - INTERVAL '2 minutes'`, [shopId]).catch(()=>{});
 
-  // A hold being confirmed right now is about to be re-inserted as the hypothetical arrival by
-  // the caller — excluding its own row here stops it from competing against itself for a bay,
-  // which would otherwise push the customer later than the slot their hold actually promised.
-  const pending = allBookings.filter(b => (b.status === 'pending' || b.status === 'held') && b.kind !== 'maintenance' && b.id !== opts.excludeBookingId);
+  const pending = allBookings.filter(b => b.status === 'pending' && b.kind !== 'maintenance');
   const active = allBookings.filter(b => b.status === 'in_progress' && b.kind !== 'maintenance');
   const maintenanceCount = allBookings.filter(b => b.status === 'in_progress' && b.kind === 'maintenance').length;
   const occupiedBays = allBookings.filter(b => b.status === 'in_progress').length;
@@ -719,7 +705,7 @@ async function getQueueState(shopId, opts = {}) {
 }
 
 async function simulateBayQueue(shopId, opts = {}) {
-  const { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId, { excludeBookingId: opts.excludeBookingId });
+  const { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
   const requestedArrival = (opts.hypotheticalArrival || new Date(nowMs)).getTime();
   // A caller with a specific service in mind (the booking modal) passes its real duration.
@@ -1092,50 +1078,9 @@ self.addEventListener('notificationclick', e => {
     }
 
     // POST /wash/reservations
-    // POST /wash/reservations/hold — briefly reserves a slot while the customer is still on the
-    // confirm screen, so a second customer's preview correctly sees it as taken instead of both
-    // independently computing the same "safe" slot and racing to confirm it. Expires on its own
-    // (HOLD_TTL_MS) if never confirmed — see getQueueState for how live holds count toward the
-    // queue, and the cleanup query that sweeps up ones well past expiry.
-    if (m === "POST" && p === "/wash/reservations/hold") {
-      const body = await readBody(req);
-      const { shopId, washType, etaMinutesOverride, etaSource } = body;
-      if (!shopId || !washType) return respond(res, 400, { error: "shopId and washType required" });
-      const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
-      if (!s) return respond(res, 404, { error: "Shop not found" });
-      if (s.is_paused) return respond(res, 409, { error: "This wash centre isn't accepting online bookings right now. Please check back later." });
-
-      const { price, durationMins } = await resolveService(shopId, washType);
-      const now = new Date();
-      const driveMins = etaMinutesOverride || 0;
-      const requestedArrival = new Date(now.getTime() + driveMins * 60000);
-      const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
-      const startMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
-      const etaArrival = new Date(now.getTime() + startMins * 60000);
-      const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
-      const expiresAt = new Date(now.getTime() + HOLD_TTL_MS);
-
-      const created = await db1(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,eta_arrival_at,eta_ready_at,eta_source,hold_expires_at,created_at,updated_at)
-         VALUES ($1,'','',$2,$3,$4,$5,'held','paid','reservation',$6,$7,$8,$9,NOW(),NOW()) RETURNING *`,
-        [shopId, washType, today(), nowTime(), price, etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"), expiresAt]
-      );
-      return respond(res, 201, { holdId: created.id, etaArrivalAt: etaArrival.toISOString(), etaReadyAt: etaReady.toISOString(), expiresAt: expiresAt.toISOString() });
-    }
-
-    // DELETE /wash/reservations/hold/:id — lets the frontend release a hold immediately when the
-    // customer backs out (closes the modal, picks a different service) instead of leaving it
-    // locking a slot for the rest of the TTL. Purely a courtesy to other customers; harmless if
-    // never called, since holds expire on their own regardless.
-    if (m === "DELETE" && /^\/wash\/reservations\/hold\/\d+$/.test(p)) {
-      const holdId = +p.split("/").pop();
-      await db(`DELETE FROM wash_bookings WHERE id=$1 AND status='held'`, [holdId]);
-      return respond(res, 200, { released: true });
-    }
-
     if (m === "POST" && p === "/wash/reservations") {
       const body = await readBody(req);
-      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng, holdId } = body;
+      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng } = body;
       if (!shopId || !customerName || !customerPhone || !washType) {
         return respond(res, 400, { error: "shopId, customerName, customerPhone, washType required" });
       }
@@ -1160,39 +1105,6 @@ self.addEventListener('notificationclick', e => {
 
       const { price, durationMins } = await resolveService(shopId, washType);
       const now = new Date();
-
-      // If a live hold was passed, this is the confirm step for it: convert that same row into
-      // the real booking rather than computing a fresh slot. Its eta is recomputed here anyway
-      // (not just trusted from hold time) since some time may have passed since it was created —
-      // this only saves the *slot*, not a stale timestamp.
-      if (holdId) {
-        const hold = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2 AND status='held' AND hold_expires_at > NOW()`, [holdId, shopId]);
-        if (hold) {
-          const driveMins = etaMinutesOverride || 0;
-          const requestedArrival = new Date(now.getTime() + driveMins * 60000);
-          const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins, excludeBookingId: holdId });
-          const startMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
-          const etaArrival = new Date(now.getTime() + startMins * 60000);
-          const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
-          const converted = await db1(
-            `UPDATE wash_bookings SET customer_name=$1, customer_phone=$2, wash_type=$3, price=$4,
-               status='pending', license_plate=$5, car_model=$6, eta_arrival_at=$7, eta_ready_at=$8,
-               eta_source=$9, customer_lat=$10, customer_lng=$11, user_id=$12, car_id=$13,
-               scheduled_date=$14, scheduled_time=$15, hold_expires_at=NULL, updated_at=NOW()
-             WHERE id=$16 RETURNING *`,
-            [customerName, customerPhone, washType, price, finalLicensePlate, finalCarModel,
-              etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"),
-              customerLat || null, customerLng || null, userId, carId || null,
-              scheduledDate || today(), scheduledTime || nowTime(), holdId]
-          );
-          try { await notifyPartner(shopId, { title: 'New Booking!', body: `${customerName} booked a ${washType} wash`, icon: '/icon-192.png' }); } catch(e) {}
-          sendBookingEmail(converted, s.name, 'confirmed');
-          return respond(res, 201, booking(converted));
-        }
-        // Hold expired or already gone — fall through to a fresh creation below, same as if no
-        // holdId had been sent at all. The customer still gets booked, just without the head
-        // start the hold would have given them against anyone racing them for the same slot.
-      }
 
       // Price this booking against every existing reservation (scheduled or not), not just
       // bays physically busy right now — see simulateBayQueue for why that distinction matters.
@@ -1652,47 +1564,9 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 200, rows.map(booking));
     }
 
-    // POST /partners/shop/:id/walkin/hold — briefly reserves a queue slot the moment staff opens
-    // the walk-in form, so a second walk-in or online booking created while they're still typing
-    // doesn't independently grab the same slot this one is about to claim. Same expiry/cleanup
-    // mechanism as the customer-side hold — see getQueueState.
-    if (m === "POST" && /\/partners\/shop\/\d+\/walkin\/hold$/.test(p)) {
-      const { washType } = await readBody(req);
-      if (!washType) return respond(res, 400, { error: "washType required" });
-      const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
-      if (!s) return respond(res, 404, { error: "Shop not found" });
-
-      const { durationMins } = await resolveService(shopId, washType);
-      const conflict = await findWalkinConflict(shopId, durationMins);
-      if (conflict) {
-        return respond(res, 409, {
-          error: `Can't add this walk-in — ${conflict.customer_name || 'a customer'}'s ${conflict.wash_type || 'booking'} is arriving before this ${durationMins}-min wash would finish, and there's no other bay for them.`,
-          conflictingBookingId: conflict.id,
-        });
-      }
-
-      const now = new Date();
-      const eta = new Date(now.getTime() + durationMins * 60000);
-      const expiresAt = new Date(now.getTime() + HOLD_TTL_MS);
-      const held = await db1(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,eta_arrival_at,eta_ready_at,hold_expires_at,created_at,updated_at)
-         VALUES ($1,'','',$2,$3,$4,0,'held','paid','walkin',NOW(),$5,$6,NOW(),NOW()) RETURNING *`,
-        [shopId, washType, today(), nowTime(), eta, expiresAt]
-      );
-      return respond(res, 201, { holdId: held.id, expiresAt: expiresAt.toISOString() });
-    }
-
-    // DELETE /partners/shop/:id/walkin/hold/:holdId — release a walk-in hold early if staff
-    // closes the form without submitting. See the customer-side version above for why.
-    if (m === "DELETE" && /\/partners\/shop\/\d+\/walkin\/hold\/\d+$/.test(p)) {
-      const holdId = +p.split("/").pop();
-      await db(`DELETE FROM wash_bookings WHERE id=$1 AND shop_id=$2 AND status='held'`, [holdId, shopId]);
-      return respond(res, 200, { released: true });
-    }
-
     // POST /partners/shop/:id/walkin — links to user account by phone if registered
     if (m === "POST" && /\/partners\/shop\/\d+\/walkin$/.test(p)) {
-      const { washType, customerName, customerPhone, licensePlate, carMake, carModel, holdId } = await readBody(req);
+      const { washType, customerName, customerPhone, licensePlate, carMake, carModel } = await readBody(req);
       if (!washType) return respond(res, 400, { error: "washType required" });
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Shop not found" });
@@ -1739,70 +1613,38 @@ self.addEventListener('notificationclick', e => {
 
       const { price, durationMins } = await resolveService(shopId, washType);
       const now = new Date();
+
+      const conflict = await findWalkinConflict(shopId, durationMins);
+      if (conflict) {
+        return respond(res, 409, {
+          error: `Can't add this walk-in — ${conflict.customer_name || 'a customer'}'s ${conflict.wash_type || 'booking'} is arriving before this ${durationMins}-min wash would finish, and there's no other bay for them.`,
+          conflictingBookingId: conflict.id,
+        });
+      }
+
+      // Bay number (if any is free) is computed inside this same INSERT rather than read
+      // separately beforehand — see withBayRetry() above for why that matters under concurrent
+      // walk-in/Start requests. Falls back to a pending walk-in (no bay yet) when none is free.
       const eta = new Date(now.getTime() + durationMins * 60000);
-
-      // If a live hold was passed, convert that same row rather than inserting a fresh one and
-      // re-running the conflict check — the hold already passed it, and (being counted as
-      // 'pending' in getQueueState) already accounts for itself in anything checked since.
-      let created = null;
-      if (holdId) {
-        const hold = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2 AND status='held' AND hold_expires_at > NOW()`, [holdId, shopId]);
-        if (hold) {
-          created = await withBayRetry(() => db1(
-            `UPDATE wash_bookings SET
-               customer_name=$1, customer_phone=$2, wash_type=$3, price=$4,
-               status=CASE WHEN bay.bn IS NOT NULL THEN 'in_progress' ELSE 'pending' END,
-               bay_number=bay.bn,
-               arrived_at=CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
-               wash_started_at=CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
-               eta_ready_at=CASE WHEN bay.bn IS NOT NULL THEN $5::timestamptz END,
-               license_plate=$6, car_model=$7, user_id=$8, car_id=$9, hold_expires_at=NULL, updated_at=NOW()
-             FROM (
-               SELECT (
-                 SELECT bn FROM generate_series(1, $10::int) AS bn
-                 WHERE bn NOT IN (SELECT bay_number FROM wash_bookings WHERE shop_id=$11 AND status='in_progress' AND bay_number IS NOT NULL)
-                 ORDER BY bn LIMIT 1
-               ) AS bn
-             ) bay
-             WHERE wash_bookings.id=$12
-             RETURNING wash_bookings.*`,
-            [finalName, customerPhone||"", washType, price, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId, s.max_workers, shopId, holdId]
-          ));
-        }
-        // Hold expired or gone — fall through to a fresh conflict-checked creation below.
-      }
-
-      if (!created) {
-        const conflict = await findWalkinConflict(shopId, durationMins);
-        if (conflict) {
-          return respond(res, 409, {
-            error: `Can't add this walk-in — ${conflict.customer_name || 'a customer'}'s ${conflict.wash_type || 'booking'} is arriving before this ${durationMins}-min wash would finish, and there's no other bay for them.`,
-            conflictingBookingId: conflict.id,
-          });
-        }
-        // Bay number (if any is free) is computed inside this same INSERT rather than read
-        // separately beforehand — see withBayRetry() above for why that matters under concurrent
-        // walk-in/Start requests. Falls back to a pending walk-in (no bay yet) when none is free.
-        created = await withBayRetry(() => db1(
-          `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,user_id,car_id,created_at,updated_at)
-           SELECT $1,$2,$3,$4,$5,$6,$7,
-             CASE WHEN bay.bn IS NOT NULL THEN 'in_progress' ELSE 'pending' END,
-             'paid','walkin', bay.bn,
-             CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
-             CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
-             CASE WHEN bay.bn IS NOT NULL THEN $8::timestamptz END,
-             $9,$10,$11,$12,NOW(),NOW()
-           FROM (
-             SELECT (
-               SELECT bn FROM generate_series(1, $13::int) AS bn
-               WHERE bn NOT IN (SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL)
-               ORDER BY bn LIMIT 1
-             ) AS bn
-           ) bay
-           RETURNING *`,
-          [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId, s.max_workers]
-        ));
-      }
+      const created = await withBayRetry(() => db1(
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,user_id,car_id,created_at,updated_at)
+         SELECT $1,$2,$3,$4,$5,$6,$7,
+           CASE WHEN bay.bn IS NOT NULL THEN 'in_progress' ELSE 'pending' END,
+           'paid','walkin', bay.bn,
+           CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
+           CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
+           CASE WHEN bay.bn IS NOT NULL THEN $8::timestamptz END,
+           $9,$10,$11,$12,NOW(),NOW()
+         FROM (
+           SELECT (
+             SELECT bn FROM generate_series(1, $13::int) AS bn
+             WHERE bn NOT IN (SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL)
+             ORDER BY bn LIMIT 1
+           ) AS bn
+         ) bay
+         RETURNING *`,
+        [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId, s.max_workers]
+      ));
       return respond(res, 201, { ...booking(created), linkedToAccount: !!linkedUserId });
     }
 

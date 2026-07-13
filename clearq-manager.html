@@ -693,7 +693,7 @@ a { text-decoration: none; }
     <label class="form-label">Wash type</label>
     <div class="wash-type-grid" id="wi-types"></div>
     <div class="modal-actions">
-      <button class="modal-cancel" onclick="closeWalkInModal()">Cancel</button>
+      <button class="modal-cancel" onclick="closeModal('walkin-modal')">Cancel</button>
       <button class="modal-confirm" id="wi-btn" onclick="submitWalkIn()" disabled>Add Walk-in</button>
     </div>
   </div>
@@ -1655,11 +1655,8 @@ async function saveContactInfo(btn) {
 
 // ─── WALK-IN MODAL ────────────────────────────────────────────
 
-let walkinHoldId = null; // holds this walk-in's queue slot from the moment a wash type is picked until submit (or the modal closes)
-
 function openWalkInModal() {
   selectedWashType = null;
-  walkinHoldId = null;
   document.getElementById('wi-name').value = '';
   document.getElementById('wi-phone').value = '';
   document.getElementById('wi-car').value = '';
@@ -1675,34 +1672,11 @@ function openWalkInModal() {
   openModal('walkin-modal');
 }
 
-function closeWalkInModal() {
-  closeModal('walkin-modal');
-  releaseWalkinHoldId(walkinHoldId);
-  walkinHoldId = null;
-}
-
-function releaseWalkinHoldId(id) {
-  if (!id) return;
-  api('/api/partners/shop/'+currentShopId+'/walkin/hold/'+id, { method:'DELETE' }).catch(()=>{});
-}
-
-async function selectWashType(type, btn) {
+function selectWashType(type, btn) {
+  selectedWashType = type;
   document.querySelectorAll('.wtype-btn').forEach(b=>b.classList.remove('sel'));
   btn.classList.add('sel');
-  selectedWashType = type;
   checkWI();
-  const previousHoldId = walkinHoldId;
-  try {
-    const result = await api('/api/partners/shop/'+currentShopId+'/walkin/hold', {
-      method:'POST', body:JSON.stringify({washType:type})
-    });
-    if (selectedWashType !== type) { releaseWalkinHoldId(result?.holdId); return; } // staff picked another type before this resolved
-    walkinHoldId = result?.holdId || null;
-    if (previousHoldId && previousHoldId !== walkinHoldId) releaseWalkinHoldId(previousHoldId);
-  } catch(e) {
-    // Surface bay conflicts immediately rather than waiting for submit — submitWalkIn() re-checks anyway.
-    toast(e.message,'error',ICONS.xCircle,7000);
-  }
 }
 
 function checkWI() {
@@ -1718,9 +1692,8 @@ async function submitWalkIn() {
   spin(btn);
   try {
     const result = await api('/api/partners/shop/'+currentShopId+'/walkin',{
-      method:'POST', body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate,holdId:walkinHoldId})
+      method:'POST', body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})
     });
-    walkinHoldId = null; // consumed by this walk-in — don't release it, it's now the real booking
     closeModal('walkin-modal');
     toast(result?.linkedToAccount ? `Linked to ${name}'s ClearQ account` : 'Walk-in added: '+name,'success',ICONS.car);
     loadQueue(true);

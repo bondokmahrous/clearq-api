@@ -788,26 +788,9 @@ async function saveServices() {
 }
 
 // WALK-IN
-let walkinHoldId=null; // holds this walk-in's queue slot from the moment a wash type is picked until Add is pressed (or the modal closes)
-function openWI(){selectedWashType=null;walkinHoldId=null;document.getElementById('wi-name').value='';document.getElementById('wi-phone').value='';document.getElementById('wi-car').value='';document.getElementById('wi-plate').value='';document.getElementById('wi-btn').disabled=true;const row=document.getElementById('wi-types');const types=partnerServices.length?partnerServices.filter(s=>s.isActive!==0):[{name:'exterior'},{name:'interior'},{name:'full'}];row.innerHTML=types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');document.getElementById('wi-modal').classList.add('open');}
-function closeWI(){document.getElementById('wi-modal').classList.remove('open');releaseWalkinHoldId(walkinHoldId);walkinHoldId=null;}
-function releaseWalkinHoldId(id){if(!id)return;apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin/hold/${id}`,{method:'DELETE',headers:authH()}).catch(()=>{});}
-async function selWT(type,btn){
-  document.querySelectorAll('.wt-btn').forEach(b=>b.classList.remove('sel'));
-  btn.classList.add('sel');
-  selectedWashType=type;
-  checkWI();
-  const previousHoldId=walkinHoldId;
-  try{
-    const result=await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin/hold`,{method:'POST',headers:authH(),body:JSON.stringify({washType:type})});
-    if(selectedWashType!==type){releaseWalkinHoldId(result?.holdId);return;} // staff picked another type before this resolved
-    walkinHoldId=result?.holdId||null;
-    if(previousHoldId&&previousHoldId!==walkinHoldId)releaseWalkinHoldId(previousHoldId);
-  }catch(e){
-    // Surface bay conflicts immediately rather than waiting for Add — addWalkIn() re-checks anyway.
-    toast(ICONS.alert+' '+e.message, 7000);
-  }
-}
+function openWI(){selectedWashType=null;document.getElementById('wi-name').value='';document.getElementById('wi-phone').value='';document.getElementById('wi-car').value='';document.getElementById('wi-plate').value='';document.getElementById('wi-btn').disabled=true;const row=document.getElementById('wi-types');const types=partnerServices.length?partnerServices.filter(s=>s.isActive!==0):[{name:'exterior'},{name:'interior'},{name:'full'}];row.innerHTML=types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');document.getElementById('wi-modal').classList.add('open');}
+function closeWI(){document.getElementById('wi-modal').classList.remove('open');}
+function selWT(type,btn){selectedWashType=type;document.querySelectorAll('.wt-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');checkWI();}
 function checkWI(){document.getElementById('wi-btn').disabled=!(document.getElementById('wi-name').value.trim()&&selectedWashType);}
 async function addWalkIn(){
   const name=document.getElementById('wi-name').value.trim();
@@ -817,8 +800,7 @@ async function addWalkIn(){
   const btn=document.getElementById('wi-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
   try{
-    const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate,holdId:walkinHoldId})});
-    walkinHoldId=null; // consumed by this walk-in — don't release it, it's now the real booking
+    const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})});
     closeWI();
     toast(result?.linkedToAccount ? `${ICONS.check} Walk-in added — linked to ${name}'s ClearQ account` : `${ICONS.check} Walk-in added: ${name}`);
     loadQueue();loadBays();
