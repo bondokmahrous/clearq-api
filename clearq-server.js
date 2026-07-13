@@ -2042,6 +2042,15 @@ self.addEventListener('notificationclick', e => {
          VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW()) RETURNING id,name,email,phone,car_model,license_plate`,
         [name.trim(), email.toLowerCase().trim(), phone||"", hash, carModel||null, licensePlate||null]
       );
+      // The signup form already asks for a car — save it straight into their car list as the
+      // default, instead of making them re-enter the same details on the Account tab afterward.
+      if (carModel && carModel.trim()) {
+        await db(
+          `INSERT INTO user_cars (user_id, model, license_plate, is_default, created_at)
+           VALUES ($1,$2,$3,1,NOW())`,
+          [user.id, carModel.trim(), licensePlate || null]
+        );
+      }
       const token = signJWT({ userId: user.id, email: user.email });
       return respond(res, 201, { token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone, carModel: user.car_model, licensePlate: user.license_plate } });
     }
