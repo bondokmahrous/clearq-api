@@ -184,6 +184,21 @@ async function initDB() {
   `);
 
   await db(`
+    CREATE TABLE IF NOT EXISTS wash_addons (
+      id SERIAL PRIMARY KEY,
+      shop_id INT NOT NULL REFERENCES wash_shops(id),
+      name TEXT NOT NULL,
+      description TEXT,
+      price INT NOT NULL DEFAULT 0,
+      duration_mins INT NOT NULL DEFAULT 0,
+      display_order INT NOT NULL DEFAULT 0,
+      is_active INT NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db(`
     CREATE TABLE IF NOT EXISTS wash_ratings (
       id SERIAL PRIMARY KEY,
       booking_id INT REFERENCES wash_bookings(id),
@@ -225,6 +240,9 @@ async function initDB() {
   // Add user_id and car_id to bookings for linking to accounts
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS user_id INT REFERENCES wash_users(id)`);
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS car_id INT`);
+  // Snapshot of chosen add-on items (name/price/durationMins at booking time) so later edits to
+  // the shop's add-on catalog don't retroactively change what an existing booking is shown as.
+  await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS addons JSONB DEFAULT '[]'::jsonb`);
   // Free-text directions the wash centre can set (e.g. "blue gate next to the Total station")
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS location_description TEXT`);
   // Ghost/test shops: hidden from the public shop list and owner revenue aggregates, reachable
@@ -502,7 +520,7 @@ function booking(b) {
     scheduledDate: b.scheduled_date, scheduledTime: b.scheduled_time,
     price: b.price, status: b.status, kind: b.kind, bayNumber: b.bay_number,
     licensePlate: b.license_plate, carModel: b.car_model, carType: b.car_type,
-    notes: b.notes, paymentStatus: b.payment_status,
+    notes: b.notes, paymentStatus: b.payment_status, addons: b.addons || [],
     etaArrivalAt: ts(b.eta_arrival_at), etaReadyAt: ts(b.eta_ready_at),
     arrivedAt: ts(b.arrived_at), washStartedAt: ts(b.wash_started_at),
     washFinishedAt: ts(b.wash_finished_at),
@@ -518,6 +536,28 @@ function service(s) {
   };
 }
 
+function addon(a) {
+  return {
+    id: a.id, shopId: a.shop_id, name: a.name, description: a.description,
+    price: a.price, durationMins: a.duration_mins, displayOrder: a.display_order,
+    isActive: a.is_active, createdAt: a.created_at, updatedAt: a.updated_at,
+  };
+}
+
+// Looks up a shop's active add-on items by id, ignoring any id that's missing, inactive, or
+// belongs to a different shop — so a stale/tampered id list from the client can't be used to
+// pull in another shop's pricing or a deleted item's.
+async function resolveAddons(shopId, addonIds) {
+  if (!Array.isArray(addonIds) || !addonIds.length) return [];
+  const ids = addonIds.map(id => +id).filter(id => Number.isInteger(id) && id > 0);
+  if (!ids.length) return [];
+  const rows = await db(
+    `SELECT id, name, price, duration_mins FROM wash_addons WHERE shop_id=$1 AND id = ANY($2) AND is_active=1`,
+    [shopId, ids]
+  );
+  return rows.map(r => ({ id: r.id, name: r.name, price: r.price, durationMins: r.duration_mins }));
+}
+
 // ─── BUSINESS LOGIC ───────────────────────────────────────────────────────────
 function today() {
   // Use Cairo timezone (UTC+3)
@@ -529,6 +569,9 @@ function nowTime() {
 }
 
 async function resolveService(shopId, washType) {
+  // "Custom Wash" has no base service of its own — its entire price/duration comes from
+  // whichever add-on items the customer picks, summed in by the caller.
+  if (washType === 'custom') return { price: 0, durationMins: 0 };
   const svc = await db1(
     `SELECT price, duration_mins FROM wash_services WHERE shop_id=$1 AND name=$2 AND is_active=1 LIMIT 1`,
     [shopId, washType]
@@ -1036,6 +1079,13 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 200, services.map(service));
     }
 
+    // GET /wash/shops/:id/addons — public, active add-on items only (Custom Wash builder + extras)
+    if (m === "GET" && /^\/wash\/shops\/\d+\/addons/.test(p)) {
+      const id = +p.split("/")[3];
+      const addons = await db(`SELECT * FROM wash_addons WHERE shop_id=$1 AND is_active=1 ORDER BY display_order`, [id]);
+      return respond(res, 200, addons.map(addon));
+    }
+
     // GET /wash/queue/:shopId
     if (m === "GET" && /^\/wash\/queue\/\d+$/.test(p)) {
       const shopId = +p.split("/")[3];
@@ -1062,7 +1112,12 @@ self.addEventListener('notificationclick', e => {
       const driveMins = Math.max(0, parseFloat(url.searchParams.get("driveMins")) || 0);
       const washType = url.searchParams.get("washType");
       if (!shopId || !washType) return respond(res, 400, { error: "shopId and washType required" });
-      const { durationMins } = await resolveService(shopId, washType);
+      const { price: basePrice, durationMins: baseDurationMins } = await resolveService(shopId, washType);
+      const addonIdsParam = url.searchParams.get("addonIds");
+      const addons = await resolveAddons(shopId, addonIdsParam ? addonIdsParam.split(",") : []);
+      const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
+      const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
+      const durationMins = baseDurationMins + addonsDurationMins;
       const now = new Date();
       const requestedArrival = new Date(now.getTime() + driveMins * 60000);
       const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
@@ -1074,13 +1129,14 @@ self.addEventListener('notificationclick', e => {
         etaReadyAt: etaReady.toISOString(),
         waitMins,
         durationMins,
+        totalPrice: basePrice + addonsPrice,
       });
     }
 
     // POST /wash/reservations
     if (m === "POST" && p === "/wash/reservations") {
       const body = await readBody(req);
-      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng } = body;
+      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng, addonIds } = body;
       if (!shopId || !customerName || !customerPhone || !washType) {
         return respond(res, 400, { error: "shopId, customerName, customerPhone, washType required" });
       }
@@ -1103,7 +1159,12 @@ self.addEventListener('notificationclick', e => {
         }
       }
 
-      const { price, durationMins } = await resolveService(shopId, washType);
+      const { price: basePrice, durationMins: baseDurationMins } = await resolveService(shopId, washType);
+      const addons = await resolveAddons(shopId, addonIds);
+      const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
+      const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
+      const price = basePrice + addonsPrice;
+      const durationMins = baseDurationMins + addonsDurationMins;
       const now = new Date();
 
       // Price this booking against every existing reservation (scheduled or not), not just
@@ -1116,14 +1177,14 @@ self.addEventListener('notificationclick', e => {
       const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
 
       const [created] = await db(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','reservation',$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW(),NOW()) RETURNING *`,
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','reservation',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW()) RETURNING *`,
         [shopId, customerName, customerPhone, washType,
           scheduledDate || today(), scheduledTime || nowTime(),
           price, finalLicensePlate, finalCarModel,
           etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"),
           customerLat || null, customerLng || null,
-          userId, carId || null]
+          userId, carId || null, JSON.stringify(addons)]
       );
       // Notify partner of new booking
       try { await notifyPartner(shopId, { title: 'New Booking!', body: `${customerName} booked a ${washType} wash`, icon: '/icon-192.png' }); } catch(e) {}
@@ -1392,6 +1453,43 @@ self.addEventListener('notificationclick', e => {
     if (m === "DELETE" && /\/partners\/shop\/\d+\/services\/\d+$/.test(p)) {
       const svcId = +p.split("/").pop();
       await db(`DELETE FROM wash_services WHERE id=$1 AND shop_id=$2`, [svcId, shopId]);
+      return respond(res, 200, { success: true });
+    }
+
+    // GET /partners/shop/:id/addons
+    if (m === "GET" && /\/partners\/shop\/\d+\/addons$/.test(p)) {
+      const addons = await db(`SELECT * FROM wash_addons WHERE shop_id=$1 ORDER BY display_order`, [shopId]);
+      return respond(res, 200, addons.map(addon));
+    }
+
+    // POST /partners/shop/:id/addons
+    if (m === "POST" && /\/partners\/shop\/\d+\/addons$/.test(p)) {
+      const { name, description, price, durationMins, displayOrder } = await readBody(req);
+      if (!name || price == null) return respond(res, 400, { error: "name and price required" });
+      const [a] = await db(
+        `INSERT INTO wash_addons (shop_id,name,description,price,duration_mins,display_order,is_active,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,1,NOW(),NOW()) RETURNING *`,
+        [shopId, name.trim(), description?.trim()||null, price, durationMins||0, displayOrder||0]
+      );
+      return respond(res, 201, addon(a));
+    }
+
+    // PUT /partners/shop/:id/addons/:addonId
+    if (m === "PUT" && /\/partners\/shop\/\d+\/addons\/\d+$/.test(p)) {
+      const addonId = +p.split("/").pop();
+      const body = await readBody(req);
+      const ex = await db1(`SELECT * FROM wash_addons WHERE id=$1 AND shop_id=$2`, [addonId, shopId]);
+      if (!ex) return respond(res, 404, { error: "Add-on not found" });
+      const [updated] = await db(
+        `UPDATE wash_addons SET name=COALESCE($1,name), description=COALESCE($2,description), price=COALESCE($3,price), duration_mins=COALESCE($4,duration_mins), display_order=COALESCE($5,display_order), is_active=COALESCE($6,is_active), updated_at=NOW() WHERE id=$7 RETURNING *`,
+        [body.name?.trim()||null, body.description?.trim()||null, body.price!=null?body.price:null, body.durationMins!=null?body.durationMins:null, body.displayOrder!=null?body.displayOrder:null, body.isActive!=null?(body.isActive?1:0):null, addonId]
+      );
+      return respond(res, 200, addon(updated));
+    }
+
+    // DELETE /partners/shop/:id/addons/:addonId
+    if (m === "DELETE" && /\/partners\/shop\/\d+\/addons\/\d+$/.test(p)) {
+      const addonId = +p.split("/").pop();
+      await db(`DELETE FROM wash_addons WHERE id=$1 AND shop_id=$2`, [addonId, shopId]);
       return respond(res, 200, { success: true });
     }
 

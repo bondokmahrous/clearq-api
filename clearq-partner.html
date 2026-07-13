@@ -348,6 +348,7 @@ function checkNewBookings(bookings) {
 let partnerToken = localStorage.getItem('partner_token');
 let partnerShop = JSON.parse(localStorage.getItem('partner_shop') || 'null');
 let partnerServices = [];
+let editAddons = [];
 let selectedWashType = null;
 let queuePoll = null;
 let editServices = [];
@@ -666,6 +667,7 @@ async function loadManage() {
   const shopId=partnerShop?.id; if(!shopId) return;
   try {
     editServices=await apiFetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()});
+    if (shopId === 6) editAddons = await apiFetch(`${API}/api/partners/shop/${shopId}/addons`,{headers:authH()});
     renderManage();
   } catch { document.getElementById('mgmt-c').innerHTML='<div class="ls"><p>Could not load settings</p></div>'; }
 }
@@ -680,8 +682,20 @@ function renderManage() {
       <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Duration:</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min</span></div>
     </div>`;
   });
-  html+=`<button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>
-  <div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
+  html+=`<button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>`;
+  if (partnerShop?.id === 6) {
+    html+=`<div class="ms"><div class="ms-t">Custom Wash Items</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Customers can build a Custom Wash from these, or add any of them on top of Exterior/Interior/Full.</div>`;
+    editAddons.forEach((a,i)=>{
+      if (a._deleted) return;
+      html+=`<div class="sr">
+        <div class="sr-row"><input class="sr-name" value="${a.name||''}" placeholder="Item name (e.g. Wax)" oninput="eAddon(${i},'name',this.value)"><input class="pi" type="number" value="${a.price||0}" oninput="eAddon(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dAddon(${i})">${ICONS.trash}</button></div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Extra time:</span><input class="di" type="number" value="${a.durationMins||0}" oninput="eAddon(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min (0 if none)</span></div>
+      </div>`;
+    });
+    html+=`<button class="asv" onclick="aAddon()">${ICONS.plus} Add Item</button><button class="dsv" onclick="saveAddons(this)">Save Changes</button></div>`;
+  }
+  html+=`<div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
     <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Booking slot interval</span><select id="wh-slot" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none">
@@ -783,6 +797,29 @@ async function saveServices() {
   }
   if(failed.length) toast(ICONS.alert+' Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
   else toast(`${ICONS.check} Services saved`);
+  loadManage();
+  btn.disabled=false;btn.textContent='Save Changes';
+}
+
+function eAddon(i,f,v){editAddons[i][f]=f==='price'||f==='durationMins'?Number(v):v;}
+function aAddon(){editAddons.push({name:'',price:0,durationMins:0,displayOrder:editAddons.length,isActive:1,isNew:true});renderManage();}
+function dAddon(i){if(editAddons[i].id)editAddons[i]._deleted=true;else editAddons.splice(i,1);renderManage();}
+
+async function saveAddons(btn) {
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  const failed=[];
+  for(const a of editAddons){
+    try {
+      let res;
+      if(a._deleted&&a.id) res=await fetch(`${API}/api/partners/shop/${shopId}/addons/${a.id}`,{method:'DELETE',headers:authH()});
+      else if(a.isNew&&!a._deleted) res=await fetch(`${API}/api/partners/shop/${shopId}/addons`,{method:'POST',headers:authH(),body:JSON.stringify({name:a.name,price:Number(a.price),durationMins:Number(a.durationMins),displayOrder:a.displayOrder,isActive:1})});
+      else if(a.id&&!a._deleted) res=await fetch(`${API}/api/partners/shop/${shopId}/addons/${a.id}`,{method:'PUT',headers:authH(),body:JSON.stringify({name:a.name,price:Number(a.price),durationMins:Number(a.durationMins),displayOrder:a.displayOrder,isActive:a.isActive??1})});
+      if(res&&!res.ok) failed.push(a.name||'(unnamed)');
+    } catch { failed.push(a.name||'(unnamed)'); }
+  }
+  if(failed.length) toast(ICONS.alert+' Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
+  else toast(`${ICONS.check} Custom wash items saved`);
   loadManage();
   btn.disabled=false;btn.textContent='Save Changes';
 }

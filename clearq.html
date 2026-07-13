@@ -797,6 +797,14 @@ html, body {
     <div class="modal-sub" id="bm-addr"></div>
     <div class="modal-sec">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
+    <div id="bm-addons-wrap" style="display:none;margin-bottom:14px;">
+      <button type="button" id="bm-addons-toggle" onclick="toggleAddonsPanel()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;color:#0f172a;cursor:pointer;">
+        <span id="bm-addons-label">+ Add extras</span>
+        <span id="bm-addons-caret" style="color:#94a3b8;">▾</span>
+      </button>
+      <div id="bm-addons-panel" style="display:none;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 9px 9px;padding:6px 12px;background:#fafbfc;"></div>
+      <div id="bm-total-price" style="display:none;text-align:right;font-size:12px;color:#64748b;margin-top:6px;"></div>
+    </div>
     <div class="modal-sec">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
       <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
@@ -1306,6 +1314,9 @@ function checkLocationPermission() {
 let userLocation = null;
 let etaResult = null;
 let etaLoading = false;
+let addons = {}; // per-shop cache of custom-wash add-on items, mirrors `services`
+let selectedAddonIds = new Set(); // add-ons picked in the currently-open booking modal
+const ADDONS_SHOP_ID = 6; // Custom Wash / add-ons is HD CarWash only for now
 
 async function fetchETA(shopId, lat, lng) {
   try {
@@ -1326,6 +1337,22 @@ function fmtTime(date) {
   return date.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
 }
 
+// Applies a fetchBookingPreview() result to the modal's wait/start/ready fields, plus the total
+// price line — shown only when it can differ from the picked service card's own listed price
+// (Custom Wash, or extras added on top of a regular service).
+function updatePreviewDisplay(preview, { includeWait = true } = {}) {
+  if (includeWait) document.getElementById('bm-w').textContent = preview.effectiveWait;
+  document.getElementById('bm-start').textContent = preview.startStr;
+  document.getElementById('bm-ready').textContent = preview.readyStr;
+  const priceEl = document.getElementById('bm-total-price');
+  if (selectedWash?.id === ADDONS_SHOP_ID && (selectedAddonIds.size || selectedSvc?.name === 'custom')) {
+    priceEl.textContent = `Total: ${preview.totalPrice} EGP`;
+    priceEl.style.display = 'block';
+  } else {
+    priceEl.style.display = 'none';
+  }
+}
+
 // Asks the backend to run the real bay-assignment simulation for a hypothetical arrival, so
 // whatever's shown in the booking modal is guaranteed to match what actually gets booked.
 // Approximating this client-side (e.g. Math.max(driveTime, genericQueueWait)) can't tell whether
@@ -1334,10 +1361,11 @@ function fmtTime(date) {
 async function fetchBookingPreview(shopId, driveMins, washType) {
   try {
     const params = new URLSearchParams({ shopId, driveMins: Math.max(0, Math.round(driveMins || 0)), washType });
+    if (selectedAddonIds.size) params.set('addonIds', [...selectedAddonIds].join(','));
     const res = await fetch(`${API}/api/wash/reservations/preview?${params}`);
     if (!res.ok) return null;
     const data = await res.json();
-    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins };
+    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins, totalPrice: data.totalPrice };
   } catch { return null; }
 }
 
@@ -1421,6 +1449,10 @@ async function proceedToBookingModal(shopId) {
   userLocation = null;
   bookingMode = 'now';
   selectedSlotTime = null;
+  selectedAddonIds = new Set();
+  document.getElementById('bm-addons-panel').style.display = 'none';
+  document.getElementById('bm-addons-caret').textContent = '▾';
+  document.getElementById('bm-total-price').style.display = 'none';
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
   document.getElementById('when-now-btn').style.background = '#E6F7F5';
@@ -1461,23 +1493,37 @@ async function proceedToBookingModal(shopId) {
       const card = document.createElement('div');
       card.className = 'svc-card';
       card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${s.price} EGP</div><div class="svc-dur">${s.durationMins} min</div>`;
-      card.onclick = async () => {
-        document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
-        card.classList.add('sel');
-        selectedSvc = s;
-        if (bookingMode === 'schedule') {
-          renderSchedulePreview();
-          return;
-        }
-        // Recalculate times with selected service duration
-        const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, s.name);
-        if (!preview || selectedSvc !== s || bookingMode !== 'now') return; // stale response — service or mode changed while this was loading
-        document.getElementById('bm-w').textContent = preview.effectiveWait;
-        document.getElementById('bm-start').textContent = preview.startStr;
-        document.getElementById('bm-ready').textContent = preview.readyStr;
-      };
+      card.onclick = () => selectServiceCard(s, card);
       grid.appendChild(card);
     });
+
+    // Custom Wash + optional extras — HD CarWash only for now
+    if (shopId === ADDONS_SHOP_ID) {
+      try {
+        const aRes = await fetch(`${API}/api/wash/shops/${shopId}/addons?t=${Date.now()}`);
+        addons[shopId] = aRes.ok ? await aRes.json() : [];
+      } catch { addons[shopId] = []; }
+      if (addons[shopId].length) {
+        document.getElementById('bm-addons-panel').innerHTML = addons[shopId].map(a => `
+          <label style="display:flex;align-items:center;gap:9px;padding:8px 0;font-size:13px;color:#0f172a;cursor:pointer;border-bottom:1px solid #f1f5f9;">
+            <input type="checkbox" value="${a.id}" onchange="toggleAddon(${a.id}, this.checked)" style="width:16px;height:16px;accent-color:#3FBDB0;flex-shrink:0;">
+            <span style="flex:1;">${a.name}${a.durationMins ? ` <span style="color:#94a3b8;font-size:11px;">(+${a.durationMins} min)</span>` : ''}</span>
+            <span style="font-weight:700;color:#21867B;">${a.price} EGP</span>
+          </label>`).join('');
+        document.getElementById('bm-addons-wrap').style.display = 'block';
+        document.getElementById('bm-addons-label').textContent = addonsLabelText();
+
+        const customCard = document.createElement('div');
+        customCard.className = 'svc-card';
+        customCard.innerHTML = `<div class="svc-name">Custom Wash</div><div class="svc-price">Build your own</div><div class="svc-dur">You choose</div>`;
+        customCard.onclick = () => selectServiceCard({ name: 'custom', price: 0, durationMins: 0 }, customCard);
+        grid.appendChild(customCard);
+      } else {
+        document.getElementById('bm-addons-wrap').style.display = 'none';
+      }
+    } else {
+      document.getElementById('bm-addons-wrap').style.display = 'none';
+    }
   } catch {
     grid.innerHTML = '<p style="color:var(--gray);font-size:12px">Could not load services</p>';
   }
@@ -1535,9 +1581,7 @@ async function proceedToBookingModal(shopId) {
       const driveMins = eta?.etaMinutes || 0;
       const preview = await fetchBookingPreview(shopId, driveMins, svc ? svc.name : 'full');
       if (bookingMode !== 'now' || !preview) return;
-      document.getElementById('bm-w').textContent = preview.effectiveWait;
-      document.getElementById('bm-start').textContent = preview.startStr;
-      document.getElementById('bm-ready').textContent = preview.readyStr;
+      updatePreviewDisplay(preview);
       locStatus.innerHTML = `✅ ~${driveMins} min drive · Bay will be ready when you arrive`;
       locStatus.style.background = '#f0fdf4';
       locStatus.style.borderColor = '#bbf7d0';
@@ -1549,11 +1593,53 @@ async function proceedToBookingModal(shopId) {
       locStatus.style.color = '#92400e';
       const preview = await fetchBookingPreview(shopId, 0, svc ? svc.name : 'full');
       if (bookingMode !== 'now' || !preview) return; // user switched to Schedule while this was loading
-      document.getElementById('bm-w').textContent = preview.effectiveWait;
-      document.getElementById('bm-start').textContent = preview.startStr;
-      document.getElementById('bm-ready').textContent = preview.readyStr;
+      updatePreviewDisplay(preview);
     }
   });
+}
+
+// Shared by every service card, including the Custom Wash pseudo-service — a plain object with
+// name/price/durationMins so the rest of the booking flow (preview, confirm) doesn't need to
+// know Custom Wash is any different from a real wash_services row.
+function selectServiceCard(s, card) {
+  document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
+  card.classList.add('sel');
+  selectedSvc = s;
+  document.getElementById('bm-addons-label').textContent = addonsLabelText();
+  if (s.name === 'custom') {
+    // Custom Wash has nothing to show without at least one item — open the picker right away.
+    document.getElementById('bm-addons-panel').style.display = 'block';
+    document.getElementById('bm-addons-caret').textContent = '▴';
+  }
+  if (bookingMode === 'schedule') { renderSchedulePreview(); return; }
+  return refreshNowPreview(s);
+}
+
+async function refreshNowPreview(s) {
+  const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, s.name);
+  if (!preview || selectedSvc !== s || bookingMode !== 'now') return; // stale — service or mode changed while this was loading
+  updatePreviewDisplay(preview);
+}
+
+function addonsLabelText() {
+  const n = selectedAddonIds.size;
+  const verb = selectedSvc?.name === 'custom' ? 'Choose items' : 'Add extras';
+  return `+ ${verb}${n ? ` (${n} selected)` : ''}`;
+}
+
+function toggleAddonsPanel() {
+  const panel = document.getElementById('bm-addons-panel');
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  document.getElementById('bm-addons-caret').textContent = open ? '▾' : '▴';
+}
+
+async function toggleAddon(id, checked) {
+  if (checked) selectedAddonIds.add(id); else selectedAddonIds.delete(id);
+  document.getElementById('bm-addons-label').textContent = addonsLabelText();
+  if (!selectedSvc) return; // no service picked yet to preview against
+  if (bookingMode === 'schedule') { renderSchedulePreview(); return; }
+  await refreshNowPreview(selectedSvc);
 }
 
 function buildSlotOptions(shop) {
@@ -1621,8 +1707,7 @@ async function renderSchedulePreview() {
   const preview = await fetchBookingPreview(selectedWash.id, driveMins, svc ? svc.name : 'full');
   if (selectedSlotTime !== requestedSlotTime || bookingMode !== 'schedule') return; // stale — slot or mode changed while this was loading
   if (!preview) return;
-  document.getElementById('bm-start').textContent = preview.startStr;
-  document.getElementById('bm-ready').textContent = preview.readyStr;
+  updatePreviewDisplay(preview, { includeWait: false });
 }
 
 async function setBookingMode(mode) {
@@ -1652,9 +1737,7 @@ async function setBookingMode(mode) {
     document.getElementById('bm-ready').textContent = '...';
     const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, svc ? svc.name : 'full');
     if (bookingMode !== 'now' || !preview) return; // stale — user switched modes while this was loading
-    document.getElementById('bm-w').textContent = preview.effectiveWait;
-    document.getElementById('bm-start').textContent = preview.startStr;
-    document.getElementById('bm-ready').textContent = preview.readyStr;
+    updatePreviewDisplay(preview);
   }
 }
 
@@ -1670,6 +1753,7 @@ async function confirmBooking() {
   errEl.textContent = '';
 
   if (!selectedSvc) { errEl.textContent = 'Please select a service'; return; }
+  if (selectedSvc.name === 'custom' && !selectedAddonIds.size) { errEl.textContent = 'Please choose at least one item for your Custom Wash'; return; }
   if (!name) { errEl.textContent = 'Please enter your name'; return; }
   if (!phone) { errEl.textContent = 'Please enter your phone number'; return; }
   if (userCars.length && !selectedCarId) { errEl.textContent = 'Please select which car'; return; }
@@ -1698,6 +1782,7 @@ async function confirmBooking() {
       carId: selectedCarId || null,
       carModel: selectedCar ? carLabel(selectedCar) : '',
       licensePlate: selectedCar?.licensePlate || '',
+      addonIds: [...selectedAddonIds],
     };
     if (userLocation) {
       body.customerLat = userLocation.latitude;
@@ -1728,7 +1813,7 @@ async function confirmBooking() {
     const confirmedReady = booking.etaReadyAt ? fmtTime(new Date(booking.etaReadyAt)) : document.getElementById('bm-ready').textContent;
 
     document.getElementById('bcm-shop').textContent = selectedWash.name;
-    document.getElementById('bcm-service').textContent = selectedSvc.name;
+    document.getElementById('bcm-service').textContent = svcLabel(selectedSvc.name) + (booking.addons?.length ? ` + ${booking.addons.map(a=>a.name).join(', ')}` : '');
     document.getElementById('bcm-start').textContent = confirmedStart;
     document.getElementById('bcm-ready').textContent = confirmedReady;
     document.getElementById('bcm-price').textContent = (booking.price || selectedSvc.price) + ' EGP';
@@ -2050,6 +2135,7 @@ async function loadQueue(silent=false) {
 }
 
 function svcLabel(name) {
+  if (name === 'custom') return 'Custom Wash';
   const s = partnerServices.find(sv => sv.name === name);
   return s ? s.name : name;
 }
