@@ -611,8 +611,18 @@ html, body {
       <input class="su-input" type="tel" id="su-phone" placeholder="+20 100 000 0000">
       <div class="su-row">
         <div>
+          <label class="su-label">Car make</label>
+          <input class="su-input" type="text" id="su-car-make" placeholder="Toyota">
+        </div>
+        <div>
           <label class="su-label">Car model</label>
-          <input class="su-input" type="text" id="su-car" placeholder="Toyota Corolla">
+          <input class="su-input" type="text" id="su-car-model" placeholder="Corolla">
+        </div>
+      </div>
+      <div class="su-row">
+        <div>
+          <label class="su-label">Color</label>
+          <input class="su-input" type="text" id="su-car-color" placeholder="White">
         </div>
         <div>
           <label class="su-label">License plate</label>
@@ -2410,7 +2420,9 @@ async function doSignup() {
   const name = document.getElementById('su-name').value.trim();
   const email = document.getElementById('su-email').value.trim();
   const phone = document.getElementById('su-phone').value.trim();
-  const car = document.getElementById('su-car').value.trim();
+  const carMake = document.getElementById('su-car-make').value.trim();
+  const carModel = document.getElementById('su-car-model').value.trim();
+  const carColor = document.getElementById('su-car-color').value.trim();
   const plate = document.getElementById('su-plate').value.trim();
   const password = document.getElementById('su-password').value;
   const err = document.getElementById('su-err1');
@@ -2424,7 +2436,7 @@ async function doSignup() {
     const res = await fetch(`${API}/api/users/register`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name, email, phone, password, carModel: car, licensePlate: plate})
+      body: JSON.stringify({name, email, phone, password, carMake, carModel, carColor, licensePlate: plate})
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Registration failed');

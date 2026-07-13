@@ -1206,12 +1206,15 @@ async function loadCustomers() {
     }
 
     document.getElementById('customers-table').innerHTML = customers.map(c => `
-      <div class="table-row" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1fr 1fr;cursor:pointer;" onclick="openCustomerHistory('${c.phone}', '${(c.name||'').replace(/'/g,"\\'")}')">
+      <div class="table-row" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1fr 1fr;cursor:pointer;" onclick='openCustomerHistory(${JSON.stringify(c).replace(/'/g,"&#39;")})'>
         <div class="td">
           <div>${c.name || 'Unknown'}</div>
           ${c.license_plate ? `<div class="td-sub" style="color:var(--blue)">${c.license_plate}</div>` : ''}
         </div>
-        <div class="td">${c.phone}</div>
+        <div class="td">
+          <div>${c.phone}</div>
+          ${c.email ? `<div class="td-sub">${c.email}</div>` : `<div class="td-sub" style="color:var(--gray)">No account</div>`}
+        </div>
         <div class="td">
           <div style="font-weight:700;">${c.total_visits}</div>
           <div class="td-sub">📱${c.online_bookings} 🚶${c.walkin_bookings}</div>
@@ -1226,10 +1229,31 @@ async function loadCustomers() {
   }
 }
 
-async function openCustomerHistory(phone, name) {
+async function openCustomerHistory(c) {
+  const phone = c.phone, name = c.name;
   document.getElementById('customer-modal-title').textContent = (name || 'Customer') + ' — ' + phone;
   document.getElementById('customer-history-list').innerHTML = '<div class="loading"><div class="spin"></div></div>';
   document.getElementById('customer-modal-bg').style.display = 'flex';
+
+  const carsHtml = (c.cars || []).length
+    ? `<div style="display:flex;flex-direction:column;gap:8px;">${c.cars.map(car => `
+        <div style="background:var(--navy);border-radius:8px;padding:10px 12px;font-size:12px;">
+          <div style="font-weight:700;">${[car.color, car.make, car.model].filter(Boolean).join(' ') || 'Unnamed car'}${car.isDefault ? ' <span style="color:var(--blue);font-weight:600;">· Default</span>' : ''}</div>
+          <div style="color:var(--gray);margin-top:3px;">${[car.licensePlate, car.carType].filter(Boolean).join(' · ') || 'No plate / type set'}</div>
+        </div>`).join('')}</div>`
+    : `<div style="color:var(--gray);font-size:12px;">No saved cars${c.license_plate || c.car_model ? ` — last seen: ${[c.car_model, c.license_plate].filter(Boolean).join(' · ')}` : ''}</div>`;
+
+  document.getElementById('customer-history-list').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--gray);margin-bottom:16px;">
+      <div>📧 ${c.email || 'No account (walk-in only)'}</div>
+      ${c.account_created_at ? `<div>Joined ${new Date(c.account_created_at).toLocaleDateString('en-EG', {day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cars</div>
+    ${carsHtml}
+    <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 8px;">Booking History</div>
+    <div id="customer-history-bookings"><div class="loading"><div class="spin"></div></div></div>
+  `;
+
   try {
     const res = await fetch(`${API}/api/owner/customers/${encodeURIComponent(phone)}/history`, { headers: {'x-owner-key': OWNER_PASSWORD} });
     if (!res.ok) throw new Error();
@@ -1239,7 +1263,7 @@ async function openCustomerHistory(phone, name) {
       const l = {pending:'Pending',in_progress:'In Progress',completed:'Completed',cancelled:'Cancelled'};
       return `<span class="badge ${m[s]||''}">${l[s]||s}</span>`;
     };
-    document.getElementById('customer-history-list').innerHTML = history.map(b => `
+    document.getElementById('customer-history-bookings').innerHTML = history.map(b => `
       <div style="background:var(--navy);border-radius:10px;padding:14px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
           <div>
@@ -1255,7 +1279,7 @@ async function openCustomerHistory(phone, name) {
       </div>
     `).join('') || '<div style="color:var(--gray);font-size:13px;">No history found</div>';
   } catch(e) {
-    document.getElementById('customer-history-list').innerHTML = '<div style="color:var(--red);">Error loading history</div>';
+    document.getElementById('customer-history-bookings').innerHTML = '<div style="color:var(--red);">Error loading history</div>';
   }
 }
 

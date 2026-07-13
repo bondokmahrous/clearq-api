@@ -1856,17 +1856,21 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 201, created);
     }
 
-    // GET /owner/customers — aggregated customer profiles across all shops
+    // GET /owner/customers — aggregated customer profiles across all shops. Grouped by phone
+    // (not account) so walk-ins who never signed up still show up here — then enriched with
+    // email and their full saved car list for whoever *does* have a registered account, since
+    // a booking only ever remembers the one car used for that specific visit.
     if (m === "GET" && p === "/owner/customers") {
       const ownerKey = req.headers['x-owner-key'];
       if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const search = url.searchParams.get('search') || '';
       let q = `
-        SELECT 
+        SELECT
           b.customer_phone as phone,
           MAX(b.customer_name) as name,
           MAX(b.license_plate) as license_plate,
           MAX(b.car_model) as car_model,
+          MAX(b.user_id) as user_id,
           COUNT(b.id) as total_visits,
           COUNT(b.id) FILTER (WHERE b.status='completed') as completed_visits,
           COALESCE(SUM(b.price) FILTER (WHERE b.status='completed'), 0) as total_spent,
@@ -1886,7 +1890,27 @@ self.addEventListener('notificationclick', e => {
       }
       q += ` GROUP BY b.customer_phone ORDER BY total_visits DESC LIMIT 200`;
       const rows = await db(q, params);
-      return respond(res, 200, rows);
+
+      const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      let usersById = {}, carsByUserId = {};
+      if (userIds.length) {
+        const users = await db(`SELECT id, email, created_at FROM wash_users WHERE id = ANY($1)`, [userIds]);
+        usersById = Object.fromEntries(users.map(u => [u.id, u]));
+        const cars = await db(`SELECT * FROM user_cars WHERE user_id = ANY($1) ORDER BY is_default DESC, created_at ASC`, [userIds]);
+        for (const c of cars) {
+          (carsByUserId[c.user_id] = carsByUserId[c.user_id] || []).push({
+            id: c.id, make: c.make, model: c.model, color: c.color,
+            licensePlate: c.license_plate, carType: c.car_type, isDefault: c.is_default === 1,
+          });
+        }
+      }
+      const result = rows.map(r => ({
+        ...r,
+        email: usersById[r.user_id]?.email || null,
+        account_created_at: usersById[r.user_id]?.created_at || null,
+        cars: carsByUserId[r.user_id] || [],
+      }));
+      return respond(res, 200, result);
     }
 
     // GET /owner/customers/:phone/history — full booking history for one customer
@@ -1906,34 +1930,6 @@ self.addEventListener('notificationclick', e => {
         kind: b.kind, createdAt: b.created_at, licensePlate: b.license_plate,
         carModel: b.car_model,
       })));
-    }
-
-    // GET /owner/customers — all registered customers with their cars
-    if (m === "GET" && p === "/owner/customers") {
-      const ownerKey = req.headers['x-owner-key'];
-      if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
-      const search = url.searchParams.get('search');
-      let q = `SELECT u.*, 
-                 (SELECT COUNT(*) FROM wash_bookings WHERE user_id = u.id AND status='completed') as total_washes,
-                 (SELECT COALESCE(SUM(price),0) FROM wash_bookings WHERE user_id = u.id AND status='completed') as total_spent
-               FROM wash_users u WHERE 1=1`;
-      const params = [];
-      if (search) { q += ` AND (u.name ILIKE $1 OR u.email ILIKE $1 OR u.phone ILIKE $1)`; params.push(`%${search}%`); }
-      q += ` ORDER BY u.created_at DESC LIMIT 300`;
-      const users = await db(q, params);
-      const userIds = users.map(u => u.id);
-      let cars = [];
-      if (userIds.length) {
-        cars = await db(`SELECT * FROM user_cars WHERE user_id = ANY($1)`, [userIds]);
-      }
-      const result = users.map(u => ({
-        id: u.id, name: u.name, email: u.email, phone: u.phone,
-        createdAt: u.created_at, totalWashes: parseInt(u.total_washes) || 0, totalSpent: parseInt(u.total_spent) || 0,
-        cars: cars.filter(c => c.user_id === u.id).map(c => ({
-          id: c.id, make: c.make, model: c.model, color: c.color, licensePlate: c.license_plate, carType: c.car_type, isDefault: c.is_default === 1
-        }))
-      }));
-      return respond(res, 200, result);
     }
 
     // GET /owner/bookings — all bookings across all shops (owner only)
@@ -2032,23 +2028,24 @@ self.addEventListener('notificationclick', e => {
 
     // POST /users/register
     if (m === "POST" && p === "/users/register") {
-      const { name, email, phone, password, carModel, licensePlate } = await readBody(req);
+      const { name, email, phone, password, carMake, carModel, carColor, licensePlate } = await readBody(req);
       if (!name || !email || !password) return respond(res, 400, { error: "name, email, password required" });
       const existing = await db1(`SELECT id FROM wash_users WHERE email=$1`, [email.toLowerCase()]);
       if (existing) return respond(res, 409, { error: "Email already registered" });
       const hash = await bcryptHash(password);
+      const combinedCarLabel = [carMake, carModel].filter(v => v && v.trim()).join(' ') || null;
       const [user] = await db(
         `INSERT INTO wash_users (name,email,phone,password_hash,car_model,license_plate,created_at,updated_at)
          VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW()) RETURNING id,name,email,phone,car_model,license_plate`,
-        [name.trim(), email.toLowerCase().trim(), phone||"", hash, carModel||null, licensePlate||null]
+        [name.trim(), email.toLowerCase().trim(), phone||"", hash, combinedCarLabel, licensePlate||null]
       );
       // The signup form already asks for a car — save it straight into their car list as the
       // default, instead of making them re-enter the same details on the Account tab afterward.
       if (carModel && carModel.trim()) {
         await db(
-          `INSERT INTO user_cars (user_id, model, license_plate, is_default, created_at)
-           VALUES ($1,$2,$3,1,NOW())`,
-          [user.id, carModel.trim(), licensePlate || null]
+          `INSERT INTO user_cars (user_id, make, model, color, license_plate, is_default, created_at)
+           VALUES ($1,$2,$3,$4,$5,1,NOW())`,
+          [user.id, carMake && carMake.trim() ? carMake.trim() : null, carModel.trim(), carColor && carColor.trim() ? carColor.trim() : null, licensePlate || null]
         );
       }
       const token = signJWT({ userId: user.id, email: user.email });
