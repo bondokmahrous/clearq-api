@@ -1794,6 +1794,13 @@ function renderSettings() {
       </div>
       <textarea id="set-loc-desc" rows="3" placeholder="Describe how to find your centre... e.g. Blue gate next to the Total station" class="settings-input" style="width:100%;resize:vertical;font-family:inherit;margin-top:10px;">${escHtml(s.locationDescription||'')}</textarea>
       <button class="settings-save-btn" style="margin-top:10px" onclick="saveContactInfo(this)">Save Contact Info</button>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-card-title">Booking Notifications</div>
+      <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">Get an email from info@clearq.online the moment a customer books online — customer name, phone, car, service and ETA included.</div>
+      <input type="email" id="set-notif-email" placeholder="you@example.com" class="settings-input" style="width:100%;box-sizing:border-box;" value="${escHtml(s.notificationEmail||'')}">
+      <button class="settings-save-btn" style="margin-top:10px" onclick="saveNotificationEmail(this)">Save</button>
     </div>`;
 }
 
@@ -1854,6 +1861,21 @@ async function saveContactInfo(btn) {
     loadSettings();
   } catch(e) { toast(e.message,'error',ICONS.xCircle); }
   finally { unspin(btn); btn.textContent='Save Contact Info'; }
+}
+
+async function saveNotificationEmail(btn) {
+  spin(btn);
+  try {
+    const shopId = currentShopId;
+    await api('/api/partners/shop/'+shopId+'/settings',{
+      method:'PATCH', body:JSON.stringify({
+        notificationEmail:document.getElementById('set-notif-email').value.trim(),
+      })
+    });
+    toast('Notification email saved','success',ICONS.mapPin);
+    loadSettings();
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
+  finally { unspin(btn); btn.textContent='Save'; }
 }
 
 // ─── WALK-IN MODAL ────────────────────────────────────────────

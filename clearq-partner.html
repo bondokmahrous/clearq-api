@@ -792,6 +792,11 @@ function renderManage() {
     <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Phone number</span><input type="tel" id="shop-phone" placeholder="+20 100 000 0000" value="${escHtml(partnerShop?.phone||'')}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <textarea id="loc-desc" rows="3" placeholder="Describe how to find your centre..." style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-top:10px;">${escHtml(partnerShop?.locationDescription||'')}</textarea>
     <button class="dsv" style="margin-top:10px" onclick="saveContactInfo(this)">Save Contact Info</button>
+  </div>
+  <div class="ms"><div class="ms-t">Booking Notifications</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Get an email from info@clearq.online the moment a customer books online — customer name, phone, car, service and ETA included.</div>
+    <input type="email" id="notif-email" placeholder="you@example.com" value="${escHtml(partnerShop?.notificationEmail||'')}" style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;box-sizing:border-box;">
+    <button class="dsv" style="margin-top:10px" onclick="saveNotificationEmail(this)">Save</button>
   </div>`;
   document.getElementById('mgmt-c').innerHTML=html;
 }
@@ -858,6 +863,22 @@ async function saveContactInfo(btn) {
     toast(`${ICONS.check} Contact info saved`);
   } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Contact Info';}
+}
+
+async function saveNotificationEmail(btn) {
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+      notificationEmail:document.getElementById('notif-email').value.trim(),
+    })});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    partnerShop = {...partnerShop, ...updated};
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    toast(`${ICONS.check} Notification email saved`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+  finally{btn.disabled=false;btn.textContent='Save';}
 }
 
 function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}

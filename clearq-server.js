@@ -256,6 +256,8 @@ async function initDB() {
   // short-staffed) without touching individual bays or is_active — walk-ins are unaffected,
   // that's a staff-at-the-counter decision, not something this toggle needs to control.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_paused INT DEFAULT 0`);
+  // Email a wash centre can set from their own dashboard to get notified the moment a customer books online.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS notification_email TEXT`);
   // Hard guarantee against two active washes ever colliding on the same physical bay — found
   // this happening for real (two concurrent "Start" clicks both saw the same bay as free before
   // either write landed). The application-level check-then-assign in the /start endpoint can't
@@ -471,6 +473,41 @@ async function sendBookingEmail(booking, shopName, type) {
   } catch (e) { console.error("sendBookingEmail failed:", e.message); }
 }
 
+// Notifies a wash centre's own inbox (their notification_email, set from their dashboard) the
+// moment a customer books online — same trigger as the partner push notification, just email.
+// Never touches the booking flow's own response: any failure here is swallowed and logged.
+async function notifyShopByEmail(shopId, shopName, notificationEmail, booking) {
+  try {
+    if (!notificationEmail) return;
+    let customerEmail = null;
+    if (booking.user_id) {
+      const user = await db1(`SELECT email FROM wash_users WHERE id=$1`, [booking.user_id]);
+      customerEmail = user?.email || null;
+    }
+    const car = [booking.car_color, booking.car_model].filter(Boolean).join(' ');
+    const addonsList = Array.isArray(booking.addons) && booking.addons.length
+      ? booking.addons.map(a => a.name).join(', ')
+      : null;
+    await sendEmail(notificationEmail, `New booking — ${booking.customer_name || 'Customer'}`, `
+      <div style="font-family:sans-serif;max-width:460px;margin:0 auto;">
+        <h2 style="color:#21867B;">ClearQ</h2>
+        <h3 style="margin-bottom:4px;">New Booking at ${shopName} 🚗</h3>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;">
+          <tr><td style="padding:6px 0;color:#64748b;">Customer</td><td style="padding:6px 0;font-weight:700;text-align:right;">${booking.customer_name || ''}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Phone</td><td style="padding:6px 0;font-weight:700;text-align:right;">${booking.customer_phone || ''}</td></tr>
+          ${customerEmail ? `<tr><td style="padding:6px 0;color:#64748b;">Email</td><td style="padding:6px 0;font-weight:700;text-align:right;">${customerEmail}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#64748b;">Car</td><td style="padding:6px 0;font-weight:700;text-align:right;">${[car, booking.license_plate].filter(Boolean).join(' · ') || 'Not provided'}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Service</td><td style="padding:6px 0;font-weight:700;text-align:right;">${booking.wash_type}</td></tr>
+          ${addonsList ? `<tr><td style="padding:6px 0;color:#64748b;">Extras</td><td style="padding:6px 0;font-weight:700;text-align:right;">${addonsList}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#64748b;">Arriving</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(booking.eta_arrival_at)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Ready by</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(booking.eta_ready_at)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b;">Price</td><td style="padding:6px 0;font-weight:700;text-align:right;">${booking.price} EGP</td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:11px;">Booked via the ClearQ website.</p>
+      </div>`);
+  } catch (e) { console.error("notifyShopByEmail failed:", e.message); }
+}
+
 // ─── HTTP HELPERS ─────────────────────────────────────────────────────────────
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -510,6 +547,7 @@ function shop(s) {
     priceExterior: s.price_exterior, priceInterior: s.price_interior, priceFull: s.price_full,
     maxWorkers: s.max_workers, isActive: s.is_active, lat: s.lat, lng: s.lng,
     locationDescription: s.location_description, isTest: !!s.is_test, isPaused: !!s.is_paused,
+    notificationEmail: s.notification_email,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -1247,6 +1285,7 @@ self.addEventListener('notificationclick', e => {
       // Notify partner of new booking
       try { await notifyPartner(shopId, { title: 'New Booking!', body: `${customerName} booked a ${washType} wash`, icon: '/icon-192.png' }); } catch(e) {}
       sendBookingEmail(created, s.name, 'confirmed');
+      notifyShopByEmail(shopId, s.name, s.notification_email, created);
       return respond(res, 201, booking(created));
     }
 
@@ -1578,14 +1617,14 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused, notificationEmail: s.notification_email });
     }
 
     // PATCH /partners/shop/:id/settings
     if (m === "PATCH" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const body = await readBody(req);
       const numericMap = { priceExterior:"price_exterior", priceInterior:"price_interior", priceFull:"price_full", minsExterior:"mins_exterior", minsInterior:"mins_interior", minsFull:"mins_full", slotDurationMins:"slot_duration_mins" };
-      const textMap = { openTime:"open_time", closeTime:"close_time", locationDescription:"location_description", phone:"phone" };
+      const textMap = { openTime:"open_time", closeTime:"close_time", locationDescription:"location_description", phone:"phone", notificationEmail:"notification_email" };
       const boolMap = { isPaused: "is_paused" };
       const sets = []; const vals = []; let i = 1;
       for (const [k,col] of Object.entries(numericMap)) {
