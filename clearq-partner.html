@@ -260,8 +260,18 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
     <input class="wi-in" type="tel" placeholder="+20 100 000 0000" id="wi-phone" oninput="checkWI()">
     <div style="display:flex;gap:8px;">
       <div style="flex:1;">
-        <div class="wi-lbl">Car make/model</div>
-        <input class="wi-in" type="text" placeholder="Toyota Corolla" id="wi-car">
+        <div class="wi-lbl">Car make</div>
+        <input class="wi-in" type="text" placeholder="Toyota" id="wi-car-make">
+      </div>
+      <div style="flex:1;">
+        <div class="wi-lbl">Car model</div>
+        <input class="wi-in" type="text" placeholder="Corolla" id="wi-car-model">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;">
+        <div class="wi-lbl">Color</div>
+        <input class="wi-in" type="text" placeholder="White" id="wi-car-color">
       </div>
       <div style="flex:1;">
         <div class="wi-lbl">Plate number</div>
@@ -562,7 +572,7 @@ function renderQueue(bookings) {
       html+=`<div class="bc ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
         <div class="bc-top">
           <div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
-            <div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div>${b.carModel?`<div class="cc">${b.carModel}</div>`:''}</div>
+            <div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div>${b.carModel?`<div class="cc">${[b.carColor,b.carModel].filter(Boolean).join(' ')}</div>`:''}</div>
           </div>
           <div class="bc-right"><div class="bl">${b.bayNumber!=null?'Bay '+b.bayNumber:'Queued'}</div><div class="wb ${wi?'wib':''}">${wi?'Walk-in':svcLabel(b.washType)}</div></div>
         </div>
@@ -825,19 +835,21 @@ async function saveAddons(btn) {
 }
 
 // WALK-IN
-function openWI(){selectedWashType=null;document.getElementById('wi-name').value='';document.getElementById('wi-phone').value='';document.getElementById('wi-car').value='';document.getElementById('wi-plate').value='';document.getElementById('wi-btn').disabled=true;const row=document.getElementById('wi-types');const types=partnerServices.length?partnerServices.filter(s=>s.isActive!==0):[{name:'exterior'},{name:'interior'},{name:'full'}];row.innerHTML=types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');document.getElementById('wi-modal').classList.add('open');}
+function openWI(){selectedWashType=null;document.getElementById('wi-name').value='';document.getElementById('wi-phone').value='';document.getElementById('wi-car-make').value='';document.getElementById('wi-car-model').value='';document.getElementById('wi-car-color').value='';document.getElementById('wi-plate').value='';document.getElementById('wi-btn').disabled=true;const row=document.getElementById('wi-types');const types=partnerServices.length?partnerServices.filter(s=>s.isActive!==0):[{name:'exterior'},{name:'interior'},{name:'full'}];row.innerHTML=types.map(s=>`<button class="wt-btn" onclick="selWT('${s.name}',this)">${s.name}</button>`).join('');document.getElementById('wi-modal').classList.add('open');}
 function closeWI(){document.getElementById('wi-modal').classList.remove('open');}
 function selWT(type,btn){selectedWashType=type;document.querySelectorAll('.wt-btn').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');checkWI();}
 function checkWI(){document.getElementById('wi-btn').disabled=!(document.getElementById('wi-name').value.trim()&&selectedWashType);}
 async function addWalkIn(){
   const name=document.getElementById('wi-name').value.trim();
   const phone=document.getElementById('wi-phone').value.trim();
-  const car=document.getElementById('wi-car').value.trim();
+  const carMake=document.getElementById('wi-car-make').value.trim();
+  const carModel=document.getElementById('wi-car-model').value.trim();
+  const carColor=document.getElementById('wi-car-color').value.trim();
   const plate=document.getElementById('wi-plate').value.trim();
   const btn=document.getElementById('wi-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
   try{
-    const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})});
+    const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carMake,carModel,carColor,licensePlate:plate})});
     closeWI();
     toast(result?.linkedToAccount ? `${ICONS.check} Walk-in added — linked to ${name}'s ClearQ account` : `${ICONS.check} Walk-in added: ${name}`);
     loadQueue();loadBays();

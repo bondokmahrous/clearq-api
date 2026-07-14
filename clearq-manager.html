@@ -695,8 +695,18 @@ a { text-decoration: none; }
     <input class="form-input" type="tel" id="wi-phone" placeholder="+20 100 000 0000" oninput="checkWI()" style="margin-bottom:14px">
     <div style="display:flex;gap:10px;">
       <div style="flex:1;">
-        <label class="form-label">Car make/model</label>
-        <input class="form-input" type="text" id="wi-car" placeholder="Toyota Corolla" style="margin-bottom:14px">
+        <label class="form-label">Car make</label>
+        <input class="form-input" type="text" id="wi-car-make" placeholder="Toyota" style="margin-bottom:14px">
+      </div>
+      <div style="flex:1;">
+        <label class="form-label">Car model</label>
+        <input class="form-input" type="text" id="wi-car-model" placeholder="Corolla" style="margin-bottom:14px">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <label class="form-label">Color</label>
+        <input class="form-input" type="text" id="wi-car-color" placeholder="White" style="margin-bottom:14px">
       </div>
       <div style="flex:1;">
         <label class="form-label">Plate number</label>
@@ -1244,7 +1254,7 @@ function renderQueueTable(bookings) {
           <div class="customer-cell">
             <div class="c-name">${b.customerName||'Walk-in'}</div>
             <div class="c-phone">${b.customerPhone||''}</div>
-            ${b.carModel?`<div class="c-car">${b.carModel}</div>`:''}
+            ${b.carModel?`<div class="c-car">${[b.carColor,b.carModel].filter(Boolean).join(' ')}</div>`:''}
             ${b.licensePlate?`<div style="margin-top:3px"><span class="plate-tag">${b.licensePlate}</span></div>`:''}
           </div>
         </td>
@@ -1779,7 +1789,9 @@ function openWalkInModal() {
   selectedWashType = null;
   document.getElementById('wi-name').value = '';
   document.getElementById('wi-phone').value = '';
-  document.getElementById('wi-car').value = '';
+  document.getElementById('wi-car-make').value = '';
+  document.getElementById('wi-car-model').value = '';
+  document.getElementById('wi-car-color').value = '';
   document.getElementById('wi-plate').value = '';
   document.getElementById('wi-btn').disabled = true;
   // Populate wash types from services
@@ -1806,13 +1818,15 @@ function checkWI() {
 async function submitWalkIn() {
   const name = document.getElementById('wi-name').value.trim();
   const phone = document.getElementById('wi-phone').value.trim();
-  const car = document.getElementById('wi-car').value.trim();
+  const carMake = document.getElementById('wi-car-make').value.trim();
+  const carModel = document.getElementById('wi-car-model').value.trim();
+  const carColor = document.getElementById('wi-car-color').value.trim();
   const plate = document.getElementById('wi-plate').value.trim();
   const btn = document.getElementById('wi-btn');
   spin(btn);
   try {
     const result = await api('/api/partners/shop/'+currentShopId+'/walkin',{
-      method:'POST', body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carModel:car,licensePlate:plate})
+      method:'POST', body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carMake,carModel,carColor,licensePlate:plate})
     });
     closeModal('walkin-modal');
     toast(result?.linkedToAccount ? `Linked to ${name}'s ClearQ account` : 'Walk-in added: '+name,'success',ICONS.car);

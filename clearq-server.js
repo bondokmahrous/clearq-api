@@ -243,6 +243,8 @@ async function initDB() {
   // Snapshot of chosen add-on items (name/price/durationMins at booking time) so later edits to
   // the shop's add-on catalog don't retroactively change what an existing booking is shown as.
   await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS addons JSONB DEFAULT '[]'::jsonb`);
+  // Walk-ins now capture the same car detail (make/model/color) customers already give at signup.
+  await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS car_color TEXT`);
   // Free-text directions the wash centre can set (e.g. "blue gate next to the Total station")
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS location_description TEXT`);
   // Ghost/test shops: hidden from the public shop list and owner revenue aggregates, reachable
@@ -519,7 +521,7 @@ function booking(b) {
     customerPhone: b.customer_phone, washType: b.wash_type,
     scheduledDate: b.scheduled_date, scheduledTime: b.scheduled_time,
     price: b.price, status: b.status, kind: b.kind, bayNumber: b.bay_number,
-    licensePlate: b.license_plate, carModel: b.car_model, carType: b.car_type,
+    licensePlate: b.license_plate, carModel: b.car_model, carColor: b.car_color, carType: b.car_type,
     notes: b.notes, paymentStatus: b.payment_status, addons: b.addons || [],
     etaArrivalAt: ts(b.eta_arrival_at), etaReadyAt: ts(b.eta_ready_at),
     arrivedAt: ts(b.arrived_at), washStartedAt: ts(b.wash_started_at),
@@ -1720,7 +1722,7 @@ self.addEventListener('notificationclick', e => {
 
     // POST /partners/shop/:id/walkin — links to user account by phone if registered
     if (m === "POST" && /\/partners\/shop\/\d+\/walkin$/.test(p)) {
-      const { washType, customerName, customerPhone, licensePlate, carMake, carModel } = await readBody(req);
+      const { washType, customerName, customerPhone, licensePlate, carMake, carModel, carColor } = await readBody(req);
       if (!washType) return respond(res, 400, { error: "washType required" });
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Shop not found" });
@@ -1729,6 +1731,7 @@ self.addEventListener('notificationclick', e => {
       let linkedUserId = null;
       let linkedCarId = null;
       let finalCarModel = [carMake, carModel].filter(Boolean).join(' ') || carModel || null;
+      let finalCarColor = carColor || null;
       let finalName = customerName || "Walk-in";
       let finalPlate = licensePlate || null;
 
@@ -1751,14 +1754,15 @@ self.addEventListener('notificationclick', e => {
           if (matchedCar) {
             linkedCarId = matchedCar.id;
             finalCarModel = [matchedCar.make, matchedCar.model].filter(Boolean).join(' ') || matchedCar.model;
+            finalCarColor = matchedCar.color || finalCarColor;
             finalPlate = matchedCar.license_plate || finalPlate;
           } else if (finalCarModel || finalPlate) {
             // New car for this registered user — save it to their account automatically
             const existingCount = await db1(`SELECT COUNT(*) as cnt FROM user_cars WHERE user_id=$1`, [matchedUser.id]);
             const [newCar] = await db(
-              `INSERT INTO user_cars (user_id, make, model, license_plate, is_default, created_at)
-               VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *`,
-              [matchedUser.id, carMake || null, carModel || finalCarModel || 'Car', finalPlate, parseInt(existingCount.cnt) === 0 ? 1 : 0]
+              `INSERT INTO user_cars (user_id, make, model, color, license_plate, is_default, created_at)
+               VALUES ($1,$2,$3,$4,$5,$6,NOW()) RETURNING *`,
+              [matchedUser.id, carMake || null, carModel || finalCarModel || 'Car', carColor || null, finalPlate, parseInt(existingCount.cnt) === 0 ? 1 : 0]
             );
             linkedCarId = newCar.id;
           }
@@ -1781,23 +1785,23 @@ self.addEventListener('notificationclick', e => {
       // walk-in/Start requests. Falls back to a pending walk-in (no bay yet) when none is free.
       const eta = new Date(now.getTime() + durationMins * 60000);
       const created = await withBayRetry(() => db1(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,user_id,car_id,created_at,updated_at)
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,bay_number,arrived_at,wash_started_at,eta_ready_at,license_plate,car_model,car_color,user_id,car_id,created_at,updated_at)
          SELECT $1,$2,$3,$4,$5,$6,$7,
            CASE WHEN bay.bn IS NOT NULL THEN 'in_progress' ELSE 'pending' END,
            'paid','walkin', bay.bn,
            CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
            CASE WHEN bay.bn IS NOT NULL THEN NOW() END,
            CASE WHEN bay.bn IS NOT NULL THEN $8::timestamptz END,
-           $9,$10,$11,$12,NOW(),NOW()
+           $9,$10,$11,$12,$13,NOW(),NOW()
          FROM (
            SELECT (
-             SELECT bn FROM generate_series(1, $13::int) AS bn
+             SELECT bn FROM generate_series(1, $14::int) AS bn
              WHERE bn NOT IN (SELECT bay_number FROM wash_bookings WHERE shop_id=$1 AND status='in_progress' AND bay_number IS NOT NULL)
              ORDER BY bn LIMIT 1
            ) AS bn
          ) bay
          RETURNING *`,
-        [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, eta, finalPlate, finalCarModel, linkedUserId, linkedCarId, s.max_workers]
+        [shopId, finalName, customerPhone||"", washType, today(), nowTime(), price, eta, finalPlate, finalCarModel, finalCarColor, linkedUserId, linkedCarId, s.max_workers]
       ));
       return respond(res, 201, { ...booking(created), linkedToAccount: !!linkedUserId });
     }
@@ -2024,6 +2028,7 @@ self.addEventListener('notificationclick', e => {
           MAX(b.customer_name) as name,
           MAX(b.license_plate) as license_plate,
           MAX(b.car_model) as car_model,
+          MAX(b.car_color) as car_color,
           MAX(b.user_id) as user_id,
           COUNT(b.id) as total_visits,
           COUNT(b.id) FILTER (WHERE b.status='completed') as completed_visits,
