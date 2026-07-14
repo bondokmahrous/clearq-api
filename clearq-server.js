@@ -902,7 +902,7 @@ async function simulateBayQueue(shopId, opts = {}) {
   }
 
   if (opts.hypotheticalArrival) {
-    return { maxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
+    return { maxBays, effectiveMaxBays, freeBays, queueCount: pending.length, activeCount: active.length, hypotheticalStart };
   }
 
   // New customer with no specific arrival given — treat as arriving right now (case above,
@@ -915,6 +915,7 @@ async function simulateBayQueue(shopId, opts = {}) {
     queueCount: pending.length,
     activeCount: active.length,
     maxBays,
+    effectiveMaxBays,
     freeBays,
     minsUntilNextFree: waitMins,
   };
