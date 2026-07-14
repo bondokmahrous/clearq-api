@@ -600,6 +600,12 @@ async function inProgressCount(shopId) {
 // without inserting anything — used by POST /wash/reservations to price a new booking.
 const BAY_HANDOFF_BUFFER_MS = 10 * 60000; // slack after every wash before a bay counts as free again, in case it runs long
 
+// HD CarWash-only: each bay only accepts a new booking once an hour has passed since its last
+// one, regardless of the real service duration — a deliberate throttle, not a capacity limit.
+// Every other shop keeps the normal duration-based bay math untouched.
+const HD_CARWASH_SHOP_ID = 6;
+const HD_CARWASH_BOOKING_SPACING_MS = 60 * 60000;
+
 function bookingDurationMins(b, defaultDur) {
   if (b.eta_ready_at && b.eta_arrival_at) {
     const dur = Math.round((new Date(b.eta_ready_at) - new Date(b.eta_arrival_at)) / 60000);
@@ -638,6 +644,36 @@ function assignBays(maxBays, active, items, defaultDur, nowMs) {
     const startAt = Math.max(bayFreeAt, arriveAt);
     startTimes.set(b, startAt);
     bays[0] = startAt + dur * 60000 + BAY_HANDOFF_BUFFER_MS;
+  }
+
+  return startTimes;
+}
+
+// Same shape as assignBays(), but a bay's next booking always waits a fixed spacingMs after the
+// previous one in that same bay — the real wash duration plays no part in when the bay opens up
+// for its next booking. Each bay still runs independently, so with N bays the shop can take up
+// to N bookings inside the same hour (one per bay), just never two in the same bay within an hour
+// of each other. HD CarWash only — see HD_CARWASH_BOOKING_SPACING_MS.
+function assignBaysFixedSpacing(maxBays, active, items, spacingMs, nowMs) {
+  // Unlike assignBays(), an untouched bay isn't available right now — even the very first
+  // booking a bay has ever taken waits the full spacing, same as every booking after it.
+  let bays = Array(Math.max(1, maxBays)).fill(nowMs + spacingMs);
+  const startTimes = new Map();
+
+  for (const b of active) {
+    bays.sort((a, x) => a - x);
+    const startAt = new Date(b.wash_started_at || b.created_at).getTime();
+    startTimes.set(b, startAt);
+    bays[0] = startAt + spacingMs;
+  }
+
+  for (const b of items) {
+    bays.sort((a, x) => a - x);
+    const bayFreeAt = bays[0];
+    const arriveAt = b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : nowMs;
+    const startAt = Math.max(bayFreeAt, arriveAt);
+    startTimes.set(b, startAt);
+    bays[0] = startAt + spacingMs;
   }
 
   return startTimes;
@@ -756,6 +792,26 @@ async function simulateBayQueue(shopId, opts = {}) {
   // the shop's longest one — never showing a wait shorter than what any actual booking would get.
   const hypotheticalDur = opts.hypotheticalDurationMins || longestServiceDur;
 
+  // HD CarWash swaps in a fixed hourly-per-bay assignment instead of the normal duration-based
+  // one (see assignBaysFixedSpacing) — everything below this point (the non-displacement search)
+  // is identical for both, it just calls whichever `assign`/`finishAt` pair applies.
+  const isHdCarWash = shopId === HD_CARWASH_SHOP_ID;
+  const assign = isHdCarWash
+    ? (mb, act, items) => assignBaysFixedSpacing(mb, act, items, HD_CARWASH_BOOKING_SPACING_MS, nowMs)
+    : (mb, act, items) => assignBays(mb, act, items, defaultDur, nowMs);
+  const activeFinishAt = isHdCarWash
+    ? (b) => new Date(b.wash_started_at || b.created_at).getTime() + HD_CARWASH_BOOKING_SPACING_MS
+    : (b) => {
+        const dur = bookingDurationMins(b, defaultDur);
+        const finishAt = b.eta_ready_at
+          ? new Date(b.eta_ready_at).getTime()
+          : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
+        return finishAt + BAY_HANDOFF_BUFFER_MS;
+      };
+  const pendingFinishAt = isHdCarWash
+    ? (b, startMs) => startMs + HD_CARWASH_BOOKING_SPACING_MS
+    : (b, startMs) => startMs + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS;
+
   // Answering "when could a new booking actually start" — whether it's a specific customer's
   // real ETA, or the generic "if someone booked right now" wait shown before they've even
   // opened the modal — must never come at the cost of an already-promised reservation. Simply
@@ -768,21 +824,17 @@ async function simulateBayQueue(shopId, opts = {}) {
   // at all), then search forward from the requested arrival for the earliest moment a
   // hypothetical booking can be inserted without pushing any real booking past its own baseline.
   const baselineSorted = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-  const baselineStarts = assignBays(effectiveMaxBays, active, baselineSorted, defaultDur, nowMs);
+  const baselineStarts = assign(effectiveMaxBays, active, baselineSorted);
 
   // Candidate times worth checking are exactly the moments bay availability can change —
   // no need to search continuously between them.
   const candidates = new Set([Math.max(nowMs, requestedArrival)]);
   for (const b of active) {
-    const dur = bookingDurationMins(b, defaultDur);
-    const finishAt = b.eta_ready_at
-      ? new Date(b.eta_ready_at).getTime()
-      : new Date(b.wash_started_at || b.created_at).getTime() + dur * 60000;
-    candidates.add(finishAt + BAY_HANDOFF_BUFFER_MS);
+    candidates.add(activeFinishAt(b));
   }
   for (const b of pending) {
     candidates.add(new Date(b.eta_arrival_at).getTime());
-    candidates.add(baselineStarts.get(b) + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS);
+    candidates.add(pendingFinishAt(b, baselineStarts.get(b)));
   }
   const sortedCandidates = [...candidates].filter(t => t >= requestedArrival).sort((a, b) => a - b);
 
@@ -795,7 +847,7 @@ async function simulateBayQueue(shopId, opts = {}) {
       duration_mins: hypotheticalDur,
     };
     const withHyp = [...pending, hypothetical].sort((a, b) => arrivalMs(a) - arrivalMs(b));
-    const withHypStarts = assignBays(effectiveMaxBays, active, withHyp, defaultDur, nowMs);
+    const withHypStarts = assign(effectiveMaxBays, active, withHyp);
     const displaces = pending.some(b => withHypStarts.get(b) > baselineStarts.get(b) + 60000);
     if (!displaces) {
       hypotheticalStart = withHypStarts.get(hypothetical);
@@ -806,9 +858,7 @@ async function simulateBayQueue(shopId, opts = {}) {
     // Every candidate we checked would displace someone (shouldn't normally happen — the point
     // after everything real clears is always safe) — fall back to right after the last real
     // booking finishes.
-    hypotheticalStart = Math.max(requestedArrival, nowMs, ...baselineSorted.map(b =>
-      baselineStarts.get(b) + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS
-    ));
+    hypotheticalStart = Math.max(requestedArrival, nowMs, ...baselineSorted.map(b => pendingFinishAt(b, baselineStarts.get(b))));
   }
 
   if (opts.hypotheticalArrival) {
@@ -839,6 +889,12 @@ async function findWalkinConflict(shopId, durationMins) {
   const { effectiveMaxBays, defaultDur, pending, active, arrivalMs } = await getQueueState(shopId);
   const nowMs = Date.now();
   const dur = durationMins || defaultDur;
+  // Deliberately always the normal duration-based model, even for HD CarWash — a walk-in is
+  // physically standing at a bay that's free right now, and checking it against the fixed
+  // hourly-spacing model (meant to throttle how far out *online* reservations get promised)
+  // would falsely treat every bay as unavailable for the next hour and reject walk-ins that are
+  // in reality no threat to any reservation, since the walk-in finishes long before any
+  // hourly-spaced reservation is due to arrive.
 
   const withoutWalkin = [...pending].sort((a, b) => arrivalMs(a) - arrivalMs(b));
   const promisedStarts = assignBays(effectiveMaxBays, active, withoutWalkin, defaultDur, nowMs);
