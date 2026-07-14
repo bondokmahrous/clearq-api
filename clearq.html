@@ -130,6 +130,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 }
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
 .modal-handle{width:38px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 18px;}
+/* Fixed to the viewport (not the scrolling modal-box), so it's reachable no matter how tall the
+   modal's content is or how far the user has scrolled inside it — the backdrop-tap-to-close
+   alone isn't enough once content fills most/all of the visible viewport on mobile. */
+.modal-close-btn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;width:34px;height:34px;border-radius:17px;background:rgba(15,23,42,0.55);border:none;color:#fff;font-size:16px;line-height:34px;text-align:center;cursor:pointer;z-index:201;padding:0;}
 .modal-title{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:3px;}
 .modal-sub{font-size:12px;color:#64748b;margin-bottom:18px;}
 .modal-sec{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:9px;}
@@ -164,7 +168,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .review-nudge-close{background:none;border:none;color:#94a3b8;font-size:15px;cursor:pointer;padding:4px 2px;line-height:1;}
 .rating-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;justify-content:center;align-items:center;padding:22px;}
 .rating-bg.open{display:flex;}
-.rating-box{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:360px;text-align:center;animation:fadeIn 0.2s ease;}
+.rating-box{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:360px;max-height:88vh;overflow-y:auto;text-align:center;animation:fadeIn 0.2s ease;}
 .shop-detail-box{background:#fff;border-radius:18px;width:100%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;animation:fadeIn 0.2s ease;overflow:hidden;}
 .sd-header{padding:18px 20px 14px;border-bottom:1px solid #e8edf3;display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
 .sd-close{background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#64748b;flex-shrink:0;}
@@ -791,6 +795,7 @@ html, body {
 
 <!-- Booking modal -->
 <div class="modal-bg" id="booking-modal" onclick="closeBModal(event)">
+  <button type="button" class="modal-close-btn" aria-label="Close" onclick="closeBModal({target:document.getElementById('booking-modal')})">✕</button>
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
     <div class="modal-title" id="bm-name"></div>
