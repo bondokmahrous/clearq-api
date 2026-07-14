@@ -2103,7 +2103,7 @@ self.addEventListener('notificationclick', e => {
       const rows = await db(
         `SELECT b.*, s.name as shop_name FROM wash_bookings b
          JOIN wash_shops s ON s.id = b.shop_id
-         WHERE b.customer_phone = $1 ORDER BY b.created_at DESC LIMIT 100`,
+         WHERE b.customer_phone = $1 AND s.is_test = 0 ORDER BY b.created_at DESC LIMIT 100`,
         [phone]
       );
       return respond(res, 200, rows.map(b => ({
