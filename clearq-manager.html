@@ -1105,12 +1105,20 @@ async function loadManagerCustomers() {
       el.innerHTML = '<p style="color:var(--gray,#94a3b8);font-size:13px;">No customers yet</p>';
       return;
     }
-    el.innerHTML = `<div style="display:grid;gap:10px;">` + customers.map(c => `
-      <div onclick="openMgrCustHistory('${c.phone}','${(c.name||'').replace(/'/g,"\\\\'")}')" style="background:var(--surface,#1e293b);border-radius:11px;padding:14px;cursor:pointer;border:1px solid var(--border,#334155);display:flex;justify-content:space-between;align-items:flex-start;">
+    el.innerHTML = `<div style="display:grid;gap:10px;">` + customers.map(c => {
+      const primaryCar = (c.cars || [])[0];
+      const carLine = primaryCar
+        ? [primaryCar.color, primaryCar.make, primaryCar.model].filter(Boolean).join(' ')
+          + (primaryCar.licensePlate ? ` · ${primaryCar.licensePlate}` : '')
+          + (c.cars.length > 1 ? ` +${c.cars.length - 1} more` : '')
+        : [c.car_color, c.car_model].filter(Boolean).join(' ') + (c.license_plate ? ` · ${c.license_plate}` : '');
+      return `
+      <div onclick='openMgrCustHistory(${JSON.stringify(c).replace(/'/g,"&#39;")})' style="background:var(--surface,#1e293b);border-radius:11px;padding:14px;cursor:pointer;border:1px solid var(--border,#334155);display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--white,#fff);">${c.name||'Unknown'}</div>
           <div style="font-size:12px;color:var(--gray,#94a3b8);margin-top:2px;">${c.phone}</div>
-          ${c.license_plate ? `<div style="font-size:11px;color:#21867B;margin-top:2px;">${c.license_plate}</div>` : ''}
+          ${c.email ? `<div style="font-size:11px;color:var(--gray,#94a3b8);margin-top:2px;">${c.email}</div>` : ''}
+          ${carLine.trim() ? `<div style="font-size:11px;color:#21867B;margin-top:2px;">${carLine.trim()}</div>` : ''}
           <div style="font-size:11px;color:var(--gray,#94a3b8);margin-top:4px;display:flex;align-items:center;gap:4px;">${ICONS.smartphone} ${c.online_bookings} online · ${ICONS.walkIn} ${c.walkin_bookings} walk-in</div>
         </div>
         <div style="text-align:right;">
@@ -1118,21 +1126,49 @@ async function loadManagerCustomers() {
           <div style="font-size:11px;color:var(--gray,#94a3b8);margin-top:2px;">${c.total_visits} visits</div>
         </div>
       </div>
-    `).join('') + `</div>`;
+    `;
+    }).join('') + `</div>`;
   } catch(e) {
     el.innerHTML = '<p style="color:#ef4444;font-size:13px;">Error loading customers</p>';
   }
 }
 
-async function openMgrCustHistory(phone, name) {
+async function openMgrCustHistory(c) {
+  const phone = c.phone, name = c.name;
   document.getElementById('mgr-cust-modal-title').textContent = (name||'Customer') + ' — ' + phone;
-  document.getElementById('mgr-cust-history-list').innerHTML = '<div class="loading-state"><div class="spin"></div></div>';
   document.getElementById('mgr-cust-modal-bg').style.display = 'flex';
+
+  const carsHtml = (c.cars || []).length
+    ? `<div style="display:flex;flex-direction:column;gap:8px;">${c.cars.map(car => `
+        <div style="background:var(--bg,#0f172a);border-radius:8px;padding:10px 12px;font-size:12px;">
+          <div style="font-weight:700;color:var(--white,#fff);">${[car.color, car.make, car.model].filter(Boolean).join(' ') || 'Unnamed car'}${car.isDefault ? ' <span style="color:#3FBDB0;font-weight:600;">· Default</span>' : ''}</div>
+          <div style="color:var(--gray,#94a3b8);margin-top:3px;">${[car.licensePlate, car.carType].filter(Boolean).join(' · ') || 'No plate / type set'}</div>
+        </div>`).join('')}</div>`
+    : `<div style="color:var(--gray,#94a3b8);font-size:12px;">No saved cars${c.license_plate || c.car_model || c.car_color ? ` — last seen: ${[c.car_color, c.car_model, c.license_plate].filter(Boolean).join(' · ')}` : ''}</div>`;
+
+  document.getElementById('mgr-cust-history-list').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--gray,#94a3b8);margin-bottom:16px;">
+      <div>📧 ${c.email || 'No account (walk-in only)'}</div>
+      ${c.account_created_at ? `<div>Joined ${new Date(c.account_created_at).toLocaleDateString('en-EG',{day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray,#94a3b8);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cars</div>
+    ${carsHtml}
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--gray,#94a3b8);text-transform:uppercase;letter-spacing:0.5px;">Visit Frequency</div>
+      <div id="mgr-cust-freq-summary" style="font-size:11px;color:var(--gray,#94a3b8);"></div>
+    </div>
+    <div id="mgr-cust-freq-chart" style="display:flex;align-items:flex-end;gap:6px;height:70px;background:var(--bg,#0f172a);border-radius:10px;padding:8px 8px 0;margin-bottom:8px;"><div class="loading-state" style="padding:14px;"><div class="spin"></div></div></div>
+    <div style="font-size:11px;font-weight:700;color:var(--gray,#94a3b8);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;">Booking History</div>
+    <div id="mgr-cust-history-bookings"><div class="loading-state"><div class="spin"></div></div></div>
+  `;
+
   try {
     const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/customers/${encodeURIComponent(phone)}/history`, { headers: authH() });
     if (!res.ok) throw new Error();
     const history = await res.json();
-    document.getElementById('mgr-cust-history-list').innerHTML = history.map(b => `
+    renderMgrFreqChart('mgr-cust-freq-chart', history);
+    document.getElementById('mgr-cust-freq-summary').textContent = mgrFreqSummary(history);
+    document.getElementById('mgr-cust-history-bookings').innerHTML = history.map(b => `
       <div style="background:var(--bg,#0f172a);border-radius:9px;padding:12px;margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:13px;font-weight:600;color:var(--white,#fff);display:flex;align-items:center;gap:5px;">${b.washType} ${b.kind==='walkin'?ICONS.walkIn:ICONS.smartphone}</div>
@@ -1142,12 +1178,49 @@ async function openMgrCustHistory(phone, name) {
       </div>
     `).join('') || '<p style="color:var(--gray,#94a3b8);font-size:13px;">No history found</p>';
   } catch(e) {
-    document.getElementById('mgr-cust-history-list').innerHTML = '<p style="color:#ef4444;">Error loading history</p>';
+    document.getElementById('mgr-cust-history-bookings').innerHTML = '<p style="color:#ef4444;">Error loading history</p>';
+    document.getElementById('mgr-cust-freq-chart').innerHTML = '<p style="color:#ef4444;font-size:12px;">Error loading</p>';
   }
 }
 
 function closeMgrCustHistory() {
   document.getElementById('mgr-cust-modal-bg').style.display = 'none';
+}
+
+function renderMgrFreqChart(containerId, history) {
+  const el = document.getElementById(containerId);
+  if (!history.length) { el.innerHTML = '<div style="color:var(--gray,#94a3b8);font-size:12px;align-self:center;margin:0 auto;">No visits yet</div>'; return; }
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-US', {month:'short'}), count: 0 });
+  }
+  history.forEach(b => {
+    const d = new Date(b.createdAt);
+    const bucket = months.find(m => m.key === `${d.getFullYear()}-${d.getMonth()}`);
+    if (bucket) bucket.count++;
+  });
+  const max = Math.max(...months.map(m => m.count), 1);
+  el.innerHTML = months.map(m => {
+    const h = m.count > 0 ? Math.max(4, Math.round((m.count / max) * 100)) : 1;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;" title="${m.label}: ${m.count} visit${m.count===1?'':'s'}">
+      <div style="font-size:10px;color:var(--gray,#94a3b8);margin-bottom:3px;">${m.count||''}</div>
+      <div style="width:100%;max-width:22px;height:${h}%;background:#3FBDB0;border-radius:3px 3px 0 0;"></div>
+      <div style="font-size:9px;color:var(--gray,#94a3b8);margin-top:4px;">${m.label}</div>
+    </div>`;
+  }).join('');
+}
+
+function mgrFreqSummary(history) {
+  if (!history.length) return '';
+  if (history.length === 1) return 'First-time visitor';
+  const dates = history.map(b => new Date(b.createdAt).getTime()).sort((a, b) => a - b);
+  const spanDays = (dates[dates.length - 1] - dates[0]) / 86400000;
+  const avgGapDays = spanDays / (dates.length - 1);
+  if (avgGapDays < 1) return 'Multiple visits per day on average';
+  const rounded = Math.round(avgGapDays);
+  return `Returns about every ${rounded} day${rounded === 1 ? '' : 's'}`;
 }
 
 // ─── NAV ──────────────────────────────────────────────────────

@@ -1417,15 +1417,18 @@ self.addEventListener('notificationclick', e => {
       return respond(res, 200, { shopId, maxBays: s.max_workers, bays });
     }
 
-    // GET /partners/shop/:id/customers — customer list for this shop only
+    // GET /partners/shop/:id/customers — customer list for this shop only. Same email/cars
+    // enrichment as GET /owner/customers, just scoped to bookings at this one shop.
     if (m === "GET" && /\/partners\/shop\/\d+\/customers$/.test(p)) {
       const search = url.searchParams.get('search') || '';
       let q = `
-        SELECT 
+        SELECT
           customer_phone as phone,
           MAX(customer_name) as name,
           MAX(license_plate) as license_plate,
           MAX(car_model) as car_model,
+          MAX(car_color) as car_color,
+          MAX(user_id) as user_id,
           COUNT(id) as total_visits,
           COUNT(id) FILTER (WHERE status='completed') as completed_visits,
           COALESCE(SUM(price) FILTER (WHERE status='completed'), 0) as total_spent,
@@ -1443,7 +1446,27 @@ self.addEventListener('notificationclick', e => {
       }
       q += ` GROUP BY customer_phone ORDER BY total_visits DESC LIMIT 200`;
       const rows = await db(q, params);
-      return respond(res, 200, rows);
+
+      const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+      let usersById = {}, carsByUserId = {};
+      if (userIds.length) {
+        const users = await db(`SELECT id, email, created_at FROM wash_users WHERE id = ANY($1)`, [userIds]);
+        usersById = Object.fromEntries(users.map(u => [u.id, u]));
+        const cars = await db(`SELECT * FROM user_cars WHERE user_id = ANY($1) ORDER BY is_default DESC, created_at ASC`, [userIds]);
+        for (const c of cars) {
+          (carsByUserId[c.user_id] = carsByUserId[c.user_id] || []).push({
+            id: c.id, make: c.make, model: c.model, color: c.color,
+            licensePlate: c.license_plate, carType: c.car_type, isDefault: c.is_default === 1,
+          });
+        }
+      }
+      const result = rows.map(r => ({
+        ...r,
+        email: usersById[r.user_id]?.email || null,
+        account_created_at: usersById[r.user_id]?.created_at || null,
+        cars: carsByUserId[r.user_id] || [],
+      }));
+      return respond(res, 200, result);
     }
 
     // GET /partners/shop/:id/customers/:phone/history — one customer's history at this shop
