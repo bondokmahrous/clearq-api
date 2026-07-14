@@ -395,9 +395,10 @@ input,select{font-family:inherit;}
         <button class="refresh-btn" onclick="loadCustomers()">↻ Refresh</button>
       </div>
       <div class="table-wrap">
-        <div class="table-header" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1fr 1fr;">
+        <div class="table-header" style="grid-template-columns:1.2fr 1fr 1fr 0.8fr 0.8fr 1fr 1fr;">
           <div>Customer</div>
           <div>Phone</div>
+          <div>Car</div>
           <div>Visits</div>
           <div>Spent</div>
           <div>Last Visit</div>
@@ -1205,16 +1206,21 @@ async function loadCustomers() {
       return;
     }
 
-    document.getElementById('customers-table').innerHTML = customers.map(c => `
-      <div class="table-row" style="grid-template-columns:1.2fr 1fr 0.8fr 0.8fr 1fr 1fr;cursor:pointer;" onclick='openCustomerHistory(${JSON.stringify(c).replace(/'/g,"&#39;")})'>
+    document.getElementById('customers-table').innerHTML = customers.map(c => {
+      const primaryCar = (c.cars || [])[0];
+      const carLine = primaryCar
+        ? [primaryCar.color, primaryCar.make, primaryCar.model].filter(Boolean).join(' ')
+          + (primaryCar.licensePlate ? ` · ${primaryCar.licensePlate}` : '')
+          + (c.cars.length > 1 ? ` +${c.cars.length - 1} more` : '')
+        : [c.car_color, c.car_model].filter(Boolean).join(' ') + (c.license_plate ? ` · ${c.license_plate}` : '');
+      return `
+      <div class="table-row" style="grid-template-columns:1.2fr 1fr 1fr 0.8fr 0.8fr 1fr 1fr;cursor:pointer;" onclick='openCustomerHistory(${JSON.stringify(c).replace(/'/g,"&#39;")})'>
         <div class="td">
           <div>${c.name || 'Unknown'}</div>
-          ${c.license_plate ? `<div class="td-sub" style="color:var(--blue)">${c.license_plate}</div>` : ''}
-        </div>
-        <div class="td">
-          <div>${c.phone}</div>
           ${c.email ? `<div class="td-sub">${c.email}</div>` : `<div class="td-sub" style="color:var(--gray)">No account</div>`}
         </div>
+        <div class="td td-sub">${c.phone}</div>
+        <div class="td td-sub" style="color:${carLine.trim() ? 'var(--blue)' : 'var(--gray)'}">${carLine.trim() || 'No car on file'}</div>
         <div class="td">
           <div style="font-weight:700;">${c.total_visits}</div>
           <div class="td-sub">📱${c.online_bookings} 🚶${c.walkin_bookings}</div>
@@ -1223,7 +1229,8 @@ async function loadCustomers() {
         <div class="td td-sub">${new Date(c.last_visit).toLocaleDateString('en-EG')}</div>
         <div class="td td-sub">${(c.shops_visited||[]).join(', ')}</div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   } catch(e) {
     document.getElementById('customers-table').innerHTML = '<div class="loading" style="color:var(--red)">Error loading customers</div>';
   }
@@ -1250,6 +1257,11 @@ async function openCustomerHistory(c) {
     </div>
     <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Cars</div>
     ${carsHtml}
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 8px;">
+      <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;">Visit Frequency</div>
+      <div id="customer-freq-summary" style="font-size:11px;color:var(--gray);"></div>
+    </div>
+    <div id="customer-freq-chart" style="display:flex;align-items:flex-end;gap:6px;height:80px;background:var(--navy);border-radius:10px;padding:10px 8px 0;margin-bottom:8px;"><div class="loading" style="padding:20px;"><div class="spin"></div></div></div>
     <div style="font-size:12px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 8px;">Booking History</div>
     <div id="customer-history-bookings"><div class="loading"><div class="spin"></div></div></div>
   `;
@@ -1258,6 +1270,8 @@ async function openCustomerHistory(c) {
     const res = await fetch(`${API}/api/owner/customers/${encodeURIComponent(phone)}/history`, { headers: {'x-owner-key': OWNER_PASSWORD} });
     if (!res.ok) throw new Error();
     const history = await res.json();
+    renderCustomerFrequencyChart('customer-freq-chart', history);
+    document.getElementById('customer-freq-summary').textContent = frequencySummary(history);
     const statusBadge = s => {
       const m = {pending:'badge-pending',in_progress:'badge-progress',completed:'badge-done',cancelled:'badge-cancelled'};
       const l = {pending:'Pending',in_progress:'In Progress',completed:'Completed',cancelled:'Cancelled'};
@@ -1280,7 +1294,47 @@ async function openCustomerHistory(c) {
     `).join('') || '<div style="color:var(--gray);font-size:13px;">No history found</div>';
   } catch(e) {
     document.getElementById('customer-history-bookings').innerHTML = '<div style="color:var(--red);">Error loading history</div>';
+    document.getElementById('customer-freq-chart').innerHTML = '<div style="color:var(--red);font-size:12px;">Error loading</div>';
   }
+}
+
+// Buckets a customer's booking history into the last 6 calendar months and renders it as a
+// simple vertical bar chart, reusing the same visual language as the Overview trend charts.
+function renderCustomerFrequencyChart(containerId, history) {
+  const el = document.getElementById(containerId);
+  if (!history.length) { el.innerHTML = '<div style="color:var(--gray);font-size:12px;align-self:center;margin:0 auto;">No visits yet</div>'; return; }
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-US', {month:'short'}), count: 0 });
+  }
+  history.forEach(b => {
+    const d = new Date(b.createdAt);
+    const bucket = months.find(m => m.key === `${d.getFullYear()}-${d.getMonth()}`);
+    if (bucket) bucket.count++;
+  });
+  const max = Math.max(...months.map(m => m.count), 1);
+  el.innerHTML = months.map(m => {
+    const h = m.count > 0 ? Math.max(4, Math.round((m.count / max) * 100)) : 1;
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;" title="${m.label}: ${m.count} visit${m.count===1?'':'s'}">
+      <div style="font-size:10px;color:var(--gray);margin-bottom:3px;">${m.count||''}</div>
+      <div style="width:100%;max-width:24px;height:${h}%;background:var(--blue);border-radius:3px 3px 0 0;"></div>
+      <div style="font-size:9px;color:var(--gray);margin-top:5px;">${m.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// One-line read on how often this customer comes back, from the same history the chart uses.
+function frequencySummary(history) {
+  if (!history.length) return '';
+  if (history.length === 1) return 'First-time visitor';
+  const dates = history.map(b => new Date(b.createdAt).getTime()).sort((a, b) => a - b);
+  const spanDays = (dates[dates.length - 1] - dates[0]) / 86400000;
+  const avgGapDays = spanDays / (dates.length - 1);
+  if (avgGapDays < 1) return 'Multiple visits per day on average';
+  const rounded = Math.round(avgGapDays);
+  return `Returns about every ${rounded} day${rounded === 1 ? '' : 's'}`;
 }
 
 function closeCustomerModal() {
