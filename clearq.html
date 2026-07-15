@@ -1160,7 +1160,34 @@ function getStartReady(q, shop, svcDuration) {
   const start = new Date(now.getTime() + waitMins * 60000);
   const ready = new Date(start.getTime() + dur * 60000);
   const fmt = d => d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true});
-  return { waitMins, startStr: fmt(start), readyStr: fmt(ready) };
+  return { waitMins, startStr: fmt(start), readyStr: fmt(ready), start, ready };
+}
+
+// Client-side mirror of the server's shopCloseBoundary (clearq-server.js) — used to flag a shop
+// card as unbookable right now without an extra round-trip per card. Must stay in sync with the
+// server version: same-day hours roll the boundary back a day when arrival is before opening
+// (an arrival just after midnight belongs to yesterday's already-closed session, not today's);
+// overnight-crossing hours roll forward a day once arrival is at/after opening.
+const CQ_CAIRO_OFFSET_MS = 3 * 60 * 60000;
+function shopCloseBoundaryClient(shop, arrivalDate) {
+  const cairoArrival = new Date(arrivalDate.getTime() + CQ_CAIRO_OFFSET_MS);
+  const [openH, openM] = (shop.openTime || '09:00').split(':').map(Number);
+  const [closeH, closeM] = (shop.closeTime || '22:00').split(':').map(Number);
+  const closeCairo = new Date(Date.UTC(cairoArrival.getUTCFullYear(), cairoArrival.getUTCMonth(), cairoArrival.getUTCDate(), closeH, closeM, 0, 0));
+  const openMinsOfDay = openH * 60 + openM;
+  const closeMinsOfDay = closeH * 60 + closeM;
+  const arrivalMinsOfDay = cairoArrival.getUTCHours() * 60 + cairoArrival.getUTCMinutes();
+  if (closeMinsOfDay <= openMinsOfDay) {
+    if (arrivalMinsOfDay >= openMinsOfDay) closeCairo.setUTCDate(closeCairo.getUTCDate() + 1);
+  } else if (arrivalMinsOfDay < openMinsOfDay) {
+    closeCairo.setUTCDate(closeCairo.getUTCDate() - 1);
+  }
+  return new Date(closeCairo.getTime() - CQ_CAIRO_OFFSET_MS);
+}
+function shopClosesTooLate(shop, startDate, readyDate) {
+  const boundary = shopCloseBoundaryClient(shop, startDate);
+  const graceMs = (shop.closingGraceMins != null ? shop.closingGraceMins : 15) * 60000;
+  return readyDate.getTime() > boundary.getTime() + graceMs;
 }
 
 function renderShops() {
@@ -1195,10 +1222,11 @@ function renderShops() {
 
   list.forEach(s => {
     const qd = queues[s.id] || {};
-    const {waitMins, startStr, readyStr} = getStartReady(qd, s, getServiceDuration(s, services[s.id]));
+    const {waitMins, startStr, readyStr, start, ready} = getStartReady(qd, s, getServiceDuration(s, services[s.id]));
     const qCount = qd.queueCount || 0;
     const effectiveWaitMins = calcQueueWait(qd, s);
     const qColor = effectiveWaitMins === 0 ? '#22c55e' : effectiveWaitMins < 20 ? '#f59e0b' : '#ef4444';
+    const closesTooLate = shopClosesTooLate(s, start, ready);
     const mapsUrl = s.lat && s.lng ? `https://maps.google.com/?q=${s.lat},${s.lng}` : '#';
     const staticMapUrl = s.lat && s.lng
       ? `https://maps.googleapis.com/maps/api/staticmap?center=${s.lat},${s.lng}&zoom=15&size=600x220&scale=2&markers=color:0x3FBDB0%7C${s.lat},${s.lng}&key=AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as`
@@ -1254,14 +1282,16 @@ function renderShops() {
             ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;text-decoration:underline;">(${s.ratingCount || 0} review${s.ratingCount===1?'':'s'}) ›</span></div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:2px;text-decoration:underline;">See details ›</div>`}
           </div>
           <div class="wash-meta">
-            ${s.isPaused
+            ${s.isPaused || closesTooLate
               ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book</button>`
               : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">Book</button>`}
           </div>
         </div>
         ${s.isPaused
           ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">Temporarily unavailable — not accepting online bookings right now</div>`
-          : `<div class="stats-grid">
+          : closesTooLate
+            ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">⛔ Closes at ${s.closeTime} — no online booking today would be ready in time</div>`
+            : `<div class="stats-grid">
           <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">in line</div></div>
           <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">min wait</div></div>
           <div class="stat"><div class="stat-v" style="color:var(--blue)">${startStr}</div><div class="stat-l">your start</div></div>
@@ -2868,6 +2898,8 @@ function refreshMapPins() {
     const waitMins = qd.minsUntilNextFree || 0;
     const qColor = waitMins === 0 ? '#22c55e' : waitMins < 30 ? '#f59e0b' : '#ef4444';
     const pinClass = waitMins === 0 ? '' : waitMins < 30 ? 'busy' : 'full';
+    const {start: mapStart, ready: mapReady} = getStartReady(qd, s, getServiceDuration(s, services[s.id]));
+    const mapClosesTooLate = shopClosesTooLate(s, mapStart, mapReady);
 
     const pinHtml = `<button class="map-pin ${pinClass}" onclick="focusMapShop(${s.id})">${s.name.split(' ')[0]}</button>`;
     const overlay = new (getPinOverlayClass())({ lat: s.lat, lng: s.lng }, pinHtml);
@@ -2902,10 +2934,10 @@ function refreshMapPins() {
     card.style.minWidth = '230px';
     card.innerHTML = `
       <div class="mcm-name">${s.name}</div>
-      <div class="mcm-queue" style="color:${s.isPaused ? '#b91c1c' : qColor};font-weight:700;">${s.isPaused ? 'Temporarily unavailable' : (qCount === 0 && waitMins === 0 ? '✓ No wait' : waitMins + ' min wait')}</div>
+      <div class="mcm-queue" style="color:${s.isPaused || mapClosesTooLate ? '#b91c1c' : qColor};font-weight:700;">${s.isPaused ? 'Temporarily unavailable' : mapClosesTooLate ? `Closes at ${s.closeTime} — no time left today` : (qCount === 0 && waitMins === 0 ? '✓ No wait' : waitMins + ' min wait')}</div>
       <div class="mcm-addr">📍 ${s.address}</div>
       <div style="display:flex;gap:6px;margin:10px 0;">${priceHtml}</div>
-      ${s.isPaused
+      ${s.isPaused || mapClosesTooLate
         ? `<button class="mcm-book" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book Now</button>`
         : `<button class="mcm-book" onclick="checkLocationBeforeBooking(${s.id})">Book Now</button>`}`;
     cards.appendChild(card);
