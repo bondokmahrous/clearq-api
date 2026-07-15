@@ -278,8 +278,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
    real customers never see it until it's actually approved. */
 .lp-hero-art{display:none;position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
 .lp-hero-art.show{display:block;}
-.lp-hero-art img{position:absolute;bottom:-12%;right:-8%;width:min(760px,110%);height:auto;opacity:0.22;filter:saturate(0.7) brightness(0.9);-webkit-mask-image:radial-gradient(ellipse 60% 60% at 65% 45%,#000 35%,transparent 72%);mask-image:radial-gradient(ellipse 60% 60% at 65% 45%,#000 35%,transparent 72%);}
-@media(min-width:641px){ .lp-hero-art img{right:-2%;bottom:-6%;width:min(620px,50%);} }
+.lp-hero-art svg{position:absolute;bottom:-10%;right:-10%;width:min(820px,115%);height:auto;opacity:0.13;}
+@media(min-width:641px){ .lp-hero-art svg{right:-3%;bottom:-8%;width:min(700px,58%);} }
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
 .lp-h1{font-size:38px;font-weight:800;color:#EAF6F4;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:"Helvetica Neue",Arial,sans-serif;letter-spacing:-0.5px;}
 .lp-h1 span{color:#3FBDB0;font-style:normal;}
@@ -526,7 +526,41 @@ html, body {
 
   <div class="lp-hero">
     <div class="lp-hero-art" id="lp-hero-art">
-      <img src="/hero-carwash.jpg" alt="" loading="lazy">
+      <svg viewBox="0 0 500 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- car, de-emphasized relative to the washing action -->
+        <g opacity="0.55">
+          <rect x="180" y="190" width="280" height="70" rx="30" fill="#3FBDB0"/>
+          <rect x="232" y="135" width="168" height="68" rx="24" fill="#3FBDB0"/>
+          <rect x="296" y="152" width="20" height="38" fill="#0B2B33"/>
+          <circle cx="238" cy="258" r="30" fill="#0B2B33"/>
+          <circle cx="238" cy="258" r="13" fill="#EAF6F4"/>
+          <circle cx="392" cy="258" r="30" fill="#0B2B33"/>
+          <circle cx="392" cy="258" r="13" fill="#EAF6F4"/>
+        </g>
+        <!-- faint water arcs — secondary, not the focal point -->
+        <g opacity="0.35">
+          <path d="M60 60 Q130 90 158 145" stroke="#EAF6F4" stroke-width="3.5" stroke-linecap="round"/>
+          <path d="M85 35 Q150 70 172 130" stroke="#EAF6F4" stroke-width="3.5" stroke-linecap="round"/>
+          <circle cx="72" cy="80" r="4" fill="#EAF6F4"/>
+          <circle cx="105" cy="50" r="3" fill="#EAF6F4"/>
+        </g>
+        <!-- arm + sponge actively scrubbing the door, plus a dense suds trail — the clear focal action -->
+        <g>
+          <path d="M20 120 Q70 150 118 196" stroke="#EAF6F4" stroke-width="26" stroke-linecap="round"/>
+          <ellipse cx="150" cy="216" rx="42" ry="26" transform="rotate(-28 150 216)" fill="#EAF6F4"/>
+          <ellipse cx="150" cy="216" rx="42" ry="26" transform="rotate(-28 150 216)" fill="none" stroke="#3FBDB0" stroke-width="3" opacity="0.5"/>
+          <!-- suds swipe trail across the panel -->
+          <path d="M160 200 Q210 185 262 198 Q225 210 195 224 Q170 232 160 200Z" fill="#EAF6F4"/>
+          <circle cx="205" cy="196" r="10" fill="#EAF6F4"/>
+          <circle cx="228" cy="204" r="8" fill="#EAF6F4"/>
+          <circle cx="250" cy="200" r="7" fill="#EAF6F4"/>
+          <circle cx="190" cy="212" r="7" fill="#EAF6F4"/>
+          <circle cx="212" cy="218" r="6" fill="#EAF6F4"/>
+          <!-- streak marks showing the wipe direction -->
+          <path d="M180 206 Q230 196 258 202" stroke="#3FBDB0" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+          <path d="M175 216 Q225 208 252 214" stroke="#3FBDB0" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+        </g>
+      </svg>
     </div>
     <div class="lp-badge">Wash without the wait</div>
     <div class="lp-h1">See car wash <span>queues</span>, live.</div>
