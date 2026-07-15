@@ -280,6 +280,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .lp-hero-art.show{display:block;}
 .lp-hero-art svg{position:absolute;bottom:-10%;right:-10%;width:min(820px,115%);height:auto;opacity:0.13;}
 @media(min-width:641px){ .lp-hero-art svg{right:-3%;bottom:-8%;width:min(700px,58%);} }
+/* Ghost-mode-only: the live bay card was sitting right on top of the new background art —
+   shrink it and pull it to the left so the illustration stays visible. Real visitors (no
+   .lp-hero-art.show) keep the original centered, full-size card untouched. */
+.lp-hero-art.show ~ .lp-phone-mock{max-width:230px;margin:0 auto 0 0;padding:11px;}
+@media(min-width:641px){ .lp-hero-art.show ~ .lp-phone-mock{margin:0;} }
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
 .lp-h1{font-size:38px;font-weight:800;color:#EAF6F4;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:"Helvetica Neue",Arial,sans-serif;letter-spacing:-0.5px;}
 .lp-h1 span{color:#3FBDB0;font-style:normal;}
