@@ -252,6 +252,9 @@ async function initDB() {
   // without touching real centres or polluting real business stats.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS secret_slug TEXT`);
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_test INT DEFAULT 0`);
+      // CARHUB isn't launching publicly yet — hide it as a ghost shop, reachable only via its
+  // secret slug, until it's ready to go live. Guarded so it only applies once.
+  await db(`UPDATE wash_shops SET is_active=0, is_test=1, secret_slug='carhub' WHERE id=5 AND secret_slug IS NULL`);
   // Lets a centre stop taking new online bookings temporarily (overwhelmed, closing early,
   // short-staffed) without touching individual bays or is_active — walk-ins are unaffected,
   // that's a staff-at-the-counter decision, not something this toggle needs to control.
