@@ -778,6 +778,14 @@ function renderManage() {
     });
     html+=`<button class="asv" onclick="aAddon()">${ICONS.plus} Add Item</button><button class="dsv" onclick="saveAddons(this)">Save Changes</button></div>`;
   }
+  if (partnerShop?.id === 6) {
+    const fw = partnerShop?.fixedWaitMins;
+    html+=`<div class="ms"><div class="ms-t">Fixed Wait Time</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">HD CarWash books each bay one customer at a time, spaced this far apart — this is what makes a new online booking show a wait even with an empty queue. Currently 60 min. Leave blank to keep the default.</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">Minutes between bookings</span><input type="number" min="0" id="fixed-wait" placeholder="60 (default)" value="${fw!=null?fw:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <button class="dsv" style="margin-top:10px" onclick="saveFixedWait(this)">Save</button>
+    </div>`;
+  }
   html+=`<div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
     <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
@@ -819,6 +827,23 @@ async function saveWorkingHours(btn) {
     toast(`${ICONS.check} Working hours saved`);
   } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save Hours';}
+}
+
+async function saveFixedWait(btn) {
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  const raw = document.getElementById('fixed-wait').value.trim();
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+      fixedWaitMins: raw === '' ? null : Number(raw),
+    })});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    partnerShop = {...partnerShop, ...updated};
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    toast(`${ICONS.check} Fixed wait time ${raw===''?'set back to default (60 min)':'saved'}`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+  finally{btn.disabled=false;btn.textContent='Save';}
 }
 
 function renderPauseState() {

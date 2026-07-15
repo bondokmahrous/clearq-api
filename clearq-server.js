@@ -261,6 +261,11 @@ async function initDB() {
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS is_paused INT DEFAULT 0`);
   // Email a wash centre can set from their own dashboard to get notified the moment a customer books online.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS notification_email TEXT`);
+  // HD CarWash's per-bay booking spacing (see assignBaysFixedSpacing/HD_CARWASH_BOOKING_SPACING_MS)
+  // was hardcoded at 60 minutes; this lets HD CarWash change that fixed interval from their own
+  // dashboard instead of it being a constant only editable in code. NULL falls back to the
+  // hardcoded default.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS manual_wait_mins INT`);
   // Hard guarantee against two active washes ever colliding on the same physical bay — found
   // this happening for real (two concurrent "Start" clicks both saw the same bay as free before
   // either write landed). The application-level check-then-assign in the /start endpoint can't
@@ -551,6 +556,7 @@ function shop(s) {
     maxWorkers: s.max_workers, isActive: s.is_active, lat: s.lat, lng: s.lng,
     locationDescription: s.location_description, isTest: !!s.is_test, isPaused: !!s.is_paused,
     notificationEmail: s.notification_email,
+    fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -847,11 +853,11 @@ async function getQueueState(shopId) {
   // today but arriving sooner.
   const arrivalMs = b => b.eta_arrival_at ? new Date(b.eta_arrival_at).getTime() : new Date(b.created_at).getTime();
 
-  return { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs };
+  return { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs, fixedWaitMins: s?.manual_wait_mins != null ? s.manual_wait_mins : null };
 }
 
 async function simulateBayQueue(shopId, opts = {}) {
-  const { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs } = await getQueueState(shopId);
+  const { maxBays, effectiveMaxBays, defaultDur, longestServiceDur, pending, active, freeBays, arrivalMs, fixedWaitMins } = await getQueueState(shopId);
   const nowMs = Date.now();
   const requestedArrival = (opts.hypotheticalArrival || new Date(nowMs)).getTime();
   // A caller with a specific service in mind (the booking modal) passes its real duration.
@@ -859,15 +865,18 @@ async function simulateBayQueue(shopId, opts = {}) {
   // the shop's longest one — never showing a wait shorter than what any actual booking would get.
   const hypotheticalDur = opts.hypotheticalDurationMins || longestServiceDur;
 
-  // HD CarWash swaps in a fixed hourly-per-bay assignment instead of the normal duration-based
+  // HD CarWash swaps in a fixed per-bay spacing assignment instead of the normal duration-based
   // one (see assignBaysFixedSpacing) — everything below this point (the non-displacement search)
-  // is identical for both, it just calls whichever `assign`/`finishAt` pair applies.
+  // is identical for both, it just calls whichever `assign`/`finishAt` pair applies. The spacing
+  // interval defaults to HD_CARWASH_BOOKING_SPACING_MS but the shop can override it from their
+  // own dashboard (wash_shops.manual_wait_mins) — that's what "the fixed wait time" refers to.
   const isHdCarWash = shopId === HD_CARWASH_SHOP_ID;
+  const spacingMs = fixedWaitMins != null ? fixedWaitMins * 60000 : HD_CARWASH_BOOKING_SPACING_MS;
   const assign = isHdCarWash
-    ? (mb, act, items) => assignBaysFixedSpacing(mb, act, items, HD_CARWASH_BOOKING_SPACING_MS, nowMs)
+    ? (mb, act, items) => assignBaysFixedSpacing(mb, act, items, spacingMs, nowMs)
     : (mb, act, items) => assignBays(mb, act, items, defaultDur, nowMs);
   const activeFinishAt = isHdCarWash
-    ? (b) => new Date(b.wash_started_at || b.created_at).getTime() + HD_CARWASH_BOOKING_SPACING_MS
+    ? (b) => new Date(b.wash_started_at || b.created_at).getTime() + spacingMs
     : (b) => {
         const dur = bookingDurationMins(b, defaultDur);
         const finishAt = b.eta_ready_at
@@ -876,7 +885,7 @@ async function simulateBayQueue(shopId, opts = {}) {
         return finishAt + BAY_HANDOFF_BUFFER_MS;
       };
   const pendingFinishAt = isHdCarWash
-    ? (b, startMs) => startMs + HD_CARWASH_BOOKING_SPACING_MS
+    ? (b, startMs) => startMs + spacingMs
     : (b, startMs) => startMs + bookingDurationMins(b, defaultDur) * 60000 + BAY_HANDOFF_BUFFER_MS;
 
   // Answering "when could a new booking actually start" — whether it's a specific customer's
@@ -1673,7 +1682,7 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused, notificationEmail: s.notification_email });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused, notificationEmail: s.notification_email, fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null });
     }
 
     // PATCH /partners/shop/:id/settings
@@ -1691,6 +1700,13 @@ self.addEventListener('notificationclick', e => {
       }
       for (const [k,col] of Object.entries(boolMap)) {
         if (body[k]!=null) { sets.push(`${col}=$${i++}`); vals.push(body[k] ? 1 : 0); }
+      }
+      // Nullable — 'in body' (not != null) so sending fixedWaitMins: null explicitly clears back
+      // to the hardcoded default spacing, not just skips the field.
+      if ('fixedWaitMins' in body) {
+        const v = body.fixedWaitMins;
+        sets.push(`manual_wait_mins=$${i++}`);
+        vals.push(v === null || v === '' ? null : +v);
       }
       if (!sets.length) return respond(res, 400, { error: "No valid fields" });
       vals.push(shopId);

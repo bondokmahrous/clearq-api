@@ -280,11 +280,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .lp-hero-art.show{display:block;}
 .lp-hero-art svg{position:absolute;bottom:-10%;right:-10%;width:min(820px,115%);height:auto;opacity:0.13;}
 @media(min-width:641px){ .lp-hero-art svg{right:-3%;bottom:-8%;width:min(700px,58%);} }
-/* Ghost-mode-only: the live bay card was sitting right on top of the new background art —
-   shrink it and pull it to the left so the illustration stays visible. Real visitors (no
-   .lp-hero-art.show) keep the original centered, full-size card untouched. */
-.lp-hero-art.show ~ .lp-phone-mock{max-width:230px;margin:0 auto 0 0;padding:11px;}
-@media(min-width:641px){ .lp-hero-art.show ~ .lp-phone-mock{margin:0;} }
+/* Ghost-mode-only: pull the nearby-centres box left so it stays clear of the background art's
+   right-anchored car. Real visitors (no .lp-hero-art.show) keep it centered. */
+.lp-hero-art.show ~ .lp-nearby{margin:0 auto 0 0;}
+@media(min-width:641px){ .lp-hero-art.show ~ .lp-nearby{margin:0;} }
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
 .lp-h1{font-size:38px;font-weight:800;color:#EAF6F4;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:"Helvetica Neue",Arial,sans-serif;letter-spacing:-0.5px;}
 .lp-h1 span{color:#3FBDB0;font-style:normal;}
@@ -293,14 +292,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .lp-btn-primary{background:#3FBDB0;color:#04211F;border:none;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s;}
 .lp-btn-primary:hover{background:#57CBC0;}
 .lp-btn-secondary{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:11px;padding:13px 24px;font-size:14px;font-weight:600;cursor:pointer;}
-.lp-phone-mock{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;max-width:320px;margin:0 auto;position:relative;z-index:1;}
-.lp-mock-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.1);}
-.lp-mock-dot{width:7px;height:7px;border-radius:50%;background:#3ED7A0;animation:pulse 1.5s infinite;}
-.lp-mock-title{font-size:12px;font-weight:700;color:rgba(255,255,255,0.8);}
-.lp-bays{display:flex;gap:8px;}
-.lp-bay{flex:1;background:rgba(255,255,255,0.06);border-radius:10px;padding:12px 6px;text-align:center;}
-.lp-bay-num{font-family:ui-monospace,"SF Mono",monospace;font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:8px;letter-spacing:0.5px;}
-.lp-bay-tag{font-size:10px;font-weight:700;border-radius:6px;padding:3px 5px;margin-top:8px;font-variant-numeric:tabular-nums;}
+/* Compact nearby-centres + live wait box — replaces the old full bay-by-bay board, which took
+   up too much hero space and didn't reflect a manually-set wait override. */
+.lp-nearby{display:flex;flex-direction:column;gap:6px;max-width:260px;margin:0 auto;position:relative;z-index:1;}
+.lp-nearby-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:9px 12px;}
+.lp-nearby-dot{width:7px;height:7px;border-radius:50%;background:#3ED7A0;animation:pulse 1.5s infinite;flex-shrink:0;}
+.lp-nearby-name{font-size:12px;font-weight:700;color:rgba(255,255,255,0.85);flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lp-nearby-wait{font-size:11px;font-weight:800;border-radius:6px;padding:4px 9px;flex-shrink:0;font-variant-numeric:tabular-nums;}
 .lp-stats{display:flex;justify-content:center;background:#fff;border-bottom:1px solid #e2e8f0;}
 .lp-stat{flex:1;text-align:center;padding:18px 10px;border-right:1px solid #e2e8f0;}
 .lp-stat:last-child{border-right:none;}
@@ -482,7 +480,7 @@ html, body {
   .lp-hero{padding:80px 48px 64px;}
   .lp-h1{font-size:52px;}
   .lp-sub{font-size:16px;max-width:520px;}
-  .lp-phone-mock{max-width:400px;}
+  .lp-nearby{max-width:300px;}
   .lp-stats{max-width:600px;margin:0 auto;}
   .lp-how{padding:52px 48px;max-width:760px;margin:0 auto;}
   .lp-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
@@ -576,14 +574,8 @@ html, body {
       <button id="lp-signin-link" onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;">Sign in</span></button>
     </div>
 
-    <!-- Live bay board -->
-    <div class="lp-phone-mock">
-      <div class="lp-mock-bar">
-        <div class="lp-mock-dot"></div>
-        <div class="lp-mock-title" id="lp-mock-title">HD CarWash · The Block Green 4</div>
-      </div>
-      <div class="lp-bays" id="lp-bays"></div>
-    </div>
+    <!-- Nearby centres + live wait -->
+    <div class="lp-nearby" id="lp-nearby"></div>
   </div>
 
   <!-- Simple 3 steps -->
@@ -3192,32 +3184,23 @@ function updateLandingMock() {
 }
 
 function updateLandingLiveTicker() {
-  const qd = queues[6];
-  const baysEl = document.getElementById('lp-bays');
-  if (!qd || !baysEl) return;
-  // Bays a partner has closed for maintenance aren't part of the count shown here at all —
-  // showing them as a red "busy" bay implied a customer's car was inside when the bay is
-  // actually just switched off, which is misleading. effectiveMaxBays already excludes them.
-  const maxBays = qd.effectiveMaxBays ?? qd.maxBays ?? 3;
-  const freeBays = Math.min(qd.freeBays ?? maxBays, maxBays);
-  const waitMins = qd.minsUntilNextFree || 0;
-  const waitTag = waitMins === 0
-    ? { bg: 'rgba(34,197,94,0.18)', fg: '#4ade80', car: '#3ED7A0', label: 'Free' }
-    : waitMins < 30
-      ? { bg: 'rgba(245,158,11,0.18)', fg: '#fbbf24', car: '#F4B740', label: `~${waitMins}m` }
-      : { bg: 'rgba(239,68,68,0.18)', fg: '#f87171', car: '#F0666B', label: `~${waitMins}m` };
-  const freeTag = { bg: 'rgba(34,197,94,0.18)', fg: '#4ade80', car: '#3ED7A0', label: 'Free' };
-
-  let html = '';
-  for (let i = 1; i <= maxBays; i++) {
-    const t = i <= freeBays ? freeTag : waitTag;
-    html += `<div class="lp-bay">
-      <div class="lp-bay-num">BAY ${i}</div>
-      <svg width="30" height="20" viewBox="0 0 34 22" fill="none"><rect x="2" y="11" width="30" height="7" rx="3.5" fill="${t.car}"/><rect x="9" y="5" width="16" height="7" rx="3" fill="${t.car}"/><rect x="16" y="6.5" width="2" height="4.5" fill="#0F3540"/><circle cx="9" cy="18" r="3" fill="#EAF6F4"/><circle cx="25" cy="18" r="3" fill="#EAF6F4"/></svg>
-      <div class="lp-bay-tag" style="background:${t.bg};color:${t.fg};">${t.label}</div>
+  const nearbyEl = document.getElementById('lp-nearby');
+  if (!nearbyEl || !shops.length) return;
+  const html = shops.map(s => {
+    const qd = queues[s.id];
+    const waitMins = qd?.minsUntilNextFree || 0;
+    const tag = waitMins === 0
+      ? { bg: 'rgba(34,197,94,0.18)', fg: '#4ade80', label: 'Free now' }
+      : waitMins < 30
+        ? { bg: 'rgba(245,158,11,0.18)', fg: '#fbbf24', label: `~${waitMins} min wait` }
+        : { bg: 'rgba(239,68,68,0.18)', fg: '#f87171', label: `~${waitMins} min wait` };
+    return `<div class="lp-nearby-row">
+      <div class="lp-nearby-dot"></div>
+      <div class="lp-nearby-name">${escHtmlSD(s.name)}</div>
+      <div class="lp-nearby-wait" style="background:${tag.bg};color:${tag.fg};">${tag.label}</div>
     </div>`;
-  }
-  baysEl.innerHTML = html;
+  }).join('');
+  nearbyEl.innerHTML = html;
 }
 
 function switchView(v) {

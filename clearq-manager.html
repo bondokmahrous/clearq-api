@@ -1777,6 +1777,17 @@ function renderSettings() {
       <button class="settings-save-btn" onclick="saveHours(this)">Save Hours</button>
     </div>
 
+    ${currentShopId === 6 ? `
+    <div class="settings-card">
+      <div class="settings-card-title">Fixed Wait Time</div>
+      <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">HD CarWash books each bay one customer at a time, spaced this far apart — this is what makes a new online booking show a wait even with an empty queue. Currently 60 min. Leave blank to keep the default.</div>
+      <div class="settings-row">
+        <div class="settings-label">Minutes between bookings</div>
+        <input class="settings-input" type="number" min="0" id="set-fixed-wait" placeholder="60 (default)" value="${s.fixedWaitMins!=null?s.fixedWaitMins:''}">
+      </div>
+      <button class="settings-save-btn" onclick="saveFixedWait(this)">Save</button>
+    </div>` : ''}
+
     <div class="settings-card">
       <div class="settings-card-title">Shop Info</div>
       <div class="settings-row"><div class="settings-label">Shop name</div><div style="font-size:13px;font-weight:600;color:var(--white)">${s.name||'—'}</div></div>
@@ -1821,6 +1832,22 @@ async function saveHours(btn) {
     loadSettings();
   } catch(e) { toast(e.message,'error',ICONS.xCircle); }
   finally { unspin(btn); btn.textContent='Save Hours'; }
+}
+
+async function saveFixedWait(btn) {
+  spin(btn);
+  try {
+    const shopId = currentShopId;
+    const raw = document.getElementById('set-fixed-wait').value.trim();
+    await api('/api/partners/shop/'+shopId+'/settings',{
+      method:'PATCH', body:JSON.stringify({
+        fixedWaitMins: raw === '' ? null : Number(raw),
+      })
+    });
+    toast(raw===''?'Fixed wait time set back to default (60 min)':'Fixed wait time saved','success',ICONS.clock);
+    loadSettings();
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
+  finally { unspin(btn); btn.textContent='Save'; }
 }
 
 function renderPauseState() {
