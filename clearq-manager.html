@@ -1786,6 +1786,15 @@ function renderSettings() {
         <input class="settings-input" type="number" min="0" id="set-fixed-wait" placeholder="60 (default)" value="${s.fixedWaitMins!=null?s.fixedWaitMins:''}">
       </div>
       <button class="settings-save-btn" onclick="saveFixedWait(this)">Save</button>
+    </div>
+    <div class="settings-card">
+      <div class="settings-card-title">Closing Cutoff</div>
+      <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">How many minutes past closing time an online booking's wash is still allowed to finish. A booking that would finish later than this gets blocked automatically. Default 15 min.</div>
+      <div class="settings-row">
+        <div class="settings-label">Minutes after close</div>
+        <input class="settings-input" type="number" min="0" id="set-closing-grace" placeholder="15 (default)" value="${s.closingGraceMins!=null?s.closingGraceMins:''}">
+      </div>
+      <button class="settings-save-btn" onclick="saveClosingGrace(this)">Save</button>
     </div>` : ''}
 
     <div class="settings-card">
@@ -1845,6 +1854,22 @@ async function saveFixedWait(btn) {
       })
     });
     toast(raw===''?'Fixed wait time set back to default (60 min)':'Fixed wait time saved','success',ICONS.clock);
+    loadSettings();
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
+  finally { unspin(btn); btn.textContent='Save'; }
+}
+
+async function saveClosingGrace(btn) {
+  spin(btn);
+  try {
+    const shopId = currentShopId;
+    const raw = document.getElementById('set-closing-grace').value.trim();
+    await api('/api/partners/shop/'+shopId+'/settings',{
+      method:'PATCH', body:JSON.stringify({
+        closingGraceMins: raw === '' ? null : Number(raw),
+      })
+    });
+    toast(raw===''?'Closing cutoff set back to default (15 min)':'Closing cutoff saved','success',ICONS.clock);
     loadSettings();
   } catch(e) { toast(e.message,'error',ICONS.xCircle); }
   finally { unspin(btn); btn.textContent='Save'; }

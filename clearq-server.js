@@ -266,6 +266,9 @@ async function initDB() {
   // dashboard instead of it being a constant only editable in code. NULL falls back to the
   // hardcoded default.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS manual_wait_mins INT`);
+  // How many minutes past closing an online booking's wash is still allowed to finish (default
+  // 15, see closingGraceMs) — dashboard-editable per shop so a centre can tighten or loosen it.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS closing_grace_mins INT`);
   // Hard guarantee against two active washes ever colliding on the same physical bay — found
   // this happening for real (two concurrent "Start" clicks both saw the same bay as free before
   // either write landed). The application-level check-then-assign in the /start endpoint can't
@@ -557,6 +560,7 @@ function shop(s) {
     locationDescription: s.location_description, isTest: !!s.is_test, isPaused: !!s.is_paused,
     notificationEmail: s.notification_email,
     fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null,
+    closingGraceMins: s.closing_grace_mins != null ? s.closing_grace_mins : null,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -620,9 +624,15 @@ function nowTime() {
 const CAIRO_OFFSET_MS = 3 * 60 * 60000;
 
 // The real timestamp of a shop's closing time on whichever calendar day is relevant to the given
-// arrival — not just "today at close_time", since a shop open past midnight (e.g. 10:00–02:00)
-// has its actual closing boundary on the *next* calendar day once arrival is at/after opening.
-// Only an arrival still in that early-morning tail of the previous session stays on the same day.
+// arrival — not just "today at close_time". Two cases need the close date shifted off the
+// arrival's own calendar day:
+//  - Overnight-crossing hours (e.g. 22:00–02:00): an arrival at/after opening belongs to a
+//    session that closes *tomorrow*.
+//  - Same-day hours (e.g. 09:00–23:00): an arrival before today's opening (e.g. 00:30, hours
+//    after everyone went home) doesn't belong to a session that hasn't started yet — it belongs
+//    to *yesterday's* session, which already closed. Without this, an arrival just after midnight
+//    got compared against today's close time (many hours in the future) instead of yesterday's
+//    (already passed), so a booking well past closing looked perfectly bookable.
 function shopCloseBoundary(shop, arrivalDate) {
   const cairoArrival = new Date(arrivalDate.getTime() + CAIRO_OFFSET_MS);
   const [openH, openM] = (shop.open_time || '09:00').split(':').map(Number);
@@ -633,13 +643,20 @@ function shopCloseBoundary(shop, arrivalDate) {
   const openMinsOfDay = openH * 60 + openM;
   const closeMinsOfDay = closeH * 60 + closeM;
   const arrivalMinsOfDay = cairoArrival.getUTCHours() * 60 + cairoArrival.getUTCMinutes();
-  if (closeMinsOfDay <= openMinsOfDay && arrivalMinsOfDay >= openMinsOfDay) {
-    closeCairo.setUTCDate(closeCairo.getUTCDate() + 1);
+  if (closeMinsOfDay <= openMinsOfDay) {
+    if (arrivalMinsOfDay >= openMinsOfDay) closeCairo.setUTCDate(closeCairo.getUTCDate() + 1);
+  } else if (arrivalMinsOfDay < openMinsOfDay) {
+    closeCairo.setUTCDate(closeCairo.getUTCDate() - 1);
   }
   return new Date(closeCairo.getTime() - CAIRO_OFFSET_MS);
 }
 
-const CLOSING_GRACE_MS = 15 * 60000; // a wash finishing up to 15 min after close is still fine
+const CLOSING_GRACE_MS = 15 * 60000; // default: a wash finishing up to 15 min after close is still fine
+
+// A shop can override the 15-min default grace period from its own dashboard (wash_shops.closing_grace_mins).
+function closingGraceMs(shop) {
+  return (shop?.closing_grace_mins != null ? shop.closing_grace_mins : 15) * 60000;
+}
 
 async function resolveService(shopId, washType) {
   // "Custom Wash" has no base service of its own — its entire price/duration comes from
@@ -1264,6 +1281,8 @@ self.addEventListener('notificationclick', e => {
       const driveMins = Math.max(0, parseFloat(url.searchParams.get("driveMins")) || 0);
       const washType = url.searchParams.get("washType");
       if (!shopId || !washType) return respond(res, 400, { error: "shopId and washType required" });
+      const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
+      if (!s) return respond(res, 404, { error: "Shop not found" });
       const { price: basePrice, durationMins: baseDurationMins } = await resolveService(shopId, washType);
       const addonIdsParam = url.searchParams.get("addonIds");
       const addons = await resolveAddons(shopId, addonIdsParam ? addonIdsParam.split(",") : []);
@@ -1276,12 +1295,22 @@ self.addEventListener('notificationclick', e => {
       const waitMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
       const etaArrival = new Date(now.getTime() + waitMins * 60000);
       const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
+
+      // Mirror the same check POST /wash/reservations enforces, so the modal can warn before the
+      // customer fills everything in rather than only finding out on submit.
+      const closeBoundary = shopCloseBoundary(s, etaArrival);
+      const closesTooLate = etaReady.getTime() > closeBoundary.getTime() + closingGraceMs(s);
+
       return respond(res, 200, {
         etaArrivalAt: etaArrival.toISOString(),
         etaReadyAt: etaReady.toISOString(),
         waitMins,
         durationMins,
         totalPrice: basePrice + addonsPrice,
+        closesTooLate,
+        closingMessage: closesTooLate
+          ? `${s.name} closes at ${s.close_time} — this wash wouldn't be ready until ${fmtCairoTime(etaReady)}. Please pick an earlier time.`
+          : null,
       });
     }
 
@@ -1331,7 +1360,7 @@ self.addEventListener('notificationclick', e => {
       // Don't accept an online booking whose wash wouldn't be done until well after the shop is
       // closed — walk-ins are unaffected, that's staff physically on-site making their own call.
       const closeBoundary = shopCloseBoundary(s, etaArrival);
-      if (etaReady.getTime() > closeBoundary.getTime() + CLOSING_GRACE_MS) {
+      if (etaReady.getTime() > closeBoundary.getTime() + closingGraceMs(s)) {
         return respond(res, 409, {
           error: `${s.name} closes at ${s.close_time} — this wash wouldn't be ready until ${fmtCairoTime(etaReady)}. Please pick an earlier time.`,
         });
@@ -1682,7 +1711,7 @@ self.addEventListener('notificationclick', e => {
     if (m === "GET" && /\/partners\/shop\/\d+\/settings$/.test(p)) {
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Not found" });
-      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused, notificationEmail: s.notification_email, fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null });
+      return respond(res, 200, { priceExterior:s.price_exterior, priceInterior:s.price_interior, priceFull:s.price_full, minsExterior:s.mins_exterior, minsInterior:s.mins_interior, minsFull:s.mins_full, maxWorkers:s.max_workers, slotDurationMins:s.slot_duration_mins, openTime:s.open_time, closeTime:s.close_time, locationDescription:s.location_description, phone:s.phone, isPaused: !!s.is_paused, notificationEmail: s.notification_email, fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null, closingGraceMins: s.closing_grace_mins != null ? s.closing_grace_mins : null });
     }
 
     // PATCH /partners/shop/:id/settings
@@ -1706,6 +1735,11 @@ self.addEventListener('notificationclick', e => {
       if ('fixedWaitMins' in body) {
         const v = body.fixedWaitMins;
         sets.push(`manual_wait_mins=$${i++}`);
+        vals.push(v === null || v === '' ? null : +v);
+      }
+      if ('closingGraceMins' in body) {
+        const v = body.closingGraceMins;
+        sets.push(`closing_grace_mins=$${i++}`);
         vals.push(v === null || v === '' ? null : +v);
       }
       if (!sets.length) return respond(res, 400, { error: "No valid fields" });

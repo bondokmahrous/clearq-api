@@ -780,10 +780,16 @@ function renderManage() {
   }
   if (partnerShop?.id === 6) {
     const fw = partnerShop?.fixedWaitMins;
+    const cg = partnerShop?.closingGraceMins;
     html+=`<div class="ms"><div class="ms-t">Fixed Wait Time</div>
     <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">HD CarWash books each bay one customer at a time, spaced this far apart — this is what makes a new online booking show a wait even with an empty queue. Currently 60 min. Leave blank to keep the default.</div>
     <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">Minutes between bookings</span><input type="number" min="0" id="fixed-wait" placeholder="60 (default)" value="${fw!=null?fw:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
     <button class="dsv" style="margin-top:10px" onclick="saveFixedWait(this)">Save</button>
+    </div>
+    <div class="ms"><div class="ms-t">Closing Cutoff</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">How many minutes past closing time an online booking's wash is still allowed to finish. A booking that would finish later than this gets blocked automatically. Default 15 min.</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">Minutes after close</span><input type="number" min="0" id="closing-grace" placeholder="15 (default)" value="${cg!=null?cg:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <button class="dsv" style="margin-top:10px" onclick="saveClosingGrace(this)">Save</button>
     </div>`;
   }
   html+=`<div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
@@ -842,6 +848,23 @@ async function saveFixedWait(btn) {
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
     toast(`${ICONS.check} Fixed wait time ${raw===''?'set back to default (60 min)':'saved'}`);
+  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+  finally{btn.disabled=false;btn.textContent='Save';}
+}
+
+async function saveClosingGrace(btn) {
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  const shopId=partnerShop?.id;
+  const raw = document.getElementById('closing-grace').value.trim();
+  try {
+    const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
+      closingGraceMins: raw === '' ? null : Number(raw),
+    })});
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    partnerShop = {...partnerShop, ...updated};
+    localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
+    toast(`${ICONS.check} Closing cutoff ${raw===''?'set back to default (15 min)':'saved'}`);
   } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
   finally{btn.disabled=false;btn.textContent='Save';}
 }

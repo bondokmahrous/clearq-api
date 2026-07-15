@@ -867,7 +867,8 @@ html, body {
       <div class="info-item"><div class="info-v blue" id="bm-ready">—</div><div class="info-l">ready by</div></div>
     </div>
     <div id="bm-location-status" style="display:none;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:9px;padding:9px 12px;font-size:12px;color:#21867B;margin-bottom:14px;align-items:center;gap:7px"></div>
-    
+    <div id="bm-closing-warning" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 12px;font-size:12px;color:#b91c1c;margin-bottom:14px;align-items:center;gap:7px"></div>
+
     <!-- Auto-filled user info card -->
     <div id="bm-user-card" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
@@ -1406,6 +1407,22 @@ function updatePreviewDisplay(preview, { includeWait = true } = {}) {
   } else {
     priceEl.style.display = 'none';
   }
+  // The wash wouldn't be ready before the shop closes — block the booking here rather than
+  // letting the customer fill everything in only to hit a 409 on submit.
+  const warnEl = document.getElementById('bm-closing-warning');
+  const confirmBtn = document.getElementById('bm-confirm');
+  if (preview.closesTooLate) {
+    warnEl.textContent = `⛔ ${preview.closingMessage || "This wash wouldn't be ready before closing time."}`;
+    warnEl.style.display = 'flex';
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+    confirmBtn.style.cursor = 'not-allowed';
+  } else {
+    warnEl.style.display = 'none';
+    confirmBtn.disabled = false;
+    confirmBtn.style.opacity = '';
+    confirmBtn.style.cursor = '';
+  }
 }
 
 // Asks the backend to run the real bay-assignment simulation for a hypothetical arrival, so
@@ -1420,7 +1437,7 @@ async function fetchBookingPreview(shopId, driveMins, washType) {
     const res = await fetch(`${API}/api/wash/reservations/preview?${params}`);
     if (!res.ok) return null;
     const data = await res.json();
-    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins, totalPrice: data.totalPrice };
+    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins, totalPrice: data.totalPrice, closesTooLate: !!data.closesTooLate, closingMessage: data.closingMessage || null };
   } catch { return null; }
 }
 
@@ -1519,6 +1536,11 @@ async function proceedToBookingModal(shopId) {
   document.getElementById('bm-name').textContent = selectedWash.name;
   document.getElementById('bm-addr').textContent = selectedWash.address;
   document.getElementById('bm-err').textContent = '';
+  document.getElementById('bm-closing-warning').style.display = 'none';
+  const confirmBtn = document.getElementById('bm-confirm');
+  confirmBtn.disabled = false;
+  confirmBtn.style.opacity = '';
+  confirmBtn.style.cursor = '';
 
   const qd = queues[shopId] || {};
   const initWait = calcQueueWait(qd, selectedWash);
