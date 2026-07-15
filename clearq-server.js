@@ -611,6 +611,30 @@ function nowTime() {
   return n.toISOString().slice(11, 16);
 }
 
+const CAIRO_OFFSET_MS = 3 * 60 * 60000;
+
+// The real timestamp of a shop's closing time on whichever calendar day is relevant to the given
+// arrival — not just "today at close_time", since a shop open past midnight (e.g. 10:00–02:00)
+// has its actual closing boundary on the *next* calendar day once arrival is at/after opening.
+// Only an arrival still in that early-morning tail of the previous session stays on the same day.
+function shopCloseBoundary(shop, arrivalDate) {
+  const cairoArrival = new Date(arrivalDate.getTime() + CAIRO_OFFSET_MS);
+  const [openH, openM] = (shop.open_time || '09:00').split(':').map(Number);
+  const [closeH, closeM] = (shop.close_time || '22:00').split(':').map(Number);
+  const closeCairo = new Date(Date.UTC(
+    cairoArrival.getUTCFullYear(), cairoArrival.getUTCMonth(), cairoArrival.getUTCDate(), closeH, closeM, 0, 0
+  ));
+  const openMinsOfDay = openH * 60 + openM;
+  const closeMinsOfDay = closeH * 60 + closeM;
+  const arrivalMinsOfDay = cairoArrival.getUTCHours() * 60 + cairoArrival.getUTCMinutes();
+  if (closeMinsOfDay <= openMinsOfDay && arrivalMinsOfDay >= openMinsOfDay) {
+    closeCairo.setUTCDate(closeCairo.getUTCDate() + 1);
+  }
+  return new Date(closeCairo.getTime() - CAIRO_OFFSET_MS);
+}
+
+const CLOSING_GRACE_MS = 15 * 60000; // a wash finishing up to 15 min after close is still fine
+
 async function resolveService(shopId, washType) {
   // "Custom Wash" has no base service of its own — its entire price/duration comes from
   // whichever add-on items the customer picks, summed in by the caller.
@@ -1275,6 +1299,15 @@ self.addEventListener('notificationclick', e => {
       const startMins = Math.max(0, Math.round((sim.hypotheticalStart - now.getTime()) / 60000));
       const etaArrival = new Date(now.getTime() + startMins * 60000);
       const etaReady = new Date(etaArrival.getTime() + durationMins * 60000);
+
+      // Don't accept an online booking whose wash wouldn't be done until well after the shop is
+      // closed — walk-ins are unaffected, that's staff physically on-site making their own call.
+      const closeBoundary = shopCloseBoundary(s, etaArrival);
+      if (etaReady.getTime() > closeBoundary.getTime() + CLOSING_GRACE_MS) {
+        return respond(res, 409, {
+          error: `${s.name} closes at ${s.close_time} — this wash wouldn't be ready until ${fmtCairoTime(etaReady)}. Please pick an earlier time.`,
+        });
+      }
 
       const [created] = await db(
         `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
