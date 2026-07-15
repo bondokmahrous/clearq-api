@@ -138,7 +138,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .modal-sub{font-size:12px;color:#64748b;margin-bottom:18px;}
 .modal-sec{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:9px;}
 .svc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:18px;}
-.svc-card{border:2px solid #e2e8f0;border-radius:11px;padding:11px 7px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.svc-card{position:relative;border:2px solid #e2e8f0;border-radius:11px;padding:11px 7px;text-align:center;cursor:pointer;transition:all 0.15s;}
+.svc-info-btn{position:absolute;top:4px;right:4px;width:18px;height:18px;border-radius:50%;background:#f1f5f9;border:none;color:#64748b;font-size:11px;font-weight:800;font-style:italic;line-height:18px;text-align:center;padding:0;cursor:pointer;}
 .svc-card.sel{border-color:var(--blue);background:#E6F7F5;}
 .svc-name{font-size:12px;font-weight:700;color:#0f172a;}
 .svc-price{font-size:15px;font-weight:800;color:var(--blue);margin-top:2px;}
@@ -334,11 +335,13 @@ html, body {
 .svc-boxes{padding:0 13px 11px;}
 .svc-boxes-row{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
 .svc-boxes-row::-webkit-scrollbar{display:none;}
-.svc-box{background:#f8fafc;border-radius:9px;padding:8px 11px;border:1px solid #e8edf3;text-align:center;min-width:80px;flex-shrink:0;}
+.svc-box{background:#f8fafc;border-radius:9px;padding:8px 11px;border:1px solid #e8edf3;text-align:center;min-width:80px;max-width:150px;flex-shrink:0;}
 .svc-box-name{font-size:11px;font-weight:700;color:#0f172a;text-transform:uppercase;letter-spacing:0.3px;}
 .svc-box-price{font-size:15px;font-weight:800;color:#21867B;margin-top:2px;}
 .svc-box-dur{font-size:9px;color:#94a3b8;margin-top:1px;}
-.svc-box-desc{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3;text-align:left;}
+.svc-box-desc{font-size:10px;color:#64748b;margin-top:3px;line-height:1.3;text-align:left;white-space:normal;word-break:break-word;}
+.svc-box-more{color:#21867B;font-weight:700;white-space:nowrap;}
+.svc-box-desc[onclick]{cursor:pointer;}
 
 /* LOCATION BANNER */
 .loc-banner{display:none;background:#E6F7F5;border-bottom:1px solid #B7E8E1;padding:10px 14px;align-items:center;gap:10px;}
@@ -1161,13 +1164,16 @@ function renderShops() {
     let svcsHtml = '';
     if (liveSvcs && liveSvcs.length) {
       svcsHtml = `<div class="svc-boxes">
-        <div class="svc-boxes-row">${liveSvcs.map(sv => `
+        <div class="svc-boxes-row">${liveSvcs.map(sv => {
+          const d = truncateDesc(sv.description, 42);
+          return `
           <div class="svc-box">
             <div class="svc-box-name">${sv.name}</div>
             <div class="svc-box-price">${sv.price} EGP</div>
             <div class="svc-box-dur">${sv.durationMins} min</div>
-            ${sv.description ? `<div class="svc-box-desc">${sv.description}</div>` : ''}
-          </div>`).join('')}
+            ${d.text ? `<div class="svc-box-desc" ${d.truncated ? `onclick="event.stopPropagation();openSvcInfoById(${s.id},${sv.id})"` : ''}>${escHtmlSD(d.text)}${d.truncated ? `<span class="svc-box-more">… more</span>` : ''}</div>` : ''}
+          </div>`;
+        }).join('')}
         </div>
       </div>`;
     } else {
@@ -1499,6 +1505,15 @@ async function proceedToBookingModal(shopId) {
       card.className = 'svc-card';
       card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${s.price} EGP</div><div class="svc-dur">${s.durationMins} min</div>`;
       card.onclick = () => selectServiceCard(s, card);
+      if (s.description) {
+        const infoBtn = document.createElement('button');
+        infoBtn.type = 'button';
+        infoBtn.className = 'svc-info-btn';
+        infoBtn.setAttribute('aria-label', 'Service details');
+        infoBtn.textContent = 'i';
+        infoBtn.onclick = (e) => { e.stopPropagation(); openSvcInfo(s); };
+        card.appendChild(infoBtn);
+      }
       grid.appendChild(card);
     });
 
@@ -1898,6 +1913,32 @@ function closeBookingConfirmedModal(goToBookings) {
 }
 
 function escHtmlSD(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Shortens a service description for display in a small space, marking it truncated so the UI
+// knows to offer a way to read the rest rather than silently cutting text off mid-sentence.
+function truncateDesc(desc, maxLen) {
+  if (!desc || desc.length <= maxLen) return { text: desc || '', truncated: false };
+  return { text: desc.slice(0, maxLen).trimEnd(), truncated: true };
+}
+
+// Shared "read the full service description" popup, used both by the shop-list service boxes
+// and the booking modal's service cards — neither has room to show the full text inline.
+function openSvcInfo(svc) {
+  document.getElementById('svc-info-name').textContent = svc.name || '';
+  document.getElementById('svc-info-price').textContent = (svc.price != null ? svc.price + ' EGP' : '');
+  document.getElementById('svc-info-dur').textContent = (svc.durationMins != null ? svc.durationMins + ' min' : '');
+  document.getElementById('svc-info-desc').textContent = svc.description || '';
+  document.getElementById('svc-info-modal').classList.add('open');
+}
+function closeSvcInfo() {
+  document.getElementById('svc-info-modal').classList.remove('open');
+}
+// Looks the service back up by id from the already-fetched list, rather than embedding its
+// (arbitrary, partner-typed) description text directly into an onclick attribute string.
+function openSvcInfoById(shopId, svcId) {
+  const svc = (services[shopId] || []).find(x => x.id === svcId);
+  if (svc) openSvcInfo(svc);
+}
 
 function timeAgoSD(date) {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -3248,6 +3289,22 @@ window.scrollTo(0, 0);
     </div>
     <button class="submit-btn" onclick="requestLocationFromModal()" style="margin-bottom:10px;">Allow Location Access</button>
     <button class="skip-btn" onclick="closeLocModal()">Not now</button>
+  </div>
+</div>
+
+<!-- Service description popup — shared by the shop-list service boxes and the booking modal's
+     service cards, both of which are too small to show a full description inline. -->
+<div class="rating-bg" id="svc-info-modal">
+  <div class="rating-box" style="text-align:left;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="rating-title" id="svc-info-name" style="margin-bottom:0;"></div>
+      <button onclick="closeSvcInfo()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:12px;">
+      <div class="svc-price" id="svc-info-price" style="font-size:17px;margin-top:0;"></div>
+      <div class="svc-dur" id="svc-info-dur" style="font-size:12px;color:#94a3b8;"></div>
+    </div>
+    <div id="svc-info-desc" style="font-size:13px;color:#334155;line-height:1.55;"></div>
   </div>
 </div>
 

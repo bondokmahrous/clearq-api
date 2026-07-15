@@ -2020,6 +2020,7 @@ self.addEventListener('notificationclick', e => {
         maxWorkers: 'max_workers', isActive: 'is_active',
         priceExterior: 'price_exterior', priceInterior: 'price_interior', priceFull: 'price_full',
         minsExterior: 'mins_exterior', minsInterior: 'mins_interior', minsFull: 'mins_full',
+        isTest: 'is_test', secretSlug: 'secret_slug',
       };
       const sets = []; const vals = []; let i = 1;
       for (const [key, col] of Object.entries(fieldMap)) {
