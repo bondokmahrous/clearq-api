@@ -1170,6 +1170,25 @@ self.addEventListener('notificationclick', e => {
     return respond(res, 404, { error: "Page not found", searched: locations });
   }
 
+  // Serve static image assets (same multi-location search as the HTML pages above, since
+  // Railway's working directory isn't always predictable) — binary, not text, and cached since
+  // these don't change on every deploy the way the HTML does.
+  const staticAssets = { "/hero-carwash.jpg": { file: "hero-carwash.jpg", type: "image/jpeg" } };
+  if (staticAssets[p]) {
+    const { file, type } = staticAssets[p];
+    const locations = [
+      path.join(__dirname, file), path.join(__dirname, "templates", file),
+      path.join(process.cwd(), file), path.join(process.cwd(), "templates", file),
+      "/app/" + file, "/app/templates/" + file,
+    ];
+    const foundPath = locations.find(loc => fs.existsSync(loc));
+    if (foundPath) {
+      res.writeHead(200, { "Content-Type": type, "Cache-Control": "public, max-age=604800", ...CORS_HEADERS });
+      return res.end(fs.readFileSync(foundPath));
+    }
+    return respond(res, 404, { error: "Asset not found" });
+  }
+
   try {
     // ── PUBLIC ────────────────────────────────────────────────────────────
 

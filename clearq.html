@@ -278,8 +278,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
    real customers never see it until it's actually approved. */
 .lp-hero-art{display:none;position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
 .lp-hero-art.show{display:block;}
-.lp-hero-art svg{position:absolute;bottom:-6%;right:-8%;width:min(640px,85%);height:auto;opacity:0.09;}
-@media(min-width:641px){ .lp-hero-art svg{right:-4%;width:min(560px,48%);} }
+.lp-hero-art img{position:absolute;bottom:-12%;right:-8%;width:min(760px,110%);height:auto;opacity:0.22;filter:saturate(0.7) brightness(0.9);-webkit-mask-image:radial-gradient(ellipse 60% 60% at 65% 45%,#000 35%,transparent 72%);mask-image:radial-gradient(ellipse 60% 60% at 65% 45%,#000 35%,transparent 72%);}
+@media(min-width:641px){ .lp-hero-art img{right:-2%;bottom:-20%;width:min(620px,50%);} }
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
 .lp-h1{font-size:38px;font-weight:800;color:#EAF6F4;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:"Helvetica Neue",Arial,sans-serif;letter-spacing:-0.5px;}
 .lp-h1 span{color:#3FBDB0;font-style:normal;}
@@ -526,28 +526,7 @@ html, body {
 
   <div class="lp-hero">
     <div class="lp-hero-art" id="lp-hero-art">
-      <svg viewBox="0 0 400 260" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- water jets -->
-        <path d="M40 40 Q120 70 150 130" stroke="#EAF6F4" stroke-width="4" stroke-linecap="round"/>
-        <path d="M70 20 Q140 55 168 118" stroke="#EAF6F4" stroke-width="4" stroke-linecap="round"/>
-        <path d="M20 80 Q100 95 145 145" stroke="#EAF6F4" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="55" cy="55" r="5" fill="#EAF6F4"/>
-        <circle cx="95" cy="35" r="4" fill="#EAF6F4"/>
-        <circle cx="35" cy="105" r="4" fill="#EAF6F4"/>
-        <circle cx="115" cy="75" r="3.5" fill="#EAF6F4"/>
-        <!-- suds -->
-        <circle cx="150" cy="150" r="14" fill="#EAF6F4"/>
-        <circle cx="168" cy="140" r="10" fill="#EAF6F4"/>
-        <circle cx="160" cy="165" r="9" fill="#EAF6F4"/>
-        <!-- car body -->
-        <rect x="120" y="150" width="240" height="60" rx="26" fill="#3FBDB0"/>
-        <rect x="165" y="105" width="150" height="60" rx="22" fill="#3FBDB0"/>
-        <rect x="228" y="122" width="18" height="34" fill="#0B2B33"/>
-        <circle cx="175" cy="212" r="26" fill="#0B2B33"/>
-        <circle cx="175" cy="212" r="11" fill="#EAF6F4"/>
-        <circle cx="325" cy="212" r="26" fill="#0B2B33"/>
-        <circle cx="325" cy="212" r="11" fill="#EAF6F4"/>
-      </svg>
+      <img src="/hero-carwash.jpg" alt="" loading="lazy">
     </div>
     <div class="lp-badge">Wash without the wait</div>
     <div class="lp-h1">See car wash <span>queues</span>, live.</div>
