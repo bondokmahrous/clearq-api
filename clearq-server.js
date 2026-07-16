@@ -1171,8 +1171,7 @@ self.addEventListener('notificationclick', e => {
   }
 
   // Serve HTML pages
-  const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager": "clearq-manager.html", "/owner": "clearq-owner.html" };
-  if (pages[p]) {
+const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager": "clearq-manager.html", "/owner": "clearq-owner.html", "/google0a1cedacf8a0ccbc.html": "google0a1cedacf8a0ccbc.html" };  if (pages[p]) {
     // Search multiple possible locations
     const locations = [
       path.join(__dirname, pages[p]),
