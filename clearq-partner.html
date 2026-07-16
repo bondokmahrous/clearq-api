@@ -126,9 +126,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 .dsv{width:100%;background:var(--blue);color:#fff;border:none;border-radius:9px;padding:12px;font-size:14px;font-weight:700;margin-top:8px;}
 .asv{display:flex;align-items:center;gap:5px;background:#E6F7F5;border:none;border-radius:7px;padding:8px 13px;color:var(--blue-light);font-size:12px;font-weight:600;margin-top:7px;}
 .delsv{background:none;border:none;color:var(--red);font-size:15px;padding:4px;}
-  .sr-order{display:flex;flex-direction:column;gap:2px;}
-.ord-btn{background:var(--navy);border:1px solid var(--navy-light);color:var(--gray-dark);padding:2px 5px;border-radius:5px;}
-.ord-btn:disabled{opacity:0.3;}
+.drag-handle{background:var(--navy);border:1px solid var(--navy-light);color:var(--gray-dark);padding:7px 8px;border-radius:5px;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sr.dragging{opacity:0.5;}
 
 /* Walk-in modal */
 .wi-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;justify-content:center;align-items:center;padding:22px;}
@@ -313,6 +312,7 @@ const ICONS = {
   plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   up: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
   down: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  dragHandle: '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="6" r="1.6"/><circle cx="16" cy="6" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="18" r="1.6"/><circle cx="16" cy="18" r="1.6"/></svg>',
 };
 
 // Push notifications
@@ -761,18 +761,16 @@ async function loadManage() {
 }
 
 function renderManage() {
-  let html=`<div class="ms"><div class="ms-t">Services &amp; Prices</div>`;
-  const svcVisible=editServices.map((s,idx)=>idx).filter(idx=>!editServices[idx]._deleted);
+  let html=`<div class="ms"><div class="ms-t">Services &amp; Prices</div><div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Drag the handle to reorder — this is the order customers see.</div><div id="svc-list">`;
   editServices.forEach((s,i)=>{
     if (s._deleted) return;
-    const svcPos=svcVisible.indexOf(i);
-    html+=`<div class="sr">
-      <div class="sr-row"><div class="sr-order"><button class="ord-btn" ${svcPos===0?'disabled':''} onclick="moveSvc(${i},-1)">${ICONS.up}</button><button class="ord-btn" ${svcPos===svcVisible.length-1?'disabled':''} onclick="moveSvc(${i},1)">${ICONS.down}</button></div><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">${ICONS.trash}</button></div>
+    html+=`<div class="sr" data-idx="${i}">
+      <div class="sr-row"><button type="button" class="drag-handle" onpointerdown="startSvcDrag(event,${i})" aria-label="Drag to reorder">${ICONS.dragHandle}</button><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">${ICONS.trash}</button></div>
       <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)">
       <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Duration:</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min</span></div>
     </div>`;
   });
-  html+=`<button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>`;
+  html+=`</div><button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>`;
   if (partnerShop?.id === 6) {
     html+=`<div class="ms"><div class="ms-t">Custom Wash Items</div>
     <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Customers can build a Custom Wash from these, or add any of them on top of Exterior/Interior/Full.</div>`;
@@ -937,14 +935,54 @@ async function saveNotificationEmail(btn) {
 }
 
 function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}
-  function moveSvc(i,dir){
-  const visible=editServices.map((s,idx)=>idx).filter(idx=>!editServices[idx]._deleted);
-  const swapWith=visible[visible.indexOf(i)+dir];
-  if(swapWith===undefined)return;
-  [editServices[i],editServices[swapWith]]=[editServices[swapWith],editServices[i]];
-  editServices.forEach((s,idx)=>{s.displayOrder=idx;});
+
+// Touch-and-mouse-compatible drag reorder (native HTML5 drag-and-drop doesn't work reliably on
+// iOS Safari, and this dashboard is used on partners' phones) — the handle's pointerdown starts
+// tracking, and on each move we reinsert the dragged row before whichever row it now overlaps
+// the upper half of, live in the DOM. The actual editServices order is only committed on release.
+function startSvcDrag(e, idx) {
+  e.preventDefault();
+  const list = document.getElementById('svc-list');
+  const row = list && list.querySelector(`.sr[data-idx="${idx}"]`);
+  if (!list || !row) return;
+  row.classList.add('dragging');
+  const rows = [...list.querySelectorAll('.sr')];
+
+  function onMove(ev) {
+    const y = ev.clientY;
+    let after = null;
+    for (const r of rows) {
+      if (r === row) continue;
+      const rect = r.getBoundingClientRect();
+      if (y < rect.top + rect.height / 2) { after = r; break; }
+    }
+    if (after) list.insertBefore(row, after);
+    else list.appendChild(row);
+  }
+  function onUp() {
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+    row.classList.remove('dragging');
+    commitSvcOrder();
+  }
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+function commitSvcOrder() {
+  const list = document.getElementById('svc-list');
+  if (!list) return;
+  const newOrder = [...list.querySelectorAll('.sr')].map(r => editServices[+r.dataset.idx]);
+  // Deleted services aren't rendered (so aren't in newOrder) — their relative order doesn't
+  // matter since save/display always filters them out, just keep them from being lost.
+  const deleted = editServices.filter(s => s._deleted);
+  editServices = [...newOrder, ...deleted];
+  editServices.forEach((s, idx) => { s.displayOrder = idx; });
   renderManage();
 }
+
 function aSvc(){editServices.push({name:'',description:'',price:0,durationMins:30,displayOrder:editServices.length,isActive:1,isNew:true});renderManage();}
 function dSvc(i){if(editServices[i].id)editServices[i]._deleted=true;else editServices.splice(i,1);renderManage();}
 
