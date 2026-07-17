@@ -488,6 +488,19 @@ async function sendBookingEmail(booking, shopName, type) {
   } catch (e) { console.error("sendBookingEmail failed:", e.message); }
 }
 
+async function sendWelcomeEmail(user) {
+  try {
+    await sendEmail(user.email, "Welcome to ClearQ 👋", `
+      <div style="font-family:sans-serif;max-width:420px;margin:0 auto;">
+        <h2 style="color:#21867B;">ClearQ</h2>
+        <h3 style="margin-bottom:4px;">Welcome, ${user.name || ''} 👋</h3>
+        <p>Thanks for signing up! Your account is ready.</p>
+        <p>ClearQ is Egypt's live car wash booking platform — see real wait times at wash centres near you, book a bay in seconds, and drive straight in when it's your turn. No more guessing, no more waiting in line.</p>
+        <p style="color:#64748b;font-size:12px;line-height:1.6;">We'll email you every time you book, when your wash starts, and when your car's ready — so keep an eye on your inbox (and check spam if you don't see one).</p>
+      </div>`);
+  } catch (e) { console.error("sendWelcomeEmail failed:", e.message); }
+}
+
 // Notifies a wash centre's own inbox (their notification_email, set from their dashboard) the
 // moment a customer books online — same trigger as the partner push notification, just email.
 // Never touches the booking flow's own response: any failure here is swallowed and logged.
@@ -2403,6 +2416,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         );
       }
       const token = signJWT({ userId: user.id, email: user.email });
+      sendWelcomeEmail(user);
       return respond(res, 201, { token, user: { id: user.id, name: user.name, email: user.email, phone: user.phone, carModel: user.car_model, licensePlate: user.license_plate } });
     }
 
