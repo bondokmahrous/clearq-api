@@ -490,10 +490,10 @@ async function sendBookingEmail(booking, shopName, type) {
 
 async function sendWelcomeEmail(user) {
   try {
-    await sendEmail(user.email, "Welcome to ClearQ 👋", `
+    await sendEmail(user.email, "Welcome to ClearQ", `
       <div style="font-family:sans-serif;max-width:420px;margin:0 auto;">
         <h2 style="color:#21867B;">ClearQ</h2>
-        <h3 style="margin-bottom:4px;">Welcome, ${user.name || ''} 👋</h3>
+        <h3 style="margin-bottom:4px;">Welcome, ${user.name || ''}</h3>
         <p>Thanks for signing up! Your account is ready.</p>
         <p>ClearQ is Egypt's live car wash booking platform — see real wait times at wash centres near you, book a bay in seconds, and drive straight in when it's your turn. No more guessing, no more waiting in line.</p>
         <p style="color:#64748b;font-size:12px;line-height:1.6;">We'll email you every time you book, when your wash starts, and when your car's ready — so keep an eye on your inbox (and check spam if you don't see one).</p>
