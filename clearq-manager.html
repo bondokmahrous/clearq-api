@@ -1508,15 +1508,13 @@ async function removeBay() {
 }
 
 // ─── SUMMARY ──────────────────────────────────────────────────
-// Expected duration is the ready-by promise made when the wash started — arrival time for a
-// reservation (a walk-in has no arrival, it starts immediately, so wash-started stands in for
-// it). Actual is just wash-started to wash-finished. Only shown once both ends are known.
+// Expected duration comes from the server (the centre's own configured duration for that
+// service, not this booking's own eta timestamps — see expectedDurationMins in the dashboard
+// endpoint). Actual is just wash-started to wash-finished, shown once both ends are known.
 function durationLine(b) {
   if (b.status !== 'completed' || !b.washStartedAt || !b.washFinishedAt) return '';
   const actualMins = Math.max(0, Math.round((new Date(b.washFinishedAt) - new Date(b.washStartedAt)) / 60000));
-  const expectedStart = b.etaArrivalAt || b.washStartedAt;
-  const expectedMins = b.etaReadyAt ? Math.max(0, Math.round((new Date(b.etaReadyAt) - new Date(expectedStart)) / 60000)) : null;
-  const text = expectedMins != null ? `Expected ${expectedMins} min · Took ${actualMins} min` : `Took ${actualMins} min`;
+  const text = b.expectedDurationMins != null ? `Expected ${b.expectedDurationMins} min · Took ${actualMins} min` : `Took ${actualMins} min`;
   return `<div style="font-size:11px;color:var(--gray);margin-top:2px;">${text}</div>`;
 }
 

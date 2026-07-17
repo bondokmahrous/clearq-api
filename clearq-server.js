@@ -1630,6 +1630,23 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         .filter(b => b.kind !== 'maintenance');
       const ratingRow = await db1(`SELECT AVG(stars)::numeric(3,1) as avg FROM wash_ratings WHERE shop_id=$1`, [shopId]);
       const completed = bookings.filter(b => b.status === "completed");
+      // Expected duration for the "Expected X min · Took Y min" summary line — the centre's
+      // current configured duration for that wash type (plus any addons' own snapshotted
+      // duration), not derived from that booking's own eta timestamps. A booking's actual
+      // eta_arrival/eta_ready reflect queue-wait math at the moment it was placed (or, for a
+      // walk-in/edited/test booking, can be disconnected from the service's real duration
+      // entirely) — "expected" should mean what the centre says this wash takes, full stop.
+      const svcRows = await db(`SELECT name, duration_mins FROM wash_services WHERE shop_id=$1 AND is_active=1`, [shopId]);
+      const durByName = {};
+      svcRows.forEach(r => { durByName[r.name] = r.duration_mins; });
+      const fallbackDur = { exterior: s?.mins_exterior, interior: s?.mins_interior, full: s?.mins_full };
+      const bookingsOut = bookings.map(b => {
+        const bk = booking(b);
+        const baseDur = b.wash_type === 'custom' ? 0 : (durByName[b.wash_type] ?? fallbackDur[b.wash_type] ?? null);
+        const addonsDur = Array.isArray(bk.addons) ? bk.addons.reduce((sum,a)=>sum+(a.durationMins||0),0) : 0;
+        bk.expectedDurationMins = baseDur != null ? baseDur + addonsDur : null;
+        return bk;
+      });
       return respond(res, 200, {
         date: from, from, to, totalBookings: bookings.length,
         pendingBookings: bookings.filter(b=>b.status==="pending").length,
@@ -1638,7 +1655,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         cancelledBookings: bookings.filter(b=>b.status==="cancelled").length,
         totalRevenue: completed.reduce((sum,b)=>sum+(b.price||0),0),
         shopRating: ratingRow?.avg ? parseFloat(ratingRow.avg) : null,
-        todayBookings: bookings.map(booking),
+        todayBookings: bookingsOut,
       });
     }
 
