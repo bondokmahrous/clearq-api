@@ -1480,6 +1480,15 @@ function openLocModal(shopIdToOpenAfter) {
   document.getElementById('loc-modal-bg').classList.add('open');
 }
 
+// Shown once, right after account creation — a new domain's emails are prone to landing in
+// spam, so this gets ahead of it before the customer misses their first booking confirmation.
+function showEmailImportanceModal() {
+  document.getElementById('email-modal-bg').classList.add('open');
+}
+function closeEmailModal() {
+  document.getElementById('email-modal-bg').classList.remove('open');
+}
+
 function closeLocModal() {
   document.getElementById('loc-modal-bg').classList.remove('open');
   // Continue with booking even if they decline — fallback to queue-only timing
@@ -2676,8 +2685,9 @@ async function doSignup() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-user').classList.add('active');
     renderAccount();
-    setTimeout(checkLocationPermission, 800);
-    setTimeout(requestPushPermission, 1500);
+    setTimeout(showEmailImportanceModal, 400);
+    setTimeout(checkLocationPermission, 1800);
+    setTimeout(requestPushPermission, 2500);
     toast('Welcome to ClearQ, ' + name + '!');
   } catch(e) {
     err.textContent = e.message || 'Something went wrong. Please try again.';
@@ -3378,6 +3388,17 @@ window.scrollTo(0, 0);
     </div>
     <button class="submit-btn" onclick="requestLocationFromModal()" style="margin-bottom:10px;">Allow Location Access</button>
     <button class="skip-btn" onclick="closeLocModal()">Not now</button>
+  </div>
+</div>
+
+<div class="rating-bg" id="email-modal-bg">
+  <div class="rating-box" style="text-align:center;">
+    <div style="font-size:48px;margin-bottom:8px;">📧</div>
+    <div class="rating-title" style="margin-bottom:8px;">Don't miss your emails</div>
+    <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px;">
+      We'll email you when your booking is confirmed, when your car is ready, and about offers from your wash centre. If you don't see one in your inbox, check your <strong>Spam / Junk</strong> folder — and mark it <strong>"Not Spam"</strong> so future emails land where you'll see them.
+    </div>
+    <button class="submit-btn" onclick="closeEmailModal()">Got it</button>
   </div>
 </div>
 
