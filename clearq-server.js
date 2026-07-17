@@ -23,9 +23,9 @@ const GOOGLE_MAPS_API_KEY = 'AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as';
 const OWNER_KEY = 'Bondok@23'; // must match OWNER_PASSWORD in clearq-owner.html
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const MAIL_FROM = process.env.MAIL_FROM || 'ClearQ <info@clearq.online>';
-// Gets a copy of every online booking notification across every centre, regardless of whether
-// that centre has its own notification_email set — the owner's single view of all bookings.
-const OWNER_NOTIFICATION_EMAIL = 'Mahrous@clearq.online';
+// Bondok's own inboxes — notified on every online booking at every centre, separate from each
+// shop's own optional notification_email (which only that shop's partner sees).
+const OWNER_NOTIFICATION_EMAILS = ['Mahrous@clearq.online', 'mahrousjr@gmail.com'];
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
@@ -502,7 +502,7 @@ async function notifyShopByEmail(shopId, shopName, notificationEmail, booking) {
     const addonsList = Array.isArray(booking.addons) && booking.addons.length
       ? booking.addons.map(a => a.name).join(', ')
       : null;
-    await sendEmail(notificationEmail, `New booking — ${booking.customer_name || 'Customer'}`, `
+    await sendEmail(notificationEmail, `New booking at ${shopName} — ${booking.customer_name || 'Customer'}`, `
       <div style="font-family:sans-serif;max-width:460px;margin:0 auto;">
         <h2 style="color:#21867B;">ClearQ</h2>
         <h3 style="margin-bottom:4px;">New Booking at ${shopName} 🚗</h3>
@@ -1382,7 +1382,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       try { await notifyPartner(shopId, { title: 'New Booking!', body: `${customerName} booked a ${washType} wash`, icon: '/icon-192.png' }); } catch(e) {}
       sendBookingEmail(created, s.name, 'confirmed');
       notifyShopByEmail(shopId, s.name, s.notification_email, created);
-      notifyShopByEmail(shopId, s.name, OWNER_NOTIFICATION_EMAIL, created);
+      notifyShopByEmail(shopId, s.name, OWNER_NOTIFICATION_EMAILS, created);
       return respond(res, 201, booking(created));
     }
 
