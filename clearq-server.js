@@ -1619,16 +1619,19 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 200, rows.map(booking));
     }
 
-    // GET /partners/shop/:id/dashboard
+    // GET /partners/shop/:id/dashboard — accepts either ?date=YYYY-MM-DD (single day, back-
+    // compat) or ?from=&to= (an inclusive range, for the Day/Week/Month summary picker).
     if (m === "GET" && /\/partners\/shop\/\d+\/dashboard$/.test(p)) {
-      const date = url.searchParams.get("date") || today();
+      const dateParam = url.searchParams.get("date");
+      const from = url.searchParams.get("from") || dateParam || today();
+      const to = url.searchParams.get("to") || dateParam || from;
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
-      const bookings = (await db(`SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date=$2 ORDER BY scheduled_time`, [shopId, date]))
+      const bookings = (await db(`SELECT * FROM wash_bookings WHERE shop_id=$1 AND scheduled_date BETWEEN $2 AND $3 ORDER BY scheduled_date, scheduled_time`, [shopId, from, to]))
         .filter(b => b.kind !== 'maintenance');
       const ratingRow = await db1(`SELECT AVG(stars)::numeric(3,1) as avg FROM wash_ratings WHERE shop_id=$1`, [shopId]);
       const completed = bookings.filter(b => b.status === "completed");
       return respond(res, 200, {
-        date, totalBookings: bookings.length,
+        date: from, from, to, totalBookings: bookings.length,
         pendingBookings: bookings.filter(b=>b.status==="pending").length,
         inProgressBookings: bookings.filter(b=>b.status==="in_progress").length,
         completedBookings: completed.length,

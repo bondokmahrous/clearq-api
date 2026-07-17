@@ -129,6 +129,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 .drag-handle{background:var(--navy);border:1px solid var(--navy-light);color:var(--gray-dark);padding:7px 8px;border-radius:5px;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .sr.dragging{opacity:0.5;}
 
+.sum-drp{padding:12px;display:flex;flex-direction:column;gap:8px;}
+.sum-drp-modes{display:flex;background:var(--navy);border-radius:9px;padding:3px;gap:2px;}
+.sum-drp-mode{flex:1;background:none;border:none;color:var(--gray-dark);font-size:12px;font-weight:700;padding:7px 0;border-radius:7px;}
+.sum-drp-mode.active{background:var(--blue);color:#fff;}
+.sum-drp-nav{display:flex;align-items:center;justify-content:center;gap:14px;}
+.sum-drp-nav-btn{background:var(--navy-mid);border:1px solid var(--navy-light);color:var(--white);width:30px;height:30px;border-radius:8px;font-size:15px;line-height:1;}
+.sum-drp-label{font-size:13px;font-weight:700;color:var(--white);min-width:150px;text-align:center;}
+
 /* Walk-in modal */
 .wi-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;justify-content:center;align-items:center;padding:22px;}
 .wi-bg.open{display:flex;}
@@ -231,7 +239,21 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
   </div>
   <div class="psec active" id="psec-queue"><div id="stale-c"></div><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
   <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p>Loading bays...</p></div></div></div>
-  <div class="psec" id="psec-summary"><div id="sum-c"><div class="ls"><div class="spin"></div><p>Loading summary...</p></div></div></div>
+  <div class="psec" id="psec-summary">
+    <div class="sum-drp">
+      <div class="sum-drp-modes">
+        <button class="sum-drp-mode active" data-mode="day" onclick="setSumMode('day')">Day</button>
+        <button class="sum-drp-mode" data-mode="week" onclick="setSumMode('week')">Week</button>
+        <button class="sum-drp-mode" data-mode="month" onclick="setSumMode('month')">Month</button>
+      </div>
+      <div class="sum-drp-nav">
+        <button class="sum-drp-nav-btn" onclick="shiftSumDate(-1)">‹</button>
+        <span class="sum-drp-label" id="sum-drp-label">Today</span>
+        <button class="sum-drp-nav-btn" onclick="shiftSumDate(1)">›</button>
+      </div>
+    </div>
+    <div id="sum-c"><div class="ls"><div class="spin"></div><p>Loading summary...</p></div></div>
+  </div>
   <div class="psec" id="psec-customers">
     <div style="padding:12px;">
       <input type="text" id="cust-search" placeholder="Search name, phone, or plate..." oninput="loadPartnerCustomers()" style="width:100%;background:var(--navy-mid,#FFFFFF);border:1px solid var(--navy-light,#E2E8F0);border-radius:9px;padding:10px 13px;color:#0f172a;font-size:14px;outline:none;margin-bottom:12px;">
@@ -740,21 +762,72 @@ function durationLine(b) {
   return `<div class="cp" style="margin-top:1px;">${text}</div>`;
 }
 
+// ─── Summary date range (Day/Week/Month) ──────────────────────────
+let sumMode = 'day';
+let sumRefDate = new Date();
+
+function fmtYMDsum(d) { return d.toISOString().slice(0,10); }
+function startOfWeekSum(d) { const s=new Date(d); const day=s.getDay(); s.setDate(s.getDate()-(day===0?6:day-1)); s.setHours(0,0,0,0); return s; }
+function endOfWeekSum(d) { const s=startOfWeekSum(d); const e=new Date(s); e.setDate(s.getDate()+6); return e; }
+function startOfMonthSum(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function endOfMonthSum(d) { return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+function sumDateRange() {
+  if (sumMode==='day') { const s=fmtYMDsum(sumRefDate); return {from:s,to:s}; }
+  if (sumMode==='week') return {from:fmtYMDsum(startOfWeekSum(sumRefDate)), to:fmtYMDsum(endOfWeekSum(sumRefDate))};
+  return {from:fmtYMDsum(startOfMonthSum(sumRefDate)), to:fmtYMDsum(endOfMonthSum(sumRefDate))};
+}
+
+function renderSumDrpLabel() {
+  const label = document.getElementById('sum-drp-label');
+  if (!label) return;
+  if (sumMode==='day') {
+    const isToday = fmtYMDsum(sumRefDate) === fmtYMDsum(new Date());
+    label.textContent = (isToday?'Today · ':'') + sumRefDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  } else if (sumMode==='week') {
+    label.textContent = startOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + endOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  } else {
+    label.textContent = sumRefDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  }
+}
+
+function setSumMode(mode) {
+  sumMode = mode;
+  document.querySelectorAll('.sum-drp-mode').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  renderSumDrpLabel();
+  loadSummary();
+}
+
+function shiftSumDate(delta) {
+  const d = new Date(sumRefDate);
+  if (sumMode==='day') d.setDate(d.getDate()+delta);
+  else if (sumMode==='week') d.setDate(d.getDate()+delta*7);
+  else d.setMonth(d.getMonth()+delta);
+  sumRefDate = d;
+  renderSumDrpLabel();
+  loadSummary();
+}
+
 async function loadSummary() {
   const shopId=partnerShop?.id; if(!shopId) return;
-  const today=new Date().toISOString().slice(0,10);
+  renderSumDrpLabel();
+  const {from,to} = sumDateRange();
+  const periodLabel = sumMode==='day' ? "Today's" : sumMode==='week' ? "This week's" : "This month's";
   try {
-    const d=await apiFetch(`${API}/api/partners/shop/${shopId}/dashboard?date=${today}`,{headers:authH()});
+    const d=await apiFetch(`${API}/api/partners/shop/${shopId}/dashboard?from=${from}&to=${to}`,{headers:authH()});
     let html=`<div class="sg">
-      <div class="sc2"><div class="sv" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sl">Bookings today</div></div>
+      <div class="sc2"><div class="sv" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sl">Bookings</div></div>
       <div class="sc2"><div class="sv" style="color:var(--green)">${d.completedBookings||0}</div><div class="sl">Completed</div></div>
       <div class="sc2"><div class="sv" style="color:var(--amber)">${d.shopRating?Number(d.shopRating).toFixed(1)+' ★':'—'}</div><div class="sl">Rating</div></div>
-      <div class="sc2"><div class="sv">${d.totalRevenue||0}</div><div class="sl">EGP today</div></div>
-    </div><div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px">Today's bookings</div>`;
-    (d.todayBookings||[]).forEach(b=>{
+      <div class="sc2"><div class="sv">${d.totalRevenue||0}</div><div class="sl">EGP</div></div>
+    </div><div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px">${periodLabel} bookings</div>`;
+    const sorted = sumMode==='day' ? (d.todayBookings||[]) : [...(d.todayBookings||[])].sort((a,b)=>b.scheduledDate.localeCompare(a.scheduledDate));
+    if (!sorted.length) html += `<div class="ls" style="padding:20px 0"><p>No bookings in this period</p></div>`;
+    sorted.forEach(b=>{
+      const dateTag = sumMode!=='day' ? `<div class="cp">${new Date(b.scheduledDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>` : '';
       html+=`<div class="bc ${b.status==='completed'?'done':''}">
         <div class="bc-top"><div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
-          <div><div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div>${durationLine(b)}</div>
+          <div>${dateTag}<div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div>${durationLine(b)}</div>
         </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${b.price} EGP</div></div>
       </div>`;
     });

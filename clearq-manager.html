@@ -172,6 +172,15 @@ a { text-decoration: none; }
 .login-wa { display: block; text-align: center; margin-top: 18px; font-size: 12px; color: var(--gray); }
 .login-wa a { color: var(--blue-light); font-weight: 600; }
 
+/* ── SUMMARY DATE RANGE PICKER ──────────────────────────────────── */
+.sum-drp{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;}
+.sum-drp-modes{display:flex;background:var(--surface2);border-radius:9px;padding:3px;gap:2px;}
+.sum-drp-mode{background:none;border:none;color:var(--gray);font-size:12px;font-weight:700;padding:7px 14px;border-radius:7px;cursor:pointer;}
+.sum-drp-mode.active{background:var(--blue);color:#fff;}
+.sum-drp-nav{display:flex;align-items:center;gap:12px;}
+.sum-drp-nav-btn{background:var(--surface);border:1px solid var(--border);color:var(--white);width:28px;height:28px;border-radius:7px;font-size:14px;cursor:pointer;}
+.sum-drp-label{font-size:13px;font-weight:700;color:var(--white);min-width:140px;text-align:center;}
+
 /* ── STAT CARDS ──────────────────────────────────────────────── */
 .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
 .stat-card {
@@ -609,15 +618,27 @@ a { text-decoration: none; }
 
       <!-- SUMMARY VIEW -->
       <div class="view" id="view-summary">
+        <div class="sum-drp">
+          <div class="sum-drp-modes">
+            <button class="sum-drp-mode active" data-mode="day" onclick="setSumMode('day')">Day</button>
+            <button class="sum-drp-mode" data-mode="week" onclick="setSumMode('week')">Week</button>
+            <button class="sum-drp-mode" data-mode="month" onclick="setSumMode('month')">Month</button>
+          </div>
+          <div class="sum-drp-nav">
+            <button class="sum-drp-nav-btn" onclick="shiftSumDate(-1)">‹</button>
+            <span class="sum-drp-label" id="sum-drp-label">Today</span>
+            <button class="sum-drp-nav-btn" onclick="shiftSumDate(1)">›</button>
+          </div>
+        </div>
         <div class="stat-grid">
-          <div class="stat-card blue"><div class="stat-card-label">Total Bookings</div><div class="stat-card-val" id="sum-total">—</div><div class="stat-card-sub">today</div></div>
+          <div class="stat-card blue"><div class="stat-card-label">Total Bookings</div><div class="stat-card-val" id="sum-total">—</div><div class="stat-card-sub" id="sum-total-sub">today</div></div>
           <div class="stat-card green"><div class="stat-card-label">Completed</div><div class="stat-card-val" id="sum-done">—</div><div class="stat-card-sub">washes finished</div></div>
-          <div class="stat-card amber"><div class="stat-card-label">Revenue</div><div class="stat-card-val" id="sum-rev">—</div><div class="stat-card-sub">EGP today</div></div>
+          <div class="stat-card amber"><div class="stat-card-label">Revenue</div><div class="stat-card-val" id="sum-rev">—</div><div class="stat-card-sub" id="sum-rev-sub">EGP today</div></div>
           <div class="stat-card"><div class="stat-card-label">Rating</div><div class="stat-card-val" id="sum-rating">—</div><div class="stat-card-sub">avg star rating</div></div>
         </div>
         <div class="summary-grid">
           <div class="summary-chart-card">
-            <div class="section-title">Today's Bookings</div>
+            <div class="section-title" id="sum-timeline-title">Today's Bookings</div>
             <div class="bookings-timeline" id="bookings-timeline">
               <div class="loading-state"><div class="spin"></div></div>
             </div>
@@ -904,11 +925,6 @@ function minsLeft(iso) {
   const m = Math.max(0,Math.round((new Date(iso).getTime()-Date.now())/60000));
   return '~'+m+' min left';
 }
-function minsUntil(iso) {
-  if (!iso) return 0;
-  return Math.max(0,Math.round((new Date(iso).getTime()-Date.now())/60000));
-}
-
 function statusColor(s) {
   return s==='in_progress'?'var(--amber)':s==='completed'?'var(--green)':s==='cancelled'?'var(--red)':'var(--blue-light)';
 }
@@ -1434,7 +1450,7 @@ function renderBays(data) {
             ${tl?`<div class="bay-eta">${tl}</div>`:''}`:
           nu?`<div class="bay-empty">Ready for next customer</div>
             <div class="bay-customer" style="margin-top:6px;font-size:12px;color:var(--blue-light);">Next: ${nu.customerName||'Walk-in'}</div>
-            <div class="bay-service">${nu.washType||''}${nu.etaArrivalAt?' · arrives ~'+minsUntil(nu.etaArrivalAt)+' min':''}</div>`:
+            <div class="bay-service">${nu.washType||''}${nu.etaArrivalAt?' · arrives at '+fmtTime(nu.etaArrivalAt):''}</div>`:
           `<div class="bay-empty">Ready for next customer</div>`}
       </div>
       <div class="bay-actions">
@@ -1504,25 +1520,78 @@ function durationLine(b) {
   return `<div style="font-size:11px;color:var(--gray);margin-top:2px;">${text}</div>`;
 }
 
+// ─── Summary date range (Day/Week/Month) ──────────────────────────
+let sumMode = 'day';
+let sumRefDate = new Date();
+
+function fmtYMDsum(d) { return d.toISOString().slice(0,10); }
+function startOfWeekSum(d) { const s=new Date(d); const day=s.getDay(); s.setDate(s.getDate()-(day===0?6:day-1)); s.setHours(0,0,0,0); return s; }
+function endOfWeekSum(d) { const s=startOfWeekSum(d); const e=new Date(s); e.setDate(s.getDate()+6); return e; }
+function startOfMonthSum(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function endOfMonthSum(d) { return new Date(d.getFullYear(), d.getMonth()+1, 0); }
+
+function sumDateRange() {
+  if (sumMode==='day') { const s=fmtYMDsum(sumRefDate); return {from:s,to:s}; }
+  if (sumMode==='week') return {from:fmtYMDsum(startOfWeekSum(sumRefDate)), to:fmtYMDsum(endOfWeekSum(sumRefDate))};
+  return {from:fmtYMDsum(startOfMonthSum(sumRefDate)), to:fmtYMDsum(endOfMonthSum(sumRefDate))};
+}
+
+function renderSumDrpLabel() {
+  const label = document.getElementById('sum-drp-label');
+  if (!label) return;
+  if (sumMode==='day') {
+    const isToday = fmtYMDsum(sumRefDate) === fmtYMDsum(new Date());
+    label.textContent = (isToday?'Today · ':'') + sumRefDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  } else if (sumMode==='week') {
+    label.textContent = startOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + endOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  } else {
+    label.textContent = sumRefDate.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  }
+}
+
+function setSumMode(mode) {
+  sumMode = mode;
+  document.querySelectorAll('.sum-drp-mode').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  renderSumDrpLabel();
+  loadSummary();
+}
+
+function shiftSumDate(delta) {
+  const d = new Date(sumRefDate);
+  if (sumMode==='day') d.setDate(d.getDate()+delta);
+  else if (sumMode==='week') d.setDate(d.getDate()+delta*7);
+  else d.setMonth(d.getMonth()+delta);
+  sumRefDate = d;
+  renderSumDrpLabel();
+  loadSummary();
+}
+
 async function loadSummary() {
   if (!currentShopId) return;
-  const today = new Date().toISOString().slice(0,10);
+  renderSumDrpLabel();
+  const {from,to} = sumDateRange();
+  const periodWord = sumMode==='day' ? 'today' : sumMode==='week' ? 'this week' : 'this month';
   try {
-    const d = await api('/api/partners/shop/'+currentShopId+'/dashboard?date='+today);
+    const d = await api('/api/partners/shop/'+currentShopId+'/dashboard?from='+from+'&to='+to);
     document.getElementById('sum-total').textContent = d.totalBookings||0;
+    document.getElementById('sum-total-sub').textContent = periodWord;
     document.getElementById('sum-done').textContent = d.completedBookings||0;
     document.getElementById('sum-rev').textContent = (d.totalRevenue||0)+' EGP';
+    document.getElementById('sum-rev-sub').textContent = 'EGP '+periodWord;
     document.getElementById('sum-rating').textContent = d.shopRating ? d.shopRating+'★' : '—';
+    document.getElementById('sum-timeline-title').textContent = sumMode==='day' ? "Today's Bookings" : sumMode==='week' ? "This Week's Bookings" : "This Month's Bookings";
 
     // Timeline
     const tl = document.getElementById('bookings-timeline');
     if (!d.todayBookings?.length) {
-      tl.innerHTML = '<div class="table-empty"><div class="table-empty-text">No bookings today</div></div>';
+      tl.innerHTML = `<div class="table-empty"><div class="table-empty-text">No bookings ${periodWord}</div></div>`;
     } else {
-      const sorted = [...d.todayBookings].sort((a,b)=>a.scheduledTime.localeCompare(b.scheduledTime));
+      const sorted = sumMode==='day'
+        ? [...d.todayBookings].sort((a,b)=>a.scheduledTime.localeCompare(b.scheduledTime))
+        : [...d.todayBookings].sort((a,b)=>(b.scheduledDate+b.scheduledTime).localeCompare(a.scheduledDate+a.scheduledTime));
       tl.innerHTML = sorted.map(b=>`
         <div class="timeline-row" style="border-left-color:${statusColor(b.status)}">
-          <div class="tl-time">${b.scheduledTime}</div>
+          <div class="tl-time">${sumMode==='day' ? b.scheduledTime : new Date(b.scheduledDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
           <div class="tl-name">${b.customerName}${durationLine(b)}</div>
           <div class="tl-type">${b.washType}</div>
           <div class="tl-price">${b.price} EGP</div>
