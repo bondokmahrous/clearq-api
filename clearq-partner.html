@@ -577,7 +577,6 @@ function custFreqSummary(history) {
 function svcLabel(name) { const s=partnerServices.find(sv=>sv.name===name); return s?s.name:name; }
 function statusColor(st) { return st==='in_progress'?'#f59e0b':st==='completed'?'#22c55e':st==='cancelled'?'#ef4444':'#3FBDB0'; }
 function minsAgo(d) { return d?Math.floor((Date.now()-new Date(d).getTime())/60000):0; }
-function minsUntil(d) { return d?Math.round((new Date(d).getTime()-Date.now())/60000):0; }
 function fmtTime(iso) { if (!iso) return '—'; return new Date(iso).toLocaleTimeString('en-EG',{hour:'numeric',minute:'2-digit',hour12:true}); }
 
 async function loadQueue(silent=false) {
@@ -655,7 +654,7 @@ function renderQueue(bookings) {
           <div class="bc-right"><div class="bl">${b.bayNumber!=null?'Bay '+b.bayNumber:'Queued'}</div><div class="wb ${wi?'wib':''}">${wi?'Walk-in':svcLabel(b.washType)}</div></div>
         </div>
         <div class="bc-mid">
-          <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Started '+minsAgo(b.washStartedAt)+' min ago':'Arrives in ~'+minsUntil(b.etaArrivalAt)+' min'}</div>
+          <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Started '+minsAgo(b.washStartedAt)+' min ago':'Arrives at '+fmtTime(b.etaArrivalAt)}</div>
           ${doneByLine}
           ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
         </div>
@@ -711,7 +710,7 @@ function renderBays(data) {
     const nu = bay.state==='free' ? bay.nextUp : null;
     html+=`<div class="bay-card" style="background:${th.bg};border-color:${th.border}">
       <div class="bay-hd"><div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div><div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div></div>
-      <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#7c3aed">${bay.reason||'Unavailable'}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:nu?`<div class="bay-avail">Available</div><div class="bay-bname" style="margin-top:6px;font-size:12px;color:#21867B;">Next: ${nu.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(nu.washType)}${nu.etaArrivalAt?' · arrives ~'+minsUntil(nu.etaArrivalAt)+' min':''}</div>`:`<div class="bay-avail">Available</div>`}</div>
+      <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#7c3aed">${bay.reason||'Unavailable'}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:nu?`<div class="bay-avail">Available</div><div class="bay-bname" style="margin-top:6px;font-size:12px;color:#21867B;">Next: ${nu.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(nu.washType)}${nu.etaArrivalAt?' · arrives at '+fmtTime(nu.etaArrivalAt):''}</div>`:`<div class="bay-avail">Available</div>`}</div>
       <div class="bay-acts">
         ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">${ICONS.plus} Walk-in</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">${ICONS.lock}</button>`:''}
         ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Available</button>`:''}
@@ -729,6 +728,18 @@ async function setBayFree(num) { await fetch(`${API}/api/partners/shop/${partner
 async function addBay() { const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'POST',headers:authH()}); if(r.ok){loadBays();toast('Bay added');} }
 async function removeBay() { if(!confirm('Remove last bay?')) return; const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'DELETE',headers:authH()}); if(r.ok){loadBays();toast('Bay removed');} }
 
+// Expected duration is the ready-by promise made when the wash started — arrival time for a
+// reservation (a walk-in has no arrival, it starts immediately, so wash-started stands in for
+// it). Actual is just wash-started to wash-finished. Only shown once both ends are known.
+function durationLine(b) {
+  if (b.status !== 'completed' || !b.washStartedAt || !b.washFinishedAt) return '';
+  const actualMins = Math.max(0, Math.round((new Date(b.washFinishedAt) - new Date(b.washStartedAt)) / 60000));
+  const expectedStart = b.etaArrivalAt || b.washStartedAt;
+  const expectedMins = b.etaReadyAt ? Math.max(0, Math.round((new Date(b.etaReadyAt) - new Date(expectedStart)) / 60000)) : null;
+  const text = expectedMins != null ? `Expected ${expectedMins} min · Took ${actualMins} min` : `Took ${actualMins} min`;
+  return `<div class="cp" style="margin-top:1px;">${text}</div>`;
+}
+
 async function loadSummary() {
   const shopId=partnerShop?.id; if(!shopId) return;
   const today=new Date().toISOString().slice(0,10);
@@ -743,7 +754,7 @@ async function loadSummary() {
     (d.todayBookings||[]).forEach(b=>{
       html+=`<div class="bc ${b.status==='completed'?'done':''}">
         <div class="bc-top"><div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
-          <div><div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div></div>
+          <div><div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div>${durationLine(b)}</div>
         </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${b.price} EGP</div></div>
       </div>`;
     });

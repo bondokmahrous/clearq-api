@@ -1492,6 +1492,18 @@ async function removeBay() {
 }
 
 // ─── SUMMARY ──────────────────────────────────────────────────
+// Expected duration is the ready-by promise made when the wash started — arrival time for a
+// reservation (a walk-in has no arrival, it starts immediately, so wash-started stands in for
+// it). Actual is just wash-started to wash-finished. Only shown once both ends are known.
+function durationLine(b) {
+  if (b.status !== 'completed' || !b.washStartedAt || !b.washFinishedAt) return '';
+  const actualMins = Math.max(0, Math.round((new Date(b.washFinishedAt) - new Date(b.washStartedAt)) / 60000));
+  const expectedStart = b.etaArrivalAt || b.washStartedAt;
+  const expectedMins = b.etaReadyAt ? Math.max(0, Math.round((new Date(b.etaReadyAt) - new Date(expectedStart)) / 60000)) : null;
+  const text = expectedMins != null ? `Expected ${expectedMins} min · Took ${actualMins} min` : `Took ${actualMins} min`;
+  return `<div style="font-size:11px;color:var(--gray);margin-top:2px;">${text}</div>`;
+}
+
 async function loadSummary() {
   if (!currentShopId) return;
   const today = new Date().toISOString().slice(0,10);
@@ -1511,7 +1523,7 @@ async function loadSummary() {
       tl.innerHTML = sorted.map(b=>`
         <div class="timeline-row" style="border-left-color:${statusColor(b.status)}">
           <div class="tl-time">${b.scheduledTime}</div>
-          <div class="tl-name">${b.customerName}</div>
+          <div class="tl-name">${b.customerName}${durationLine(b)}</div>
           <div class="tl-type">${b.washType}</div>
           <div class="tl-price">${b.price} EGP</div>
           <div class="tl-status"><span class="status-pill ${b.status}">${statusLabel(b.status)}</span></div>

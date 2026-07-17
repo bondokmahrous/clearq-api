@@ -447,6 +447,7 @@ const BOOKING_EMAIL_COPY = {
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tr><td style="padding:6px 0;color:#64748b;">Estimated start</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(b.eta_arrival_at)}</td></tr>
         <tr><td style="padding:6px 0;color:#64748b;">Ready by</td><td style="padding:6px 0;font-weight:700;text-align:right;">${fmtCairoTime(b.eta_ready_at)}</td></tr>
+        ${[b.car_color, b.car_model].filter(Boolean).join(' ') ? `<tr><td style="padding:6px 0;color:#64748b;">Car</td><td style="padding:6px 0;font-weight:700;text-align:right;">${[b.car_color, b.car_model].filter(Boolean).join(' ')}${b.license_plate ? ' · ' + b.license_plate : ''}</td></tr>` : ''}
         <tr><td style="padding:6px 0;color:#64748b;">Price</td><td style="padding:6px 0;font-weight:700;text-align:right;">${b.price} EGP</td></tr>
       </table>
       <p style="color:#64748b;font-size:12px;">Drive straight in when it's time — no need to wait in line.</p>`,
@@ -1334,11 +1335,13 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       // Resolve car details — prefer carId lookup, fall back to manual fields
       let finalCarModel = carModel || null;
       let finalLicensePlate = licensePlate || null;
+      let finalCarColor = null;
       if (carId) {
         const car = await db1(`SELECT * FROM user_cars WHERE id=$1`, [carId]);
         if (car) {
           finalCarModel = [car.make, car.model].filter(Boolean).join(' ') || car.model;
           finalLicensePlate = car.license_plate || finalLicensePlate;
+          finalCarColor = car.color || null;
         }
       }
 
@@ -1369,11 +1372,11 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       }
 
       const [created] = await db(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','reservation',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,NOW(),NOW()) RETURNING *`,
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,car_color,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','reservation',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW()) RETURNING *`,
         [shopId, customerName, customerPhone, washType,
           scheduledDate || today(), scheduledTime || nowTime(),
-          price, finalLicensePlate, finalCarModel,
+          price, finalLicensePlate, finalCarModel, finalCarColor,
           etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"),
           customerLat || null, customerLng || null,
           userId, carId || null, JSON.stringify(addons)]
