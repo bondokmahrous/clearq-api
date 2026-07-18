@@ -1240,6 +1240,19 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     return respond(res, 404, { error: "Asset not found" });
   }
 
+  if (p === "/robots.txt") {
+    res.writeHead(200, { "Content-Type": "text/plain", ...CORS_HEADERS });
+    return res.end("User-agent: *\nAllow: /\nSitemap: https://clearq.online/sitemap.xml\n");
+  }
+
+  if (p === "/sitemap.xml") {
+    res.writeHead(200, { "Content-Type": "application/xml", ...CORS_HEADERS });
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://clearq.online/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+</urlset>`);
+  }
+
   try {
     // ── PUBLIC ────────────────────────────────────────────────────────────
 
