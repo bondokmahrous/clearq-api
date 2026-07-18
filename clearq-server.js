@@ -1221,6 +1221,9 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     // Transparent, tightly-cropped version of the same mark — customer-facing site only, where
     // the surrounding header/footer already supplies the right background color on its own.
     "/logo-transparent.png": { file: "logo-transparent.png", type: "image/png" },
+    // Search engines and some browser chrome check this default path directly, even when a
+    // <link rel="icon"> tag points elsewhere.
+    "/favicon.ico": { file: "favicon.ico", type: "image/x-icon" },
   };
   if (staticAssets[p]) {
     const { file, type } = staticAssets[p];
