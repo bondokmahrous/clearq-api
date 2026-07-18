@@ -1218,6 +1218,9 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
   const staticAssets = {
     "/hero-carwash.jpg": { file: "hero-carwash.jpg", type: "image/jpeg" },
     "/logo.png": { file: "logo.png", type: "image/png" },
+    // Transparent, tightly-cropped version of the same mark — customer-facing site only, where
+    // the surrounding header/footer already supplies the right background color on its own.
+    "/logo-transparent.png": { file: "logo-transparent.png", type: "image/png" },
   };
   if (staticAssets[p]) {
     const { file, type } = staticAssets[p];
