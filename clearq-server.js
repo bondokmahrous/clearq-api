@@ -1215,7 +1215,10 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
   // Serve static image assets (same multi-location search as the HTML pages above, since
   // Railway's working directory isn't always predictable) — binary, not text, and cached since
   // these don't change on every deploy the way the HTML does.
-  const staticAssets = { "/hero-carwash.jpg": { file: "hero-carwash.jpg", type: "image/jpeg" } };
+  const staticAssets = {
+    "/hero-carwash.jpg": { file: "hero-carwash.jpg", type: "image/jpeg" },
+    "/logo.png": { file: "logo.png", type: "image/png" },
+  };
   if (staticAssets[p]) {
     const { file, type } = staticAssets[p];
     const locations = [
