@@ -1521,6 +1521,15 @@ function durationLine(b) {
   return `<div style="font-size:11px;color:var(--gray);margin-top:2px;">${text}</div>`;
 }
 
+// Shows the pre-promo price struck through next to the actual (discounted) price whenever a
+// promo code changed what this booking charged — otherwise just the price as normal.
+function priceDisplay(b) {
+  if (b.originalPrice != null && b.originalPrice !== b.price) {
+    return `<span style="text-decoration:line-through;color:var(--gray);font-weight:600;margin-right:5px;">${b.originalPrice}</span>${b.price} EGP`;
+  }
+  return `${b.price} EGP`;
+}
+
 // ─── Summary date range (Day/Week/Month) ──────────────────────────
 let sumMode = 'day';
 let sumRefDate = new Date();
@@ -1595,7 +1604,7 @@ async function loadSummary() {
           <div class="tl-time">${sumMode==='day' ? b.scheduledTime : new Date(b.scheduledDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
           <div class="tl-name">${b.customerName}${durationLine(b)}</div>
           <div class="tl-type">${b.washType}</div>
-          <div class="tl-price">${b.price} EGP</div>
+          <div class="tl-price">${priceDisplay(b)}</div>
           <div class="tl-status"><span class="status-pill ${b.status}">${statusLabel(b.status)}</span></div>
         </div>`).join('');
     }

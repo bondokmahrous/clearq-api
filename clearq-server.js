@@ -274,6 +274,16 @@ async function initDB() {
   // How many minutes past closing an online booking's wash is still allowed to finish (default
   // 15, see closingGraceMs) — dashboard-editable per shop so a centre can tighten or loosen it.
   await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS closing_grace_mins INT`);
+  // One active promo code per shop, owner-set only (not from the shop's own dashboard) — a code
+  // and the flat percentage it takes off the total. NULL code means no promo currently running.
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS promo_code TEXT`);
+  await db(`ALTER TABLE wash_shops ADD COLUMN IF NOT EXISTS promo_discount_percent INT`);
+  // Snapshot of what a promo code actually did to a booking's price — original_price stays the
+  // pre-discount amount so the summary can show both, price is still what the customer actually
+  // pays (and what revenue totals should sum).
+  await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS original_price INT`);
+  await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS promo_code TEXT`);
+  await db(`ALTER TABLE wash_bookings ADD COLUMN IF NOT EXISTS discount_percent INT`);
   // Hard guarantee against two active washes ever colliding on the same physical bay — found
   // this happening for real (two concurrent "Start" clicks both saw the same bay as free before
   // either write landed). The application-level check-then-assign in the /start endpoint can't
@@ -580,6 +590,8 @@ function shop(s) {
     notificationEmail: s.notification_email,
     fixedWaitMins: s.manual_wait_mins != null ? s.manual_wait_mins : null,
     closingGraceMins: s.closing_grace_mins != null ? s.closing_grace_mins : null,
+    promoCode: s.promo_code || null,
+    promoDiscountPercent: s.promo_discount_percent != null ? s.promo_discount_percent : null,
     createdAt: s.created_at, updatedAt: s.updated_at,
   };
 }
@@ -593,6 +605,9 @@ function booking(b) {
     price: b.price, status: b.status, kind: b.kind, bayNumber: b.bay_number,
     licensePlate: b.license_plate, carModel: b.car_model, carColor: b.car_color, carType: b.car_type,
     notes: b.notes, paymentStatus: b.payment_status, addons: b.addons || [],
+    originalPrice: b.original_price != null ? b.original_price : null,
+    promoCode: b.promo_code || null,
+    discountPercent: b.discount_percent != null ? b.discount_percent : null,
     etaArrivalAt: ts(b.eta_arrival_at), etaReadyAt: ts(b.eta_ready_at),
     arrivedAt: ts(b.arrived_at), washStartedAt: ts(b.wash_started_at),
     washFinishedAt: ts(b.wash_finished_at),
@@ -628,6 +643,19 @@ async function resolveAddons(shopId, addonIds) {
     [shopId, ids]
   );
   return rows.map(r => ({ id: r.id, name: r.name, price: r.price, durationMins: r.duration_mins }));
+}
+
+// Validates a customer-entered promo code against a shop's currently active one (owner-set only)
+// and computes the discounted price — case-insensitive, and only ever trusts what's actually
+// stored on the shop row, never a discount percentage the client might send itself.
+function applyPromoDiscount(shop, originalPrice, promoCode) {
+  const code = (promoCode || '').trim().toUpperCase();
+  if (!code || !shop.promo_code || !shop.promo_discount_percent || code !== shop.promo_code.toUpperCase()) {
+    return { finalPrice: originalPrice, originalPrice, appliedCode: null, discountPercent: null };
+  }
+  const discountPercent = shop.promo_discount_percent;
+  const finalPrice = Math.max(0, Math.round(originalPrice * (1 - discountPercent / 100)));
+  return { finalPrice, originalPrice, appliedCode: shop.promo_code, discountPercent };
 }
 
 // ─── BUSINESS LOGIC ───────────────────────────────────────────────────────────
@@ -1320,6 +1348,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const shopId = +url.searchParams.get("shopId");
       const driveMins = Math.max(0, parseFloat(url.searchParams.get("driveMins")) || 0);
       const washType = url.searchParams.get("washType");
+      const promoCode = url.searchParams.get("promoCode");
       if (!shopId || !washType) return respond(res, 400, { error: "shopId and washType required" });
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Shop not found" });
@@ -1329,6 +1358,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
       const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
       const durationMins = baseDurationMins + addonsDurationMins;
+      const { finalPrice, originalPrice, appliedCode, discountPercent } = applyPromoDiscount(s, basePrice + addonsPrice, promoCode);
       const now = new Date();
       const requestedArrival = new Date(now.getTime() + driveMins * 60000);
       const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
@@ -1346,7 +1376,10 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         etaReadyAt: etaReady.toISOString(),
         waitMins,
         durationMins,
-        totalPrice: basePrice + addonsPrice,
+        totalPrice: finalPrice,
+        originalPrice,
+        promoApplied: appliedCode,
+        discountPercent,
         closesTooLate,
         closingMessage: closesTooLate
           ? `${s.name} closes at ${s.close_time} — this wash wouldn't be ready until ${fmtCairoTime(etaReady)}. Please pick an earlier time.`
@@ -1357,7 +1390,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     // POST /wash/reservations
     if (m === "POST" && p === "/wash/reservations") {
       const body = await readBody(req);
-      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng, addonIds } = body;
+      const { shopId, customerName, customerPhone, washType, scheduledDate, scheduledTime, licensePlate, carModel, carId, etaMinutesOverride, etaSource, customerLat, customerLng, addonIds, promoCode } = body;
       if (!shopId || !customerName || !customerPhone || !washType) {
         return respond(res, 400, { error: "shopId, customerName, customerPhone, washType required" });
       }
@@ -1386,7 +1419,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addons = await resolveAddons(shopId, addonIds);
       const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
       const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
-      const price = basePrice + addonsPrice;
+      const preDiscountPrice = basePrice + addonsPrice;
+      const { finalPrice: price, originalPrice, appliedCode, discountPercent } = applyPromoDiscount(s, preDiscountPrice, promoCode);
       const durationMins = baseDurationMins + addonsDurationMins;
       const now = new Date();
 
@@ -1409,11 +1443,12 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       }
 
       const [created] = await db(
-        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,status,payment_status,kind,license_plate,car_model,car_color,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending','paid','reservation',$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW()) RETURNING *`,
+        `INSERT INTO wash_bookings (shop_id,customer_name,customer_phone,wash_type,scheduled_date,scheduled_time,price,original_price,promo_code,discount_percent,status,payment_status,kind,license_plate,car_model,car_color,eta_arrival_at,eta_ready_at,eta_source,customer_lat,customer_lng,user_id,car_id,addons,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending','paid','reservation',$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,NOW(),NOW()) RETURNING *`,
         [shopId, customerName, customerPhone, washType,
           scheduledDate || today(), scheduledTime || nowTime(),
-          price, finalLicensePlate, finalCarModel, finalCarColor,
+          price, originalPrice, appliedCode, discountPercent,
+          finalLicensePlate, finalCarModel, finalCarColor,
           etaArrival, etaReady, etaSource || (etaMinutesOverride ? "google" : "fallback"),
           customerLat || null, customerLng || null,
           userId, carId || null, JSON.stringify(addons)]
@@ -2179,6 +2214,11 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
       const shopId = +p.split("/")[3];
       const body = await readBody(req);
+      // Normalized to uppercase so matching a customer-entered code is a simple case-insensitive
+      // compare everywhere else, and so it displays consistently regardless of how it was typed.
+      if (typeof body.promoCode === 'string') {
+        body.promoCode = body.promoCode.trim().toUpperCase() || null;
+      }
       const fieldMap = {
         name: 'name', address: 'address', city: 'city', phone: 'phone',
         lat: 'lat', lng: 'lng', openTime: 'open_time', closeTime: 'close_time',
@@ -2186,6 +2226,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         priceExterior: 'price_exterior', priceInterior: 'price_interior', priceFull: 'price_full',
         minsExterior: 'mins_exterior', minsInterior: 'mins_interior', minsFull: 'mins_full',
         isTest: 'is_test', secretSlug: 'secret_slug',
+        promoCode: 'promo_code', promoDiscountPercent: 'promo_discount_percent',
       };
       const sets = []; const vals = []; let i = 1;
       for (const [key, col] of Object.entries(fieldMap)) {

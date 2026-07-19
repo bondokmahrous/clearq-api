@@ -763,6 +763,15 @@ function durationLine(b) {
   return `<div class="cp" style="margin-top:1px;">${text}</div>`;
 }
 
+// Shows the pre-promo price struck through next to the actual (discounted) price whenever a
+// promo code changed what this booking charged — otherwise just the price as normal.
+function priceDisplay(b) {
+  if (b.originalPrice != null && b.originalPrice !== b.price) {
+    return `<span style="text-decoration:line-through;color:var(--gray-dark);font-weight:600;margin-right:5px;">${b.originalPrice}</span>${b.price} EGP`;
+  }
+  return `${b.price} EGP`;
+}
+
 // ─── Summary date range (Day/Week/Month) ──────────────────────────
 let sumMode = 'day';
 let sumRefDate = new Date();
@@ -829,7 +838,7 @@ async function loadSummary() {
       html+=`<div class="bc ${b.status==='completed'?'done':''}">
         <div class="bc-top"><div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
           <div>${dateTag}<div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div>${durationLine(b)}</div>
-        </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${b.price} EGP</div></div>
+        </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${priceDisplay(b)}</div></div>
       </div>`;
     });
     document.getElementById('sum-c').innerHTML=html;

@@ -341,6 +341,18 @@ input,select{font-family:inherit;}
             <input class="login-input" style="margin-bottom:0;" id="cm-close" type="time">
           </div>
         </div>
+        <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Promo Code</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">One active code at a time, taken as a flat percentage off the total at checkout. Leave the code blank to turn the promo off.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px;">
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Code</label>
+            <input class="login-input" style="margin-bottom:0;text-transform:uppercase;" id="cm-promo-code" placeholder="e.g. SAVE10">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Discount %</label>
+            <input class="login-input" style="margin-bottom:0;" id="cm-promo-percent" type="number" min="0" max="100" placeholder="10">
+          </div>
+        </div>
         <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Partner Login</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px;">
           <div>
@@ -1062,6 +1074,7 @@ function renderManageCentres() {
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
           <div style="font-size:15px;font-weight:700;">${s.name}</div>
           <span class="badge ${s.isActive ? 'badge-done' : 'badge-cancelled'}">${s.isActive ? 'Active' : 'Inactive'}</span>
+          ${s.promoCode ? `<span class="badge" style="background:rgba(63,189,176,0.18);color:var(--blue);">${s.promoCode} · ${s.promoDiscountPercent}% off</span>` : ''}
         </div>
         <div style="font-size:12px;color:var(--gray);">${s.address || 'No address set'} · ${s.city}</div>
         <div style="font-size:12px;color:var(--gray);margin-top:4px;">
@@ -1088,6 +1101,8 @@ function openAddCentreModal() {
   document.getElementById('cm-lng').value = '';
   document.getElementById('cm-open').value = '09:00';
   document.getElementById('cm-close').value = '22:00';
+  document.getElementById('cm-promo-code').value = '';
+  document.getElementById('cm-promo-percent').value = '';
   document.getElementById('cm-username').value = '';
   document.getElementById('cm-password').value = '';
   document.getElementById('cm-error').textContent = '';
@@ -1108,6 +1123,8 @@ function openEditCentreModal(shopId) {
   document.getElementById('cm-lng').value = s.lng || '';
   document.getElementById('cm-open').value = s.openTime || '09:00';
   document.getElementById('cm-close').value = s.closeTime || '22:00';
+  document.getElementById('cm-promo-code').value = s.promoCode || '';
+  document.getElementById('cm-promo-percent').value = s.promoDiscountPercent != null ? s.promoDiscountPercent : '';
   document.getElementById('cm-username').value = s.partner?.username || '';
   document.getElementById('cm-password').value = '';
   document.getElementById('cm-error').textContent = '';
@@ -1129,12 +1146,23 @@ async function saveCentre() {
   const lng = parseFloat(document.getElementById('cm-lng').value) || null;
   const openTime = document.getElementById('cm-open').value;
   const closeTime = document.getElementById('cm-close').value;
+  const promoCode = document.getElementById('cm-promo-code').value.trim();
+  const promoPercentRaw = document.getElementById('cm-promo-percent').value;
+  const promoDiscountPercent = promoPercentRaw === '' ? null : parseInt(promoPercentRaw);
   const username = document.getElementById('cm-username').value.trim();
   const password = document.getElementById('cm-password').value.trim();
   const errEl = document.getElementById('cm-error');
   errEl.textContent = '';
 
   if (!name) { errEl.textContent = 'Centre name is required'; return; }
+  if ((promoCode && promoDiscountPercent == null) || (!promoCode && promoDiscountPercent != null)) {
+    errEl.textContent = 'Promo code and discount % must be set together (or both left blank)';
+    return;
+  }
+  if (promoDiscountPercent != null && (promoDiscountPercent <= 0 || promoDiscountPercent > 100)) {
+    errEl.textContent = 'Discount % must be between 1 and 100';
+    return;
+  }
 
   const btn = document.getElementById('cm-save-btn');
   btn.disabled = true; btn.textContent = 'Saving...';
@@ -1155,7 +1183,7 @@ async function saveCentre() {
       const res = await fetch(`${API}/api/owner/shops/${id}`, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
-        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime })
+        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime, promoCode: promoCode || null, promoDiscountPercent })
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update centre'); }
 

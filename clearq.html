@@ -834,9 +834,17 @@ html, body {
     <div class="modal-sub" id="bm-addr"></div>
     <div class="modal-sec">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
+    <div id="bm-promo-row" style="display:none;gap:8px;margin-bottom:8px;">
+      <input type="text" id="bm-promo-input" placeholder="Promo code" style="flex:1;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:700;color:#0f172a;outline:none;text-transform:uppercase;letter-spacing:0.5px;">
+      <button type="button" onclick="applyPromoCode()" style="background:#0f172a;color:#fff;border:none;border-radius:9px;padding:0 18px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Apply</button>
+    </div>
+    <div id="bm-promo-msg" style="display:none;font-size:12px;margin:-2px 0 10px;"></div>
     <div id="bm-total-price" style="display:none;align-items:center;justify-content:space-between;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:11px;padding:12px 14px;margin-bottom:14px;">
       <span style="font-size:13px;font-weight:600;color:#21867B;">Total</span>
-      <span id="bm-total-price-amt" style="font-size:20px;font-weight:800;color:#21867B;"></span>
+      <span style="display:flex;align-items:baseline;gap:8px;">
+        <span id="bm-total-price-original" style="display:none;font-size:13px;font-weight:600;color:#94a3b8;text-decoration:line-through;"></span>
+        <span id="bm-total-price-amt" style="font-size:20px;font-weight:800;color:#21867B;"></span>
+      </span>
     </div>
     <div class="modal-sec">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
@@ -1389,6 +1397,7 @@ let addons = {}; // per-shop cache of custom-wash add-on items, mirrors `service
 let selectedAddonIds = new Set(); // add-ons picked in the currently-open booking modal
 const ADDONS_SHOP_ID = 6; // Custom Wash / add-ons is HD CarWash only for now
 let currentTotalPrice = null; // mirrors what's shown on the Confirm Booking button
+let appliedPromoCode = null; // the code (if any) currently applied in the open booking modal
 
 // Keeps the price on the Confirm Booking button itself, not just buried in the page — remembered
 // so a failed submit (see confirmBooking's finally block) restores the price, not a bare label.
@@ -1419,14 +1428,22 @@ function fmtTime(date) {
 
 // Applies a fetchBookingPreview() result to the modal's wait/start/ready fields, plus the total
 // price line — shown only when it can differ from the picked service card's own listed price
-// (extras added on top of a regular service).
+// (extras added on top of a regular service, or a promo code discount).
 function updatePreviewDisplay(preview, { includeWait = true } = {}) {
   if (includeWait) document.getElementById('bm-w').textContent = preview.effectiveWait;
   document.getElementById('bm-start').textContent = preview.startStr;
   document.getElementById('bm-ready').textContent = preview.readyStr;
   const priceEl = document.getElementById('bm-total-price');
-  if (selectedWash?.id === ADDONS_SHOP_ID && selectedAddonIds.size) {
+  const origEl = document.getElementById('bm-total-price-original');
+  const hasPromo = !!preview.promoApplied;
+  if ((selectedWash?.id === ADDONS_SHOP_ID && selectedAddonIds.size) || hasPromo) {
     document.getElementById('bm-total-price-amt').textContent = `${preview.totalPrice} EGP`;
+    if (hasPromo && preview.originalPrice != null && preview.originalPrice !== preview.totalPrice) {
+      origEl.textContent = `${preview.originalPrice} EGP`;
+      origEl.style.display = 'inline';
+    } else {
+      origEl.style.display = 'none';
+    }
     priceEl.style.display = 'flex';
   } else {
     priceEl.style.display = 'none';
@@ -1459,10 +1476,16 @@ async function fetchBookingPreview(shopId, driveMins, washType) {
   try {
     const params = new URLSearchParams({ shopId, driveMins: Math.max(0, Math.round(driveMins || 0)), washType });
     if (selectedAddonIds.size) params.set('addonIds', [...selectedAddonIds].join(','));
+    if (appliedPromoCode) params.set('promoCode', appliedPromoCode);
     const res = await fetch(`${API}/api/wash/reservations/preview?${params}`);
     if (!res.ok) return null;
     const data = await res.json();
-    return { startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)), effectiveWait: data.waitMins, totalPrice: data.totalPrice, closesTooLate: !!data.closesTooLate, closingMessage: data.closingMessage || null };
+    return {
+      startStr: fmtTime(new Date(data.etaArrivalAt)), readyStr: fmtTime(new Date(data.etaReadyAt)),
+      effectiveWait: data.waitMins, totalPrice: data.totalPrice, originalPrice: data.originalPrice,
+      promoApplied: data.promoApplied || null, discountPercent: data.discountPercent || null,
+      closesTooLate: !!data.closesTooLate, closingMessage: data.closingMessage || null,
+    };
   } catch { return null; }
 }
 
@@ -1559,6 +1582,10 @@ async function proceedToBookingModal(shopId) {
   closeExtrasModal();
   document.getElementById('bm-total-price').style.display = 'none';
   setConfirmBtnPrice(null);
+  appliedPromoCode = null;
+  document.getElementById('bm-promo-input').value = '';
+  document.getElementById('bm-promo-msg').style.display = 'none';
+  document.getElementById('bm-promo-row').style.display = selectedWash.promoCode ? 'flex' : 'none';
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
   document.getElementById('when-now-btn').style.background = '#E6F7F5';
@@ -1711,8 +1738,9 @@ function selectServiceCard(s, card) {
 
 async function refreshNowPreview(s) {
   const preview = await fetchBookingPreview(selectedWash.id, etaResult?.etaMinutes || 0, s.name);
-  if (!preview || selectedSvc !== s || bookingMode !== 'now') return; // stale — service or mode changed while this was loading
+  if (!preview || selectedSvc !== s || bookingMode !== 'now') return null; // stale — service or mode changed while this was loading
   updatePreviewDisplay(preview);
+  return preview;
 }
 
 // Renders the checkbox list inside the extras popup, and opens it — only for the shop that has
@@ -1739,6 +1767,33 @@ async function toggleAddon(id, checked) {
   if (!selectedSvc) return; // no service picked yet to preview against
   if (bookingMode === 'schedule') { renderSchedulePreview(); return; }
   await refreshNowPreview(selectedSvc);
+}
+
+// Re-runs the same preview the rest of the modal already uses, just with the entered code
+// attached — the server is the only thing that decides whether it's actually valid, this just
+// surfaces what it said.
+async function applyPromoCode() {
+  const input = document.getElementById('bm-promo-input');
+  const msgEl = document.getElementById('bm-promo-msg');
+  const code = input.value.trim();
+  appliedPromoCode = code || null;
+  if (!selectedSvc) {
+    msgEl.textContent = 'Please select a service first';
+    msgEl.style.color = '#b91c1c';
+    msgEl.style.display = 'block';
+    return;
+  }
+  const preview = bookingMode === 'schedule' ? await renderSchedulePreview() : await refreshNowPreview(selectedSvc);
+  if (!code) { msgEl.style.display = 'none'; return; }
+  if (!preview) return;
+  if (preview.promoApplied) {
+    msgEl.textContent = `"${preview.promoApplied}" applied — ${preview.discountPercent}% off`;
+    msgEl.style.color = '#166534';
+  } else {
+    msgEl.textContent = 'Invalid promo code';
+    msgEl.style.color = '#b91c1c';
+  }
+  msgEl.style.display = 'block';
 }
 
 function buildSlotOptions(shop) {
@@ -1796,7 +1851,7 @@ function onSlotTimeChange() {
 }
 
 async function renderSchedulePreview() {
-  if (!selectedSlotTime) return;
+  if (!selectedSlotTime) return null;
   const svc = selectedSvc || (services[selectedWash.id] && services[selectedWash.id][0]);
   const requestedSlotTime = selectedSlotTime;
   document.getElementById('bm-w').textContent = '—';
@@ -1804,9 +1859,10 @@ async function renderSchedulePreview() {
   document.getElementById('bm-ready').textContent = '...';
   const driveMins = (requestedSlotTime.getTime() - Date.now()) / 60000;
   const preview = await fetchBookingPreview(selectedWash.id, driveMins, svc ? svc.name : 'full');
-  if (selectedSlotTime !== requestedSlotTime || bookingMode !== 'schedule') return; // stale — slot or mode changed while this was loading
-  if (!preview) return;
+  if (selectedSlotTime !== requestedSlotTime || bookingMode !== 'schedule') return null; // stale — slot or mode changed while this was loading
+  if (!preview) return null;
   updatePreviewDisplay(preview, { includeWait: false });
+  return preview;
 }
 
 async function setBookingMode(mode) {
@@ -1881,6 +1937,7 @@ async function confirmBooking() {
       carModel: selectedCar ? carLabel(selectedCar) : '',
       licensePlate: selectedCar?.licensePlate || '',
       addonIds: [...selectedAddonIds],
+      promoCode: appliedPromoCode || undefined,
     };
     if (userLocation) {
       body.customerLat = userLocation.latitude;
