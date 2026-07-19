@@ -1407,13 +1407,13 @@ function fmtTime(date) {
 
 // Applies a fetchBookingPreview() result to the modal's wait/start/ready fields, plus the total
 // price line — shown only when it can differ from the picked service card's own listed price
-// (Custom Wash, or extras added on top of a regular service).
+// (extras added on top of a regular service).
 function updatePreviewDisplay(preview, { includeWait = true } = {}) {
   if (includeWait) document.getElementById('bm-w').textContent = preview.effectiveWait;
   document.getElementById('bm-start').textContent = preview.startStr;
   document.getElementById('bm-ready').textContent = preview.readyStr;
   const priceEl = document.getElementById('bm-total-price');
-  if (selectedWash?.id === ADDONS_SHOP_ID && (selectedAddonIds.size || selectedSvc?.name === 'custom')) {
+  if (selectedWash?.id === ADDONS_SHOP_ID && selectedAddonIds.size) {
     priceEl.textContent = `Total: ${preview.totalPrice} EGP`;
     priceEl.style.display = 'block';
   } else {
@@ -1603,19 +1603,12 @@ async function proceedToBookingModal(shopId) {
       grid.appendChild(card);
     });
 
-    // Custom Wash + optional extras — HD CarWash only for now
+    // Optional extras (offered via the popup after picking a service) — HD CarWash only for now
     if (shopId === ADDONS_SHOP_ID) {
       try {
         const aRes = await fetch(`${API}/api/wash/shops/${shopId}/addons?t=${Date.now()}`);
         addons[shopId] = aRes.ok ? await aRes.json() : [];
       } catch { addons[shopId] = []; }
-      if (addons[shopId].length) {
-        const customCard = document.createElement('div');
-        customCard.className = 'svc-card';
-        customCard.innerHTML = `<div class="svc-name">Custom Wash</div><div class="svc-price">Build your own</div><div class="svc-dur">You choose</div>`;
-        customCard.onclick = () => selectServiceCard({ name: 'custom', price: 0, durationMins: 0 }, customCard);
-        grid.appendChild(customCard);
-      }
     }
   } catch {
     grid.innerHTML = '<p style="color:var(--gray);font-size:12px">Could not load services</p>';
@@ -1691,9 +1684,6 @@ async function proceedToBookingModal(shopId) {
   });
 }
 
-// Shared by every service card, including the Custom Wash pseudo-service — a plain object with
-// name/price/durationMins so the rest of the booking flow (preview, confirm) doesn't need to
-// know Custom Wash is any different from a real wash_services row.
 function selectServiceCard(s, card) {
   document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
   card.classList.add('sel');
@@ -1712,15 +1702,12 @@ async function refreshNowPreview(s) {
 }
 
 // Renders the checkbox list inside the extras popup, and opens it — only for the shop that has
-// add-on items configured (HD CarWash today). Custom Wash has nothing else to show, so this is
-// effectively its whole service picker, not just an upsell.
+// add-on items configured (HD CarWash today).
 function openExtrasModal(svc) {
   const shopAddons = addons[selectedWash?.id] || [];
   if (!shopAddons.length) return;
-  document.getElementById('extras-modal-title').textContent = svc.name === 'custom' ? 'Build your Custom Wash' : 'Add extras?';
-  document.getElementById('extras-modal-sub').textContent = svc.name === 'custom'
-    ? 'Choose at least one item to build your wash.'
-    : `Make your ${svc.name} wash even better.`;
+  document.getElementById('extras-modal-title').textContent = 'Add extras?';
+  document.getElementById('extras-modal-sub').textContent = `Make your ${svc.name} wash even better.`;
   document.getElementById('extras-modal-list').innerHTML = shopAddons.map(a => `
     <label style="display:flex;align-items:center;gap:9px;padding:9px 0;font-size:13px;color:#0f172a;cursor:pointer;border-bottom:1px solid #f1f5f9;">
       <input type="checkbox" value="${a.id}" ${selectedAddonIds.has(a.id)?'checked':''} onchange="toggleAddon(${a.id}, this.checked)" style="width:16px;height:16px;accent-color:#3FBDB0;flex-shrink:0;">
@@ -1851,7 +1838,6 @@ async function confirmBooking() {
   errEl.textContent = '';
 
   if (!selectedSvc) { errEl.textContent = 'Please select a service'; return; }
-  if (selectedSvc.name === 'custom' && !selectedAddonIds.size) { errEl.textContent = 'Please choose at least one item for your Custom Wash'; return; }
   if (!name) { errEl.textContent = 'Please enter your name'; return; }
   if (!phone) { errEl.textContent = 'Please enter your phone number'; return; }
   if (userCars.length && !selectedCarId) { errEl.textContent = 'Please select which car'; return; }
