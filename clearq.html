@@ -834,7 +834,10 @@ html, body {
     <div class="modal-sub" id="bm-addr"></div>
     <div class="modal-sec">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
-    <div id="bm-total-price" style="display:none;text-align:right;font-size:12px;color:#64748b;margin-bottom:14px;"></div>
+    <div id="bm-total-price" style="display:none;align-items:center;justify-content:space-between;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:11px;padding:12px 14px;margin-bottom:14px;">
+      <span style="font-size:13px;font-weight:600;color:#21867B;">Total</span>
+      <span id="bm-total-price-amt" style="font-size:20px;font-weight:800;color:#21867B;"></span>
+    </div>
     <div class="modal-sec">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
       <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
@@ -1385,6 +1388,15 @@ let etaLoading = false;
 let addons = {}; // per-shop cache of custom-wash add-on items, mirrors `services`
 let selectedAddonIds = new Set(); // add-ons picked in the currently-open booking modal
 const ADDONS_SHOP_ID = 6; // Custom Wash / add-ons is HD CarWash only for now
+let currentTotalPrice = null; // mirrors what's shown on the Confirm Booking button
+
+// Keeps the price on the Confirm Booking button itself, not just buried in the page — remembered
+// so a failed submit (see confirmBooking's finally block) restores the price, not a bare label.
+function setConfirmBtnPrice(price) {
+  currentTotalPrice = price;
+  const btn = document.getElementById('bm-confirm');
+  if (btn) btn.textContent = price != null ? `Confirm Booking · ${price} EGP` : 'Confirm Booking';
+}
 
 async function fetchETA(shopId, lat, lng) {
   try {
@@ -1414,11 +1426,12 @@ function updatePreviewDisplay(preview, { includeWait = true } = {}) {
   document.getElementById('bm-ready').textContent = preview.readyStr;
   const priceEl = document.getElementById('bm-total-price');
   if (selectedWash?.id === ADDONS_SHOP_ID && selectedAddonIds.size) {
-    priceEl.textContent = `Total: ${preview.totalPrice} EGP`;
-    priceEl.style.display = 'block';
+    document.getElementById('bm-total-price-amt').textContent = `${preview.totalPrice} EGP`;
+    priceEl.style.display = 'flex';
   } else {
     priceEl.style.display = 'none';
   }
+  setConfirmBtnPrice(preview.totalPrice);
   // The wash wouldn't be ready before the shop closes — block the booking here rather than
   // letting the customer fill everything in only to hit a 409 on submit.
   const warnEl = document.getElementById('bm-closing-warning');
@@ -1545,6 +1558,7 @@ async function proceedToBookingModal(shopId) {
   selectedAddonIds = new Set();
   closeExtrasModal();
   document.getElementById('bm-total-price').style.display = 'none';
+  setConfirmBtnPrice(null);
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
   document.getElementById('when-now-btn').style.background = '#E6F7F5';
@@ -1925,7 +1939,7 @@ async function confirmBooking() {
     errEl.textContent = e.message || 'Booking failed. Please try again.';
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Confirm Booking';
+    setConfirmBtnPrice(currentTotalPrice);
   }
 }
 
