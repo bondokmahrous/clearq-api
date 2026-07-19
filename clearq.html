@@ -834,14 +834,7 @@ html, body {
     <div class="modal-sub" id="bm-addr"></div>
     <div class="modal-sec">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
-    <div id="bm-addons-wrap" style="display:none;margin-bottom:14px;">
-      <button type="button" id="bm-addons-toggle" onclick="toggleAddonsPanel()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;font-size:13px;font-weight:600;color:#0f172a;cursor:pointer;">
-        <span id="bm-addons-label">+ Add extras</span>
-        <span id="bm-addons-caret" style="color:#94a3b8;">▾</span>
-      </button>
-      <div id="bm-addons-panel" style="display:none;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 9px 9px;padding:6px 12px;background:#fafbfc;"></div>
-      <div id="bm-total-price" style="display:none;text-align:right;font-size:12px;color:#64748b;margin-top:6px;"></div>
-    </div>
+    <div id="bm-total-price" style="display:none;text-align:right;font-size:12px;color:#64748b;margin-bottom:14px;"></div>
     <div class="modal-sec">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
       <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
@@ -1550,8 +1543,7 @@ async function proceedToBookingModal(shopId) {
   bookingMode = 'now';
   selectedSlotTime = null;
   selectedAddonIds = new Set();
-  document.getElementById('bm-addons-panel').style.display = 'none';
-  document.getElementById('bm-addons-caret').textContent = '▾';
+  closeExtrasModal();
   document.getElementById('bm-total-price').style.display = 'none';
   document.getElementById('bm-slot-time').style.display = 'none';
   document.getElementById('bm-location-status').style.display = 'flex';
@@ -1618,25 +1610,12 @@ async function proceedToBookingModal(shopId) {
         addons[shopId] = aRes.ok ? await aRes.json() : [];
       } catch { addons[shopId] = []; }
       if (addons[shopId].length) {
-        document.getElementById('bm-addons-panel').innerHTML = addons[shopId].map(a => `
-          <label style="display:flex;align-items:center;gap:9px;padding:8px 0;font-size:13px;color:#0f172a;cursor:pointer;border-bottom:1px solid #f1f5f9;">
-            <input type="checkbox" value="${a.id}" onchange="toggleAddon(${a.id}, this.checked)" style="width:16px;height:16px;accent-color:#3FBDB0;flex-shrink:0;">
-            <span style="flex:1;">${a.name}${a.durationMins ? ` <span style="color:#94a3b8;font-size:11px;">(+${a.durationMins} min)</span>` : ''}</span>
-            <span style="font-weight:700;color:#21867B;">${a.price} EGP</span>
-          </label>`).join('');
-        document.getElementById('bm-addons-wrap').style.display = 'block';
-        document.getElementById('bm-addons-label').textContent = addonsLabelText();
-
         const customCard = document.createElement('div');
         customCard.className = 'svc-card';
         customCard.innerHTML = `<div class="svc-name">Custom Wash</div><div class="svc-price">Build your own</div><div class="svc-dur">You choose</div>`;
         customCard.onclick = () => selectServiceCard({ name: 'custom', price: 0, durationMins: 0 }, customCard);
         grid.appendChild(customCard);
-      } else {
-        document.getElementById('bm-addons-wrap').style.display = 'none';
       }
-    } else {
-      document.getElementById('bm-addons-wrap').style.display = 'none';
     }
   } catch {
     grid.innerHTML = '<p style="color:var(--gray);font-size:12px">Could not load services</p>';
@@ -1719,12 +1698,9 @@ function selectServiceCard(s, card) {
   document.querySelectorAll('.svc-card').forEach(c => c.classList.remove('sel'));
   card.classList.add('sel');
   selectedSvc = s;
-  document.getElementById('bm-addons-label').textContent = addonsLabelText();
-  if (s.name === 'custom') {
-    // Custom Wash has nothing to show without at least one item — open the picker right away.
-    document.getElementById('bm-addons-panel').style.display = 'block';
-    document.getElementById('bm-addons-caret').textContent = '▴';
-  }
+  // Extras are offered as a popup right after picking a service (tap the card again to reopen
+  // it and change your picks), instead of a panel sitting at the bottom of the whole modal.
+  openExtrasModal(s);
   if (bookingMode === 'schedule') { renderSchedulePreview(); return; }
   return refreshNowPreview(s);
 }
@@ -1735,22 +1711,30 @@ async function refreshNowPreview(s) {
   updatePreviewDisplay(preview);
 }
 
-function addonsLabelText() {
-  const n = selectedAddonIds.size;
-  const verb = selectedSvc?.name === 'custom' ? 'Choose items' : 'Add extras';
-  return `+ ${verb}${n ? ` (${n} selected)` : ''}`;
+// Renders the checkbox list inside the extras popup, and opens it — only for the shop that has
+// add-on items configured (HD CarWash today). Custom Wash has nothing else to show, so this is
+// effectively its whole service picker, not just an upsell.
+function openExtrasModal(svc) {
+  const shopAddons = addons[selectedWash?.id] || [];
+  if (!shopAddons.length) return;
+  document.getElementById('extras-modal-title').textContent = svc.name === 'custom' ? 'Build your Custom Wash' : 'Add extras?';
+  document.getElementById('extras-modal-sub').textContent = svc.name === 'custom'
+    ? 'Choose at least one item to build your wash.'
+    : `Make your ${svc.name} wash even better.`;
+  document.getElementById('extras-modal-list').innerHTML = shopAddons.map(a => `
+    <label style="display:flex;align-items:center;gap:9px;padding:9px 0;font-size:13px;color:#0f172a;cursor:pointer;border-bottom:1px solid #f1f5f9;">
+      <input type="checkbox" value="${a.id}" ${selectedAddonIds.has(a.id)?'checked':''} onchange="toggleAddon(${a.id}, this.checked)" style="width:16px;height:16px;accent-color:#3FBDB0;flex-shrink:0;">
+      <span style="flex:1;">${a.name}${a.durationMins ? ` <span style="color:#94a3b8;font-size:11px;">(+${a.durationMins} min)</span>` : ''}</span>
+      <span style="font-weight:700;color:#21867B;">${a.price} EGP</span>
+    </label>`).join('');
+  document.getElementById('extras-modal-bg').classList.add('open');
 }
-
-function toggleAddonsPanel() {
-  const panel = document.getElementById('bm-addons-panel');
-  const open = panel.style.display !== 'none';
-  panel.style.display = open ? 'none' : 'block';
-  document.getElementById('bm-addons-caret').textContent = open ? '▾' : '▴';
+function closeExtrasModal() {
+  document.getElementById('extras-modal-bg').classList.remove('open');
 }
 
 async function toggleAddon(id, checked) {
   if (checked) selectedAddonIds.add(id); else selectedAddonIds.delete(id);
-  document.getElementById('bm-addons-label').textContent = addonsLabelText();
   if (!selectedSvc) return; // no service picked yet to preview against
   if (bookingMode === 'schedule') { renderSchedulePreview(); return; }
   await refreshNowPreview(selectedSvc);
@@ -3404,6 +3388,21 @@ window.scrollTo(0, 0);
       <div class="svc-dur" id="svc-info-dur" style="font-size:12px;color:#94a3b8;"></div>
     </div>
     <div id="svc-info-desc" style="font-size:13px;color:#334155;line-height:1.55;"></div>
+  </div>
+</div>
+
+<!-- Extras upsell popup — pops up right after picking a service (like a food-delivery app's
+     "add sides?" prompt), replacing what used to be a collapsible panel at the bottom of the
+     booking modal. HD CarWash only, and only when it actually has add-on items configured. -->
+<div class="rating-bg" id="extras-modal-bg">
+  <div class="rating-box" style="text-align:left;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="rating-title" id="extras-modal-title" style="margin-bottom:0;">Add extras?</div>
+      <button onclick="closeExtrasModal()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="extras-modal-sub">Make your wash even better.</div>
+    <div id="extras-modal-list"></div>
+    <button class="submit-btn" onclick="closeExtrasModal()" style="margin-top:14px;">Done</button>
   </div>
 </div>
 
