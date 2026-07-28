@@ -1254,6 +1254,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     // Search engines and some browser chrome check this default path directly, even when a
     // <link rel="icon"> tag points elsewhere.
     "/favicon.ico": { file: "favicon.ico", type: "image/x-icon" },
+    // Full-screen splash animation played before the landing page, embedded via iframe.
+    "/logo-intro.html": { file: "logo-intro.html", type: "text/html" },
   };
   if (staticAssets[p]) {
     const { file, type } = staticAssets[p];
