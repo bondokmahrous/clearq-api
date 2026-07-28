@@ -21,8 +21,10 @@ const VAPID_PRIVATE_KEY = 'jt5NyPns3nB587BzRuZxjfPsDlVzyqbMdOd_WDs5PnM';
 const VAPID_SUBJECT = 'mailto:bondokmahrous@gmail.com';
 const GOOGLE_MAPS_API_KEY = 'AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as';
 const OWNER_KEY = 'Bondok@23'; // must match OWNER_PASSWORD in clearq-owner.html
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const MAIL_FROM = process.env.MAIL_FROM || 'ClearQ <info@clearq.online>';
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+const GMAIL_SENDER = process.env.GMAIL_SENDER || 'ClearQ <ClearQ.info@gmail.com>';
 // Bondok's own inboxes — notified on every online booking at every centre, separate from each
 // shop's own optional notification_email (which only that shop's partner sees).
 const OWNER_NOTIFICATION_EMAILS = ['Mahrous@clearq.online', 'mahrousjr@gmail.com'];
@@ -421,17 +423,52 @@ async function bcryptHash(password) {
   }
 }
 
-// ─── EMAIL (Resend HTTP API — raw SMTP is blocked outbound on Railway's Hobby plan) ──
+// ─── EMAIL (Gmail API over HTTPS — raw SMTP is blocked outbound on Railway's Hobby plan,
+// so we can't use smtp.gmail.com directly; the Gmail API works fine since it's plain HTTPS) ──
+function encodeMimeSubject(subject) {
+  if (/^[\x00-\x7F]*$/.test(subject)) return subject;
+  return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
+}
+
+function toBase64Url(str) {
+  return Buffer.from(str, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function getGmailAccessToken() {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: GMAIL_CLIENT_ID,
+      client_secret: GMAIL_CLIENT_SECRET,
+      refresh_token: GMAIL_REFRESH_TOKEN,
+      grant_type: "refresh_token",
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error("Gmail token refresh failed: " + JSON.stringify(data));
+  return data.access_token;
+}
+
 async function sendEmail(to, subject, html) {
-  if (!RESEND_API_KEY) {
-    console.error("Email not sent — RESEND_API_KEY is not configured:", subject, "to", to);
+  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) {
+    console.error("Email not sent — Gmail API is not configured:", subject, "to", to);
     return false;
   }
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const accessToken = await getGmailAccessToken();
+    const raw = toBase64Url(
+      `From: ${GMAIL_SENDER}\r\n` +
+      `To: ${to}\r\n` +
+      `Subject: ${encodeMimeSubject(subject)}\r\n` +
+      `MIME-Version: 1.0\r\n` +
+      `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
+      html
+    );
+    const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
       method: "POST",
-      headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: MAIL_FROM, to, subject, html }),
+      headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ raw }),
     });
     if (!res.ok) {
       console.error("Email send failed:", res.status, await res.text());
