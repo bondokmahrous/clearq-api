@@ -27,7 +27,7 @@ const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 const GMAIL_SENDER = process.env.GMAIL_SENDER || 'ClearQ <ClearQ.info@gmail.com>';
 // Bondok's own inboxes — notified on every online booking at every centre, separate from each
 // shop's own optional notification_email (which only that shop's partner sees).
-const OWNER_NOTIFICATION_EMAILS = ['Mahrous@clearq.online', 'mahrousjr@gmail.com'];
+const OWNER_NOTIFICATION_EMAILS = ['mahrousjr@gmail.com'];
 
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
