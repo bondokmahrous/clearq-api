@@ -89,25 +89,25 @@
 
   /* ------------------------- timeline ------------------------- */
 
-  .play .mover  { animation: travel 4.4s both; }
-  .play .lean   { animation: lean 4.4s ease-in-out both; }
-  .play .ghost  { animation: keyline 4.4s linear both; }
-  .play .dirt   { animation: dirtfade 4.4s linear both; }
-  .play .foam   { animation: foamwash 4.4s ease-in-out both; }
-  .play .notch  { animation: notchin 4.4s linear both; }
-  .play .bubbles i { animation: bubble 4.4s ease-out both; }
-  .play .bubbles i:nth-child(2) { animation-delay: .18s; }
-  .play .bubbles i:nth-child(3) { animation-delay: .38s; }
-  .play .bubbles i:nth-child(4) { animation-delay: .55s; }
-  .play .drops i { animation: drop 4.4s ease-in both; }
-  .play .drops i:nth-child(2) { animation-delay: .1s; }
-  .play .drops i:nth-child(3) { animation-delay: .2s; }
-  .play .drops i:nth-child(4) { animation-delay: .28s; }
-  .play .drops i:nth-child(5) { animation-delay: .36s; }
-  .play .settle { animation: parkdip .4s 4.4s ease-out both; }
-  .play .sparkles i:nth-child(1) { animation: twinkle .55s 4.550000000000001s ease-out both; }
-  .play .sparkles i:nth-child(2) { animation: twinkle .55s 4.78s ease-out both; }
-  .play .sparkles i:nth-child(3) { animation: twinkle .55s 5.0s ease-out both; }
+  .play .mover  { animation: travel 3.1s both; }
+  .play .lean   { animation: lean 3.1s ease-in-out both; }
+  .play .ghost  { animation: keyline 3.1s linear both; }
+  .play .dirt   { animation: dirtfade 3.1s linear both; }
+  .play .foam   { animation: foamwash 3.1s ease-in-out both; }
+  .play .notch  { animation: notchin 3.1s linear both; }
+  .play .bubbles i { animation: bubble 3.1s ease-out both; }
+  .play .bubbles i:nth-child(2) { animation-delay: .13s; }
+  .play .bubbles i:nth-child(3) { animation-delay: .27s; }
+  .play .bubbles i:nth-child(4) { animation-delay: .39s; }
+  .play .drops i { animation: drop 3.1s ease-in both; }
+  .play .drops i:nth-child(2) { animation-delay: .07s; }
+  .play .drops i:nth-child(3) { animation-delay: .14s; }
+  .play .drops i:nth-child(4) { animation-delay: .2s; }
+  .play .drops i:nth-child(5) { animation-delay: .25s; }
+  .play .settle { animation: parkdip .28s 3.1s ease-out both; }
+  .play .sparkles i:nth-child(1) { animation: twinkle .39s 3.19s ease-out both; }
+  .play .sparkles i:nth-child(2) { animation: twinkle .39s 3.35s ease-out both; }
+  .play .sparkles i:nth-child(3) { animation: twinkle .39s 3.5s ease-out both; }
 
   @keyframes travel {
     0%   { offset-distance: 0%;    animation-timing-function: cubic-bezier(.3,.35,.5,1); }
@@ -226,10 +226,10 @@
     if (window.parent && window.parent !== window) window.parent.postMessage('clearq-intro-done', '*');
   }
   stage.addEventListener('animationend', (e) => {
-    if (e.animationName === 'parkdip') setTimeout(notifyDone, 550);
+    if (e.animationName === 'parkdip') setTimeout(notifyDone, 400);
   });
   // Fallback in case animationend never fires (reduced-motion, slow paint, etc.)
-  setTimeout(notifyDone, 6000);
+  setTimeout(notifyDone, 4500);
 </script>
 
 </body>
