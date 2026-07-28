@@ -614,6 +614,43 @@ function getToken(req) {
   return auth.replace(/^Bearer\s+/i,"").trim() || null;
 }
 
+// ─── RATE LIMITING (in-memory — single Node process, no Redis needed at this scale) ───
+// Guards the handful of routes that are actually dangerous to leave unthrottled: login
+// (credential stuffing), and the password-reset code (a 6-digit code is only ~900k
+// combinations — without this, a script could brute-force it well within its 15min window).
+function clientIp(req) {
+  const fwd = req.headers["x-forwarded-for"];
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
+const rateLimitState = new Map(); // "METHOD path:ip" -> { count, resetAt }
+function checkRateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  const entry = rateLimitState.get(key);
+  if (!entry || now > entry.resetAt) {
+    rateLimitState.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= limit) return false;
+  entry.count++;
+  return true;
+}
+// Periodically drop expired entries so this doesn't grow unbounded.
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitState) {
+    if (now > entry.resetAt) rateLimitState.delete(key);
+  }
+}, 10 * 60000).unref();
+
+const RATE_LIMITED_ROUTES = {
+  "POST /users/login": { limit: 8, windowMs: 15 * 60000 },
+  "POST /partners/login": { limit: 8, windowMs: 15 * 60000 },
+  "POST /users/forgot-password": { limit: 4, windowMs: 15 * 60000 },
+  "POST /users/reset-password": { limit: 8, windowMs: 15 * 60000 },
+};
+
 // ─── SERIALIZERS ─────────────────────────────────────────────────────────────
 function shop(s) {
   return {
@@ -1219,6 +1256,12 @@ async function route(req, res) {
   // Health
   if (p === "/status" || p === "/health") {
     return respond(res, 200, { status: "ok", time: new Date().toISOString() });
+  }
+
+  // Rate limit auth-sensitive routes (login, password reset) — see RATE_LIMITED_ROUTES above.
+  const rl = RATE_LIMITED_ROUTES[`${m} ${p}`];
+  if (rl && !checkRateLimit(`${m} ${p}:${clientIp(req)}`, rl.limit, rl.windowMs)) {
+    return respond(res, 429, { error: "Too many attempts — please wait a few minutes and try again." });
   }
 
   // Service Worker
