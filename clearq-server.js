@@ -1336,6 +1336,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     "/favicon.ico": { file: "favicon.ico", type: "image/x-icon" },
     // Full-screen splash animation played before the landing page, embedded via iframe.
     "/logo-intro.html": { file: "logo-intro.html", type: "text/html" },
+    // Shared EN/AR translation dictionary + RTL toggle, used by all three frontends.
+    "/i18n.js": { file: "i18n.js", type: "application/javascript" },
   };
   if (staticAssets[p]) {
     const { file, type } = staticAssets[p];
@@ -1346,7 +1348,10 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     ];
     const foundPath = locations.find(loc => fs.existsSync(loc));
     if (foundPath) {
-      res.writeHead(200, { "Content-Type": type, "Cache-Control": "public, max-age=604800", ...CORS_HEADERS });
+      // i18n.js gets edited far more often than logos/images — a week-long cache would leave
+      // stale translations in visitors' browsers long after a fix ships.
+      const cacheControl = p === "/i18n.js" ? "public, max-age=300" : "public, max-age=604800";
+      res.writeHead(200, { "Content-Type": type, "Cache-Control": cacheControl, ...CORS_HEADERS });
       return res.end(fs.readFileSync(foundPath));
     }
     return respond(res, 404, { error: "Asset not found" });

@@ -7,6 +7,7 @@
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/logo.png">
 <link rel="apple-touch-icon" href="/logo.png">
+<script src="/i18n.js"></script>
 <style>
 :root {
   --navy:#F4F6F7; --navy-mid:#FFFFFF; --navy-light:#E2E8F0;
@@ -172,10 +173,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
     <div class="nav-logo" style="overflow:hidden;"><img src="/logo.png" alt="ClearQ" style="width:100%;height:100%;object-fit:cover;"></div>
     <div>
       <div class="nav-name">ClearQ</div>
-      <div class="nav-sub">Partner Dashboard</div>
+      <div class="nav-sub" data-i18n="partner_dashboard">Partner Dashboard</div>
     </div>
   </a>
-  <a class="nav-user-link" href="/">← Customer App</a>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="nav-user-link" onclick="CQI18N.toggle()" data-i18n="lang_toggle" style="background:none;cursor:pointer;">عربي</button>
+    <a class="nav-user-link" href="/" data-i18n="customer_app">← Customer App</a>
+  </div>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -183,94 +187,94 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 <!-- LOGIN -->
 <div class="login-wrap" id="login-wrap">
   <div class="login-logo" style="overflow:hidden;"><img src="/logo.png" alt="ClearQ" style="width:100%;height:100%;object-fit:cover;"></div>
-  <div class="login-title">Partner Login</div>
-  <div class="login-sub">Sign in to manage your wash centre</div>
+  <div class="login-title" data-i18n="partner_login_title">Partner Login</div>
+  <div class="login-sub" data-i18n="partner_login_sub">Sign in to manage your wash centre</div>
   <div class="login-form">
-    <label class="l-label">Username</label>
-    <input class="l-input" type="text" id="p-user" placeholder="Enter username" autocomplete="username">
-    <label class="l-label">Password</label>
-    <input class="l-input" type="password" id="p-pass" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <label class="l-label" data-i18n="username_label">Username</label>
+    <input class="l-input" type="text" id="p-user" placeholder="Enter username" autocomplete="username" data-i18n-ph="enter_username">
+    <label class="l-label" data-i18n="su_password">Password</label>
+    <input class="l-input" type="password" id="p-pass" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" data-i18n-ph="enter_password">
     <div class="l-err" id="login-err"></div>
-    <button class="l-btn" id="login-btn" onclick="doLogin()">Sign In</button>
-    <div class="l-wa">Not registered? <a href="https://wa.me/201008888849?text=I want to register my wash centre on ClearQ" target="_blank">Contact us on WhatsApp →</a></div>
+    <button class="l-btn" id="login-btn" onclick="doLogin()" data-i18n="su_sign_in">Sign In</button>
+    <div class="l-wa"><span data-i18n="not_registered">Not registered?</span> <a href="https://wa.me/201008888849?text=I want to register my wash centre on ClearQ" target="_blank" data-i18n="contact_whatsapp">Contact us on WhatsApp →</a></div>
   </div>
 </div>
 
 <!-- DASHBOARD -->
 <div class="dash" id="dash">
-  <div class="offline-bar" id="offline-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>Offline — changes will sync when reconnected</div>
+  <div class="offline-bar" id="offline-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg><span data-i18n="offline_bar">Offline — changes will sync when reconnected</span></div>
   <div class="paused-bar" id="paused-bar">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>
-    Not accepting online bookings — <a href="javascript:void(0)" onclick="togglePauseBookings()" style="color:#fed7aa;text-decoration:underline;font-weight:700;">Resume</a>
+    <span data-i18n="not_accepting_bookings">Not accepting online bookings —</span> <a href="javascript:void(0)" onclick="togglePauseBookings()" style="color:#fed7aa;text-decoration:underline;font-weight:700;" data-i18n="resume">Resume</a>
   </div>
   <div class="ph">
     <div class="ph-row">
       <div>
-        <div class="ph-shop" id="dash-name">Wash Centre</div>
+        <div class="ph-shop" id="dash-name" data-i18n="dash_wash_centre">Wash Centre</div>
         <div class="ph-date" id="dash-date"></div>
       </div>
       <div class="ph-actions">
-        <button class="wi-btn" onclick="openWI()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Walk-in</button>
-        <button class="lo-btn" id="pause-btn" onclick="togglePauseBookings()" title="Pause new online bookings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></button>
+        <button class="wi-btn" onclick="openWI()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span data-i18n="walk_in_btn"> Walk-in</span></button>
+        <button class="lo-btn" id="pause-btn" onclick="togglePauseBookings()" title="Pause new online bookings" data-i18n-title="pause_new_bookings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg></button>
         <button class="lo-btn" onclick="doLogout()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
       </div>
     </div>
     <div id="wait-banner" style="display:flex;align-items:center;gap:14px;background:#E6F7F5;border:1px solid #3FBDB0;border-radius:var(--radius);padding:11px 14px;margin-bottom:10px;">
       <div>
         <div style="font-size:22px;font-weight:800;color:#21867B;line-height:1;" id="wait-mins">—</div>
-        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">min wait</div>
+        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;" data-i18n="dash_min_wait">min wait</div>
       </div>
       <div style="width:1px;height:30px;background:#3FBDB0;opacity:0.3;"></div>
       <div>
         <div style="font-size:22px;font-weight:800;color:#21867B;line-height:1;" id="wait-inline">—</div>
-        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;">in line now</div>
+        <div style="font-size:9px;color:#21867B;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;" data-i18n="dash_in_line_now">in line now</div>
       </div>
-      <div style="font-size:11px;color:var(--gray-dark);margin-left:auto;">Tell walk-ins this ↑</div>
+      <div style="font-size:11px;color:var(--gray-dark);margin-left:auto;" data-i18n="tell_walkins">Tell walk-ins this ↑</div>
     </div>
     <div class="sc-row">
-      <div class="sc" style="background:#E6F7F5"><div class="sc-num" id="chip-p">0</div><div class="sc-lbl">Pending</div></div>
-      <div class="sc" style="background:#FEF3C7"><div class="sc-num" id="chip-i">0</div><div class="sc-lbl">In Progress</div></div>
-      <div class="sc" style="background:#DCFCE7"><div class="sc-num" id="chip-d">0</div><div class="sc-lbl">Completed</div></div>
+      <div class="sc" style="background:#E6F7F5"><div class="sc-num" id="chip-p">0</div><div class="sc-lbl" data-i18n="dash_pending">Pending</div></div>
+      <div class="sc" style="background:#FEF3C7"><div class="sc-num" id="chip-i">0</div><div class="sc-lbl" data-i18n="dash_in_progress">In Progress</div></div>
+      <div class="sc" style="background:#DCFCE7"><div class="sc-num" id="chip-d">0</div><div class="sc-lbl" data-i18n="dash_completed">Completed</div></div>
     </div>
   </div>
   <div class="ptabs">
-    <button class="ptab active" onclick="setPTab('queue',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span>Queue</button>
-    <button class="ptab" onclick="setPTab('bays',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg></span>Bays</button>
-    <button class="ptab" onclick="setPTab('summary',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Summary</button>
-    <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Customers</button>
-    <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>Manage</button>
+    <button class="ptab active" onclick="setPTab('queue',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></span><span data-i18n="tab_queue">Queue</span></button>
+    <button class="ptab" onclick="setPTab('bays',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg></span><span data-i18n="tab_bays">Bays</span></button>
+    <button class="ptab" onclick="setPTab('summary',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span data-i18n="tab_summary">Summary</span></button>
+    <button class="ptab" onclick="setPTab('customers',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span data-i18n="tab_customers">Customers</span></button>
+    <button class="ptab" onclick="setPTab('manage',this)"><span class="ptab-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span data-i18n="tab_manage">Manage</span></button>
   </div>
-  <div class="psec active" id="psec-queue"><div id="stale-c"></div><div id="queue-c"><div class="ls"><div class="spin"></div><p>Loading queue...</p></div></div></div>
-  <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p>Loading bays...</p></div></div></div>
+  <div class="psec active" id="psec-queue"><div id="stale-c"></div><div id="queue-c"><div class="ls"><div class="spin"></div><p data-i18n="loading_queue">Loading queue...</p></div></div></div>
+  <div class="psec" id="psec-bays"><div id="bays-c"><div class="ls"><div class="spin"></div><p data-i18n="loading_bays">Loading bays...</p></div></div></div>
   <div class="psec" id="psec-summary">
     <div class="sum-drp">
       <div class="sum-drp-modes">
-        <button class="sum-drp-mode active" data-mode="day" onclick="setSumMode('day')">Day</button>
-        <button class="sum-drp-mode" data-mode="week" onclick="setSumMode('week')">Week</button>
-        <button class="sum-drp-mode" data-mode="month" onclick="setSumMode('month')">Month</button>
+        <button class="sum-drp-mode active" data-mode="day" onclick="setSumMode('day')" data-i18n="day">Day</button>
+        <button class="sum-drp-mode" data-mode="week" onclick="setSumMode('week')" data-i18n="week">Week</button>
+        <button class="sum-drp-mode" data-mode="month" onclick="setSumMode('month')" data-i18n="month">Month</button>
       </div>
       <div class="sum-drp-nav">
         <button class="sum-drp-nav-btn" onclick="shiftSumDate(-1)">‹</button>
-        <span class="sum-drp-label" id="sum-drp-label">Today</span>
+        <span class="sum-drp-label" id="sum-drp-label" data-i18n="today">Today</span>
         <button class="sum-drp-nav-btn" onclick="shiftSumDate(1)">›</button>
       </div>
     </div>
-    <div id="sum-c"><div class="ls"><div class="spin"></div><p>Loading summary...</p></div></div>
+    <div id="sum-c"><div class="ls"><div class="spin"></div><p data-i18n="loading_summary">Loading summary...</p></div></div>
   </div>
   <div class="psec" id="psec-customers">
     <div style="padding:12px;">
-      <input type="text" id="cust-search" placeholder="Search name, phone, or plate..." oninput="loadPartnerCustomers()" style="width:100%;background:var(--navy-mid,#FFFFFF);border:1px solid var(--navy-light,#E2E8F0);border-radius:9px;padding:10px 13px;color:#0f172a;font-size:14px;outline:none;margin-bottom:12px;">
-      <div id="cust-c"><div class="ls"><div class="spin"></div><p>Loading customers...</p></div></div>
+      <input type="text" id="cust-search" placeholder="Search name, phone, or plate..." oninput="loadPartnerCustomers()" data-i18n-ph="search_customers_ph" style="width:100%;background:var(--navy-mid,#FFFFFF);border:1px solid var(--navy-light,#E2E8F0);border-radius:9px;padding:10px 13px;color:#0f172a;font-size:14px;outline:none;margin-bottom:12px;">
+      <div id="cust-c"><div class="ls"><div class="spin"></div><p data-i18n="loading_customers">Loading customers...</p></div></div>
     </div>
   </div>
-  <div class="psec" id="psec-manage"><div id="mgmt-c"><div class="ls"><div class="spin"></div><p>Loading settings...</p></div></div></div>
+  <div class="psec" id="psec-manage"><div id="mgmt-c"><div class="ls"><div class="spin"></div><p data-i18n="loading_settings">Loading settings...</p></div></div></div>
 </div>
 
 <!-- Customer history modal -->
 <div id="cust-history-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--navy-mid,#1e293b);border-radius:16px;padding:22px;width:100%;max-width:440px;max-height:80vh;overflow-y:auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="font-size:16px;font-weight:700;color:#0f172a;" id="cust-history-title">Customer History</div>
+      <div style="font-size:16px;font-weight:700;color:#0f172a;" id="cust-history-title" data-i18n="customer_history">Customer History</div>
       <button onclick="closeCustHistory()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;display:flex;align-items:center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="cust-history-list"></div>
@@ -280,36 +284,36 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
 <!-- Walk-in modal -->
 <div class="wi-bg" id="wi-modal">
   <div class="wi-box">
-    <div class="wi-title">Add Walk-in</div>
-    <div class="wi-lbl">Customer name</div>
+    <div class="wi-title" data-i18n="add_walk_in">Add Walk-in</div>
+    <div class="wi-lbl" data-i18n="customer_name">Customer name</div>
     <input class="wi-in" type="text" placeholder="Enter name" id="wi-name" oninput="checkWI()">
-    <div class="wi-lbl">Phone number</div>
+    <div class="wi-lbl" data-i18n="phone_number">Phone number</div>
     <input class="wi-in" type="tel" placeholder="+20 100 000 0000" id="wi-phone" oninput="checkWI()">
     <div style="display:flex;gap:8px;">
       <div style="flex:1;">
-        <div class="wi-lbl">Car make</div>
+        <div class="wi-lbl" data-i18n="car_make_label">Car make</div>
         <input class="wi-in" type="text" placeholder="Toyota" id="wi-car-make">
       </div>
       <div style="flex:1;">
-        <div class="wi-lbl">Car model</div>
+        <div class="wi-lbl" data-i18n="car_model_label">Car model</div>
         <input class="wi-in" type="text" placeholder="Corolla" id="wi-car-model">
       </div>
     </div>
     <div style="display:flex;gap:8px;">
       <div style="flex:1;">
-        <div class="wi-lbl">Color</div>
+        <div class="wi-lbl" data-i18n="color_label3">Color</div>
         <input class="wi-in" type="text" placeholder="White" id="wi-car-color">
       </div>
       <div style="flex:1;">
-        <div class="wi-lbl">Plate number</div>
+        <div class="wi-lbl" data-i18n="plate_number">Plate number</div>
         <input class="wi-in" type="text" placeholder="أ ب ج 123" id="wi-plate">
       </div>
     </div>
-    <div class="wi-lbl">Wash type</div>
+    <div class="wi-lbl" data-i18n="wash_type">Wash type</div>
     <div class="wt-row" id="wi-types"></div>
     <div class="wi-acts">
-      <button class="wi-cancel" onclick="closeWI()">Cancel</button>
-      <button class="wi-confirm" id="wi-btn" onclick="addWalkIn()" disabled>Add</button>
+      <button class="wi-cancel" onclick="closeWI()" data-i18n="cancel">Cancel</button>
+      <button class="wi-confirm" id="wi-btn" onclick="addWalkIn()" disabled data-i18n="add">Add</button>
     </div>
   </div>
 </div>
@@ -358,9 +362,9 @@ async function initSW() {
 }
 
 async function enableNotifs() {
-  if (!('Notification' in window)) return toast('Notifications not supported on this browser');
+  if (!('Notification' in window)) return toast(CQI18N.t('notifications_not_supported'));
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') return toast('Notifications blocked');
+  if (perm !== 'granted') return toast(CQI18N.t('notifications_blocked'));
   if (!swReg) return;
   try {
     const res = await fetch(API+'/api/push/vapid-public-key');
@@ -371,8 +375,8 @@ async function enableNotifs() {
       method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+partnerToken},
       body: JSON.stringify({subscription:sub, shopId:partnerShop?.id})
     });
-    toast(`${ICONS.check} Notifications enabled`);
-  } catch(e) { toast('Could not enable notifications'); }
+    toast(`${ICONS.check}${CQI18N.t('notifications_enabled_toast')}`);
+  } catch(e) { toast(CQI18N.t('could_not_enable_notifications')); }
 }
 
 function checkNewBookings(bookings) {
@@ -380,7 +384,7 @@ function checkNewBookings(bookings) {
   if (pending > lastPendingCount && lastPendingCount > 0) {
     const diff = pending - lastPendingCount;
     if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('New Booking!', {body:`${diff} new booking${diff>1?'s':''} waiting`, icon:'/icon-192.png'});
+      new Notification(CQI18N.t('new_booking_notif'), {body:CQI18N.t(diff>1?'new_booking_body_many':'new_booking_body_one',{n:diff}), icon:'/icon-192.png'});
     }
   }
   lastPendingCount = pending;
@@ -421,7 +425,7 @@ async function doLogin() {
   const pass = document.getElementById('p-pass').value;
   const err = document.getElementById('login-err');
   const btn = document.getElementById('login-btn');
-  if (!user || !pass) { err.textContent = 'Enter username and password'; return; }
+  if (!user || !pass) { err.textContent = CQI18N.t('err_fill_name_email_phone'); return; }
   err.textContent = '';
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
@@ -430,8 +434,8 @@ async function doLogin() {
     localStorage.setItem('partner_token', partnerToken);
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
     showDash();
-  } catch(e) { err.textContent = e.message || 'Invalid credentials'; }
-  finally { btn.disabled=false; btn.textContent='Sign In'; }
+  } catch(e) { err.textContent = e.message || CQI18N.t('err_incorrect_credentials'); }
+  finally { btn.disabled=false; btn.textContent=CQI18N.t('su_sign_in'); }
 }
 
 function doLogout() {
@@ -440,15 +444,15 @@ function doLogout() {
   if (queuePoll) clearInterval(queuePoll);
   document.getElementById('dash').classList.remove('show');
   document.getElementById('login-wrap').style.display='flex';
-  toast('Logged out');
+  toast(CQI18N.t('signed_out'));
 }
 
 function showDash() {
   setTimeout(initPartnerPush, 1000);
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('dash').classList.add('show');
-  document.getElementById('dash-name').textContent = partnerShop?.name || 'Wash Centre';
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-EG',{weekday:'long',month:'short',day:'numeric'});
+  document.getElementById('dash-name').textContent = partnerShop?.name || CQI18N.t('dash_wash_centre');
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString(CQI18N.getLang()==='ar'?'ar-EG':'en-EG',{weekday:'long',month:'short',day:'numeric'});
   renderPauseState();
   loadQueue(); loadBays(); loadSummary(); loadManage();
   if (queuePoll) clearInterval(queuePoll);
@@ -469,7 +473,7 @@ function setPTab(tab, btn) {
 async function loadPartnerCustomers() {
   const search = document.getElementById('cust-search').value;
   const el = document.getElementById('cust-c');
-  el.innerHTML = '<div class="ls"><div class="spin"></div><p>Loading customers...</p></div>';
+  el.innerHTML = `<div class="ls"><div class="spin"></div><p>${CQI18N.t('loading_customers')}</p></div>`;
   try {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -477,7 +481,7 @@ async function loadPartnerCustomers() {
     if (!res.ok) throw new Error();
     const customers = await res.json();
     if (!customers.length) {
-      el.innerHTML = '<div class="ls"><p>No customers yet</p></div>';
+      el.innerHTML = `<div class="ls"><p>${CQI18N.t('no_customers_yet')}</p></div>`;
       return;
     }
     el.innerHTML = customers.map(c => {
@@ -485,40 +489,40 @@ async function loadPartnerCustomers() {
       const carLine = primaryCar
         ? [primaryCar.color, primaryCar.make, primaryCar.model].filter(Boolean).join(' ')
           + (primaryCar.licensePlate ? ` · ${primaryCar.licensePlate}` : '')
-          + (c.cars.length > 1 ? ` +${c.cars.length - 1} more` : '')
+          + (c.cars.length > 1 ? CQI18N.t('more_cars',{n:c.cars.length - 1}) : '')
         : [c.car_color, c.car_model].filter(Boolean).join(' ') + (c.license_plate ? ` · ${c.license_plate}` : '');
       return `
       <div onclick='openCustHistory(${JSON.stringify(c).replace(/'/g,"&#39;")})' style="background:var(--navy,#0f172a);border-radius:11px;padding:14px;margin-bottom:9px;cursor:pointer;border:1px solid var(--navy-light,#334155);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div>
-            <div style="font-size:14px;font-weight:700;color:#0f172a;">${c.name||'Unknown'}</div>
+            <div style="font-size:14px;font-weight:700;color:#0f172a;">${c.name||CQI18N.t('unknown_customer')}</div>
             <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${c.phone}</div>
             ${c.email ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;">${c.email}</div>` : ''}
             ${carLine.trim() ? `<div style="font-size:11px;color:#21867B;margin-top:2px;">${carLine.trim()}</div>` : ''}
           </div>
           <div style="text-align:right;">
-            <div style="font-size:13px;font-weight:700;color:#4ade80;">${parseInt(c.total_spent).toLocaleString()} EGP</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${c.total_visits} visits</div>
+            <div style="font-size:13px;font-weight:700;color:#4ade80;">${parseInt(c.total_spent).toLocaleString()} ${CQI18N.t('egp')}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${CQI18N.t('visits_count',{n:c.total_visits})}</div>
           </div>
         </div>
       </div>
     `;
     }).join('');
   } catch(e) {
-    el.innerHTML = '<div class="ls"><p>Error loading customers</p></div>';
+    el.innerHTML = `<div class="ls"><p>${CQI18N.t('error_loading_customers')}</p></div>`;
   }
 }
 
 async function openCustHistory(c) {
   const phone = c.phone, name = c.name;
-  document.getElementById('cust-history-title').textContent = (name||'Customer') + ' — ' + phone;
+  document.getElementById('cust-history-title').textContent = (name||CQI18N.t('unknown_customer')) + ' — ' + phone;
   document.getElementById('cust-history-bg').style.display = 'flex';
 
   const carsHtml = (c.cars || []).length
     ? `<div style="display:flex;flex-direction:column;gap:8px;">${c.cars.map(car => `
         <div style="background:var(--navy,#0f172a);border-radius:8px;padding:10px 12px;font-size:12px;">
-          <div style="font-weight:700;color:#0f172a;">${[car.color, car.make, car.model].filter(Boolean).join(' ') || 'Unnamed car'}${car.isDefault ? ' <span style="color:#3FBDB0;font-weight:600;">· Default</span>' : ''}</div>
-          <div style="color:#94a3b8;margin-top:3px;">${[car.licensePlate, car.carType].filter(Boolean).join(' · ') || 'No plate / type set'}</div>
+          <div style="font-weight:700;color:#0f172a;">${[car.color, car.make, car.model].filter(Boolean).join(' ') || CQI18N.t('unnamed_car')}${car.isDefault ? `<span style="color:#3FBDB0;font-weight:600;">${CQI18N.t('default_dot')}</span>` : ''}</div>
+          <div style="color:#94a3b8;margin-top:3px;">${[car.licensePlate, car.carType].filter(Boolean).join(' · ') || CQI18N.t('no_plate_type_set')}</div>
         </div>`).join('')}</div>`
     : `<div style="color:#94a3b8;font-size:12px;">No saved cars${c.license_plate || c.car_model || c.car_color ? ` — last seen: ${[c.car_color, c.car_model, c.license_plate].filter(Boolean).join(' · ')}` : ''}</div>`;
 
@@ -590,11 +594,11 @@ function renderCustFreqChart(containerId, history) {
 
 function custFreqSummary(history) {
   if (!history.length) return '';
-  if (history.length === 1) return 'First-time visitor';
+  if (history.length === 1) return CQI18N.t('first_time_visitor');
   const dates = history.map(b => new Date(b.createdAt).getTime()).sort((a, b) => a - b);
   const spanDays = (dates[dates.length - 1] - dates[0]) / 86400000;
   const avgGapDays = spanDays / (dates.length - 1);
-  if (avgGapDays < 1) return 'Multiple visits per day on average';
+  if (avgGapDays < 1) return CQI18N.t('multiple_visits_day');
   const rounded = Math.round(avgGapDays);
   return `Returns about every ${rounded} day${rounded === 1 ? '' : 's'}`;
 }
@@ -620,7 +624,7 @@ async function loadQueue(silent=false) {
     renderStaleBookings(staleRes.ok ? await staleRes.json() : []);
     if (waitRes.ok) {
       const wd = await waitRes.json();
-      document.getElementById('wait-mins').textContent = wd.minsUntilNextFree === 0 ? 'None' : wd.minsUntilNextFree;
+      document.getElementById('wait-mins').textContent = wd.minsUntilNextFree === 0 ? CQI18N.t('wait_none') : wd.minsUntilNextFree;
       document.getElementById('wait-inline').textContent = wd.queueCount ?? 0;
     }
     document.getElementById('offline-bar').classList.remove('show');
@@ -629,24 +633,24 @@ async function loadQueue(silent=false) {
 
 function overdueLabel(etaReadyAt) {
   const hrs = Math.round((Date.now() - new Date(etaReadyAt).getTime()) / 3600000);
-  if (hrs < 24) return `~${hrs}h overdue`;
+  if (hrs < 24) return CQI18N.t('overdue_h', {n: hrs});
   const days = Math.round(hrs / 24);
-  return `~${days} day${days===1?'':'s'} overdue`;
+  return CQI18N.t(days===1?'overdue_d_one':'overdue_d_many', {n: days});
 }
 
 function renderStaleBookings(list) {
   const el = document.getElementById('stale-c');
   if (!list.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="ms" style="border:1.5px solid #FEF3C7;background:#FFFBEB;border-radius:var(--radius);padding:11px 13px;margin-bottom:14px;">
-    <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:9px;display:flex;align-items:center;gap:5px;">${ICONS.alert} Needs attention — ${list.length} forgotten booking${list.length===1?'':'s'}</div>
+    <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:9px;display:flex;align-items:center;gap:5px;">${ICONS.alert} ${CQI18N.t(list.length===1?'needs_attention_one':'needs_attention_many',{n:list.length})}</div>
     ${list.map(b => `<div class="bc" id="bc-${b.id}" style="border-color:#FEF3C7;margin-bottom:7px;">
       <div class="bc-top">
-        <div class="bc-left"><div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div></div></div>
+        <div class="bc-left"><div><div class="cn">${b.customerName||CQI18N.t('walk_in_label')}</div><div class="cp">${b.customerPhone||''}</div></div></div>
         <div class="bc-right"><div class="bl" style="color:#92400E;">${overdueLabel(b.etaReadyAt)}</div><div class="wb">${svcLabel(b.washType)}</div></div>
       </div>
       <div class="bc-acts">
-        <button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check} Mark Completed</button>
-        <button class="abtn" style="background:#7f1d1d" onclick="doAction(${b.id},'cancel',this)">${ICONS.x} Cancel</button>
+        <button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check}${CQI18N.t('mark_completed')}</button>
+        <button class="abtn" style="background:#7f1d1d" onclick="doAction(${b.id},'cancel',this)">${ICONS.x}${CQI18N.t('cancel_btn')}</button>
       </div>
     </div>`).join('')}
   </div>`;
@@ -669,31 +673,31 @@ function renderQueue(bookings) {
       const ip=b.status==='in_progress',cp=b.status==='completed',wi=b.kind==='walkin';
       const isLate = !cp && b.etaReadyAt && new Date(b.etaReadyAt) < new Date();
       const doneByLine = (!cp && b.etaReadyAt)
-        ? `<div class="eta" style="${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?ICONS.alert+' Should\'ve been done by ':(ip?'Done by ':'Ready by ')}${fmtTime(b.etaReadyAt)}</div>`
+        ? `<div class="eta" style="${isLate?'color:#b91c1c;font-weight:700;':''}">${isLate?ICONS.alert+CQI18N.t('should_have_done_by',{time:fmtTime(b.etaReadyAt)}):(ip?CQI18N.t('done_by',{time:fmtTime(b.etaReadyAt)}):CQI18N.t('ready_by_time',{time:fmtTime(b.etaReadyAt)}))}</div>`
         : '';
       html+=`<div class="bc ${ip?'inp':''} ${cp?'done':''}" id="bc-${b.id}">
         <div class="bc-top">
           <div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
-            <div><div class="cn">${b.customerName||'Walk-in'}</div><div class="cp">${b.customerPhone||''}</div>${b.carModel?`<div class="cc">${[b.carColor,b.carModel].filter(Boolean).join(' ')}</div>`:''}</div>
+            <div><div class="cn">${b.customerName||CQI18N.t('walk_in_label')}</div><div class="cp">${b.customerPhone||''}</div>${b.carModel?`<div class="cc">${[b.carColor,b.carModel].filter(Boolean).join(' ')}</div>`:''}</div>
           </div>
-          <div class="bc-right"><div class="bl">${b.bayNumber!=null?'Bay '+b.bayNumber:'Queued'}</div><div class="wb ${wi?'wib':''}">${wi?'Walk-in':svcLabel(b.washType)}</div></div>
+          <div class="bc-right"><div class="bl">${b.bayNumber!=null?CQI18N.t('bay_prefix',{n:b.bayNumber}):CQI18N.t('queued')}</div><div class="wb ${wi?'wib':''}">${wi?CQI18N.t('walk_in_label'):svcLabel(b.washType)}</div></div>
         </div>
         <div class="bc-mid">
-          <div class="eta">${cp?'Completed · '+b.price+' EGP':ip?'Started '+minsAgo(b.washStartedAt)+' min ago':'Arrives at '+fmtTime(b.etaArrivalAt)}</div>
+          <div class="eta">${cp?CQI18N.t('completed_price',{price:b.price}):ip?CQI18N.t('started_ago',{n:minsAgo(b.washStartedAt)}):CQI18N.t('arrives_at',{time:fmtTime(b.etaArrivalAt)})}</div>
           ${doneByLine}
           ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
         </div>
         ${!cp?`<div class="bc-acts">
-          ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start',this)">▶ Start</button>`:''}
-          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check} Done</button>`:''}
+          ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start',this)">${CQI18N.t('start_btn')}</button>`:''}
+          ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
         </div>`:''}
       </div>`;
     });
   };
-  rg(inP,'#f59e0b','In Progress');
-  rg(pend,'#21867B','Pending');
-  rg(done,'#22c55e','Completed');
-  document.getElementById('queue-c').innerHTML = html || '<div class="ls"><p>Queue is empty</p></div>';
+  rg(inP,'#f59e0b',CQI18N.t('dash_in_progress'));
+  rg(pend,'#21867B',CQI18N.t('dash_pending'));
+  rg(done,'#22c55e',CQI18N.t('dash_completed'));
+  document.getElementById('queue-c').innerHTML = html || `<div class="ls"><p>${CQI18N.t('queue_empty')}</p></div>`;
 }
 
 async function doAction(id, action, btn, bayNumber) {
@@ -704,10 +708,10 @@ async function doAction(id, action, btn, bayNumber) {
     const opts = {method:'PATCH',headers:authH()};
     if (bayNumber != null) opts.body = JSON.stringify({bayNumber});
     await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${id}/${action}`,opts);
-    toast(action==='done'?`${ICONS.check} Wash completed`:action==='cancel'?'Booking cancelled':'Wash started');
+    toast(action==='done'?`${ICONS.check}${CQI18N.t('wash_completed_toast')}`:action==='cancel'?CQI18N.t('booking_cancelled_toast'):CQI18N.t('wash_started_toast'));
     loadQueue(); loadBays();
   } catch(e) {
-    toast('Error: '+e.message);
+    toast(CQI18N.t('error_prefix',{msg:e.message}));
     if (btn) { btn.disabled=false; btn.textContent=originalText; }
   }
 }
@@ -722,10 +726,10 @@ async function loadBays(silent=false) {
 }
 
 function bayTheme(state) {
-  const t={free:{bg:'#DCFCE7',border:'#166534',color:'#166534',label:'Free'},in_wash:{bg:'#FEF3C7',border:'#d97706',color:'#92400E',label:'In Wash'},incoming:{bg:'#E6F7F5',border:'#3FBDB0',color:'#21867B',label:'Incoming'},walkin:{bg:'#FFEDD5',border:'#ea580c',color:'#C2410C',label:'Walk-in'},unavailable:{bg:'#F3E8FF',border:'#7c3aed',color:'#7c3aed',label:'Unavailable'}};
+  const t={free:{bg:'#DCFCE7',border:'#166534',color:'#166534',label:CQI18N.t('bay_free_label')},in_wash:{bg:'#FEF3C7',border:'#d97706',color:'#92400E',label:CQI18N.t('bay_in_wash_label')},incoming:{bg:'#E6F7F5',border:'#3FBDB0',color:'#21867B',label:CQI18N.t('bay_incoming_label')},walkin:{bg:'#FFEDD5',border:'#ea580c',color:'#C2410C',label:CQI18N.t('bay_walkin_label')},unavailable:{bg:'#F3E8FF',border:'#7c3aed',color:'#7c3aed',label:CQI18N.t('bay_unavailable_label')}};
   return t[state]||{bg:'#F1F5F9',border:'#E2E8F0',color:'#64748b',label:state};
 }
-function minsLeft(b) { if(!b?.etaReadyAt) return ''; const m=Math.max(0,Math.round((new Date(b.etaReadyAt)-Date.now())/60000)); return `~${m} min left`; }
+function minsLeft(b) { if(!b?.etaReadyAt) return ''; const m=Math.max(0,Math.round((new Date(b.etaReadyAt)-Date.now())/60000)); return CQI18N.t('min_left',{n:m}); }
 
 function renderBays(data) {
   const bays=data.bays||[];
@@ -734,24 +738,24 @@ function renderBays(data) {
     const th=bayTheme(bay.state); const tl=minsLeft(bay.booking);
     const nu = bay.state==='free' ? bay.nextUp : null;
     html+=`<div class="bay-card" style="background:${th.bg};border-color:${th.border}">
-      <div class="bay-hd"><div class="bay-num" style="color:${th.color}">Bay ${bay.bayNumber}</div><div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div></div>
-      <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#7c3aed">${bay.reason||'Unavailable'}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:nu?`<div class="bay-avail">Available</div><div class="bay-bname" style="margin-top:6px;font-size:12px;color:#21867B;">Next: ${nu.customerName||'Walk-in'}</div><div class="bay-btype">${svcLabel(nu.washType)}${nu.etaArrivalAt?' · arrives at '+fmtTime(nu.etaArrivalAt):''}</div>`:`<div class="bay-avail">Available</div>`}</div>
+      <div class="bay-hd"><div class="bay-num" style="color:${th.color}">${CQI18N.t('bay_prefix',{n:bay.bayNumber})}</div><div class="sbadge" style="border-color:${th.border}"><span class="sbadge-txt" style="color:${th.color}">${th.label}</span></div></div>
+      <div class="bay-info">${bay.state==='unavailable'?`<div style="font-size:11px;color:#7c3aed">${bay.reason||CQI18N.t('unavailable_default')}</div>`:bay.booking?`<div class="bay-bname">${bay.booking.customerName||CQI18N.t('walk_in_label')}</div><div class="bay-btype">${svcLabel(bay.booking.washType)}</div>${tl?`<div class="bay-time">${tl}</div>`:''}`:nu?`<div class="bay-avail">${CQI18N.t('available_label')}</div><div class="bay-bname" style="margin-top:6px;font-size:12px;color:#21867B;">${CQI18N.t('next_up',{name:nu.customerName||CQI18N.t('walk_in_label')})}</div><div class="bay-btype">${svcLabel(nu.washType)}${nu.etaArrivalAt?CQI18N.t('arrives_at_suffix',{time:fmtTime(nu.etaArrivalAt)}):''}</div>`:`<div class="bay-avail">${CQI18N.t('available_label')}</div>`}</div>
       <div class="bay-acts">
-        ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">${ICONS.plus} Walk-in</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">${ICONS.lock}</button>`:''}
-        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} Available</button>`:''}
-        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check} Done</button>`:''}
-        ${nu?`<button class="bbtn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this,${bay.bayNumber})">▶ Start</button>`:''}
+        ${bay.state==='free'?`<button class="bbtn" style="background:#3FBDB0" onclick="openWI()">${ICONS.plus}${CQI18N.t('walk_in_btn')}</button><button class="bbtn bbtn-i" style="background:#7c3aed;flex:0;padding:7px 9px" onclick="setBayUnavail(${bay.bayNumber})">${ICONS.lock}</button>`:''}
+        ${bay.state==='unavailable'?`<button class="bbtn" style="background:#166534" onclick="setBayFree(${bay.bayNumber})">${ICONS.unlock} ${CQI18N.t('available_label')}</button>`:''}
+        ${(bay.state==='in_wash'||bay.state==='walkin')&&bay.booking?`<button class="bbtn" style="background:#166534" onclick="doAction(${bay.booking.id},'done',this)">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
+        ${nu?`<button class="bbtn" style="background:#3FBDB0" onclick="doAction(${nu.id},'start',this,${bay.bayNumber})">${CQI18N.t('start_btn')}</button>`:''}
       </div>
     </div>`;
   });
-  html+=`</div><div style="margin-top:14px;display:flex;gap:8px"><button onclick="addBay()" style="background:#E6F7F5;border:none;border-radius:7px;padding:9px 14px;color:var(--blue-light);font-size:12px;font-weight:600;cursor:pointer">${ICONS.plus} Add Bay</button><button onclick="removeBay()" style="background:#F3E8FF;border:none;border-radius:7px;padding:9px 14px;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer">− Remove Bay</button></div>`;
+  html+=`</div><div style="margin-top:14px;display:flex;gap:8px"><button onclick="addBay()" style="background:#E6F7F5;border:none;border-radius:7px;padding:9px 14px;color:var(--blue-light);font-size:12px;font-weight:600;cursor:pointer">${ICONS.plus}<span data-i18n="add_bay"> Add Bay</span></button><button onclick="removeBay()" style="background:#F3E8FF;border:none;border-radius:7px;padding:9px 14px;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer" data-i18n="remove_bay">− Remove Bay</button></div>`;
   document.getElementById('bays-c').innerHTML=html;
 }
 
-async function setBayUnavail(num) { const r=prompt('Reason:')||''; await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'unavailable',reason:r})}); loadBays(); }
-async function setBayFree(num) { await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'free'})}); loadBays(); toast(`Bay ${num} available`); }
-async function addBay() { const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'POST',headers:authH()}); if(r.ok){loadBays();toast('Bay added');} }
-async function removeBay() { if(!confirm('Remove last bay?')) return; const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'DELETE',headers:authH()}); if(r.ok){loadBays();toast('Bay removed');} }
+async function setBayUnavail(num) { const r=prompt(CQI18N.t('reason_prompt'))||''; await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'unavailable',reason:r})}); loadBays(); }
+async function setBayFree(num) { await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays/${num}`,{method:'PATCH',headers:authH(),body:JSON.stringify({state:'free'})}); loadBays(); toast(CQI18N.t('bay_available_toast',{n:num})); }
+async function addBay() { const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'POST',headers:authH()}); if(r.ok){loadBays();toast(CQI18N.t('bay_added_toast'));} }
+async function removeBay() { if(!confirm(CQI18N.t('remove_last_bay_confirm'))) return; const r=await fetch(`${API}/api/partners/shop/${partnerShop.id}/bays`,{method:'DELETE',headers:authH()}); if(r.ok){loadBays();toast(CQI18N.t('bay_removed_toast'));} }
 
 // Expected duration comes from the server (the centre's own configured duration for that
 // service, not this booking's own eta timestamps — see expectedDurationMins in the dashboard
@@ -759,7 +763,7 @@ async function removeBay() { if(!confirm('Remove last bay?')) return; const r=aw
 function durationLine(b) {
   if (b.status !== 'completed' || !b.washStartedAt || !b.washFinishedAt) return '';
   const actualMins = Math.max(0, Math.round((new Date(b.washFinishedAt) - new Date(b.washStartedAt)) / 60000));
-  const text = b.expectedDurationMins != null ? `Expected ${b.expectedDurationMins} min · Took ${actualMins} min` : `Took ${actualMins} min`;
+  const text = b.expectedDurationMins != null ? CQI18N.t('expected_took',{exp:b.expectedDurationMins,act:actualMins}) : CQI18N.t('took_min',{act:actualMins});
   return `<div class="cp" style="margin-top:1px;">${text}</div>`;
 }
 
@@ -767,9 +771,9 @@ function durationLine(b) {
 // promo code changed what this booking charged — otherwise just the price as normal.
 function priceDisplay(b) {
   if (b.originalPrice != null && b.originalPrice !== b.price) {
-    return `<span style="text-decoration:line-through;color:var(--gray-dark);font-weight:600;margin-right:5px;">${b.originalPrice}</span>${b.price} EGP`;
+    return `<span style="text-decoration:line-through;color:var(--gray-dark);font-weight:600;margin-right:5px;">${b.originalPrice}</span>${b.price} ${CQI18N.t('egp')}`;
   }
-  return `${b.price} EGP`;
+  return `${b.price} ${CQI18N.t('egp')}`;
 }
 
 // ─── Summary date range (Day/Week/Month) ──────────────────────────
@@ -793,7 +797,7 @@ function renderSumDrpLabel() {
   if (!label) return;
   if (sumMode==='day') {
     const isToday = fmtYMDsum(sumRefDate) === fmtYMDsum(new Date());
-    label.textContent = (isToday?'Today · ':'') + sumRefDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+    label.textContent = (isToday?CQI18N.t('today_dot'):'') + sumRefDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
   } else if (sumMode==='week') {
     label.textContent = startOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' – ' + endOfWeekSum(sumRefDate).toLocaleDateString('en-US',{month:'short',day:'numeric'});
   } else {
@@ -822,27 +826,27 @@ async function loadSummary() {
   const shopId=partnerShop?.id; if(!shopId) return;
   renderSumDrpLabel();
   const {from,to} = sumDateRange();
-  const periodLabel = sumMode==='day' ? "Today's" : sumMode==='week' ? "This week's" : "This month's";
+  const periodLabel = sumMode==='day' ? CQI18N.t('todays_bookings') : sumMode==='week' ? CQI18N.t('weeks_bookings') : CQI18N.t('months_bookings');
   try {
     const d=await apiFetch(`${API}/api/partners/shop/${shopId}/dashboard?from=${from}&to=${to}`,{headers:authH()});
     let html=`<div class="sg">
-      <div class="sc2"><div class="sv" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sl">Bookings</div></div>
-      <div class="sc2"><div class="sv" style="color:var(--green)">${d.completedBookings||0}</div><div class="sl">Completed</div></div>
-      <div class="sc2"><div class="sv" style="color:var(--amber)">${d.shopRating?Number(d.shopRating).toFixed(1)+' ★':'—'}</div><div class="sl">Rating</div></div>
-      <div class="sc2"><div class="sv">${d.totalRevenue||0}</div><div class="sl">EGP</div></div>
-    </div><div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px">${periodLabel} bookings</div>`;
+      <div class="sc2"><div class="sv" style="color:var(--blue-light)">${d.totalBookings||0}</div><div class="sl">${CQI18N.t('bookings_label')}</div></div>
+      <div class="sc2"><div class="sv" style="color:var(--green)">${d.completedBookings||0}</div><div class="sl">${CQI18N.t('dash_completed')}</div></div>
+      <div class="sc2"><div class="sv" style="color:var(--amber)">${d.shopRating?Number(d.shopRating).toFixed(1)+' ★':'—'}</div><div class="sl">${CQI18N.t('rating_label')}</div></div>
+      <div class="sc2"><div class="sv">${d.totalRevenue||0}</div><div class="sl">${CQI18N.t('egp')}</div></div>
+    </div><div style="font-size:14px;font-weight:700;color:var(--white);margin-bottom:12px">${periodLabel}</div>`;
     const sorted = sumMode==='day' ? (d.todayBookings||[]) : [...(d.todayBookings||[])].sort((a,b)=>b.scheduledDate.localeCompare(a.scheduledDate));
-    if (!sorted.length) html += `<div class="ls" style="padding:20px 0"><p>No bookings in this period</p></div>`;
+    if (!sorted.length) html += `<div class="ls" style="padding:20px 0"><p>${CQI18N.t('no_bookings_period')}</p></div>`;
     sorted.forEach(b=>{
       const dateTag = sumMode!=='day' ? `<div class="cp">${new Date(b.scheduledDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>` : '';
       html+=`<div class="bc ${b.status==='completed'?'done':''}">
         <div class="bc-top"><div class="bc-left"><div class="sdot" style="background:${statusColor(b.status)}"></div>
-          <div>${dateTag}<div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?' · Bay '+b.bayNumber:''}</div>${durationLine(b)}</div>
+          <div>${dateTag}<div class="cn" style="${b.status==='completed'?'color:#64748b':''}">${b.customerName}</div><div class="cp">${b.washType}${b.bayNumber!=null?CQI18N.t('bay_suffix',{n:b.bayNumber}):''}</div>${durationLine(b)}</div>
         </div><div style="font-size:12px;color:${b.status==='completed'?'#4ade80':'#94a3b8'};font-weight:700">${priceDisplay(b)}</div></div>
       </div>`;
     });
     document.getElementById('sum-c').innerHTML=html;
-  } catch { document.getElementById('sum-c').innerHTML='<div class="ls"><p>Could not load summary</p></div>'; }
+  } catch { document.getElementById('sum-c').innerHTML=`<div class="ls"><p>${CQI18N.t('could_not_load_summary')}</p></div>`; }
 }
 
 async function loadManage() {
@@ -851,65 +855,65 @@ async function loadManage() {
     editServices=await apiFetch(`${API}/api/partners/shop/${shopId}/services`,{headers:authH()});
     if (shopId === 6) editAddons = await apiFetch(`${API}/api/partners/shop/${shopId}/addons`,{headers:authH()});
     renderManage();
-  } catch { document.getElementById('mgmt-c').innerHTML='<div class="ls"><p>Could not load settings</p></div>'; }
+  } catch { document.getElementById('mgmt-c').innerHTML=`<div class="ls"><p>${CQI18N.t('could_not_load_settings')}</p></div>`; }
 }
 
 function renderManage() {
-  let html=`<div class="ms"><div class="ms-t">Services &amp; Prices</div><div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Drag the handle to reorder — this is the order customers see.</div><div id="svc-list">`;
+  let html=`<div class="ms"><div class="ms-t">${CQI18N.t('services_prices')}</div><div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('drag_reorder_hint')}</div><div id="svc-list">`;
   editServices.forEach((s,i)=>{
     if (s._deleted) return;
     html+=`<div class="sr" data-idx="${i}">
-      <div class="sr-row"><button type="button" class="drag-handle" onpointerdown="startSvcDrag(event,${i})" aria-label="Drag to reorder">${ICONS.dragHandle}</button><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dSvc(${i})">${ICONS.trash}</button></div>
-      <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)">
-      <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Duration:</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min</span></div>
+      <div class="sr-row"><button type="button" class="drag-handle" onpointerdown="startSvcDrag(event,${i})" aria-label="Drag to reorder">${ICONS.dragHandle}</button><input class="sr-name" value="${s.name||''}" placeholder="Service name" oninput="eSvc(${i},'name',this.value)" data-i18n-ph="service_name_ph"><input class="pi" type="number" value="${s.price||0}" oninput="eSvc(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">${CQI18N.t('egp')}</span><button class="delsv" onclick="dSvc(${i})">${ICONS.trash}</button></div>
+      <input class="sr-desc" value="${s.description||''}" placeholder="Description (e.g. Full exterior wash including wheels)" oninput="eSvc(${i},'description',this.value)" data-i18n-ph="description_ph">
+      <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">${CQI18N.t('duration_colon')}</span><input class="di" type="number" value="${s.durationMins||30}" oninput="eSvc(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">${CQI18N.t('min_unit')}</span></div>
     </div>`;
   });
-  html+=`</div><button class="asv" onclick="aSvc()">${ICONS.plus} Add Service</button><button class="dsv" onclick="saveServices()">Save Changes</button></div>`;
+  html+=`</div><button class="asv" onclick="aSvc()">${ICONS.plus}<span data-i18n="add_service"> Add Service</span></button><button class="dsv" onclick="saveServices()" data-i18n="save_changes_btn">Save Changes</button></div>`;
   if (partnerShop?.id === 6) {
-    html+=`<div class="ms"><div class="ms-t">Custom Wash Items</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Customers can build a Custom Wash from these, or add any of them on top of Exterior/Interior/Full.</div>`;
+    html+=`<div class="ms"><div class="ms-t">${CQI18N.t('custom_wash_items')}</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('custom_wash_hint')}</div>`;
     editAddons.forEach((a,i)=>{
       if (a._deleted) return;
       html+=`<div class="sr">
-        <div class="sr-row"><input class="sr-name" value="${a.name||''}" placeholder="Item name (e.g. Wax)" oninput="eAddon(${i},'name',this.value)"><input class="pi" type="number" value="${a.price||0}" oninput="eAddon(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">EGP</span><button class="delsv" onclick="dAddon(${i})">${ICONS.trash}</button></div>
-        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">Extra time:</span><input class="di" type="number" value="${a.durationMins||0}" oninput="eAddon(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">min (0 if none)</span></div>
+        <div class="sr-row"><input class="sr-name" value="${a.name||''}" placeholder="Item name (e.g. Wax)" oninput="eAddon(${i},'name',this.value)" data-i18n-ph="item_name_ph"><input class="pi" type="number" value="${a.price||0}" oninput="eAddon(${i},'price',this.value)"><span style="color:var(--gray-dark);font-size:11px">${CQI18N.t('egp')}</span><button class="delsv" onclick="dAddon(${i})">${ICONS.trash}</button></div>
+        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--gray-dark)">${CQI18N.t('extra_time_colon')}</span><input class="di" type="number" value="${a.durationMins||0}" oninput="eAddon(${i},'durationMins',this.value)"><span style="font-size:11px;color:var(--gray-dark)">${CQI18N.t('min_none')}</span></div>
       </div>`;
     });
-    html+=`<button class="asv" onclick="aAddon()">${ICONS.plus} Add Item</button><button class="dsv" onclick="saveAddons(this)">Save Changes</button></div>`;
+    html+=`<button class="asv" onclick="aAddon()">${ICONS.plus}<span data-i18n="add_item"> Add Item</span></button><button class="dsv" onclick="saveAddons(this)" data-i18n="save_changes_btn">Save Changes</button></div>`;
   }
   if (partnerShop?.id === 6) {
     const fw = partnerShop?.fixedWaitMins;
     const cg = partnerShop?.closingGraceMins;
-    html+=`<div class="ms"><div class="ms-t">Fixed Wait Time</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">HD CarWash books each bay one customer at a time, spaced this far apart — this is what makes a new online booking show a wait even with an empty queue. Currently 60 min. Leave blank to keep the default.</div>
-    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">Minutes between bookings</span><input type="number" min="0" id="fixed-wait" placeholder="60 (default)" value="${fw!=null?fw:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <button class="dsv" style="margin-top:10px" onclick="saveFixedWait(this)">Save</button>
+    html+=`<div class="ms"><div class="ms-t">${CQI18N.t('fixed_wait_time')}</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('fixed_wait_hint')}</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('minutes_between_bookings')}</span><input type="number" min="0" id="fixed-wait" placeholder="60 (default)" value="${fw!=null?fw:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none" data-i18n-ph="min_default_60"></div></div>
+    <button class="dsv" style="margin-top:10px" onclick="saveFixedWait(this)" data-i18n="save_btn">Save</button>
     </div>
-    <div class="ms"><div class="ms-t">Closing Cutoff</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">How many minutes past closing time an online booking's wash is still allowed to finish. A booking that would finish later than this gets blocked automatically. Default 15 min.</div>
-    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">Minutes after close</span><input type="number" min="0" id="closing-grace" placeholder="15 (default)" value="${cg!=null?cg:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <button class="dsv" style="margin-top:10px" onclick="saveClosingGrace(this)">Save</button>
+    <div class="ms"><div class="ms-t">${CQI18N.t('closing_cutoff')}</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('closing_cutoff_hint')}</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('minutes_after_close')}</span><input type="number" min="0" id="closing-grace" placeholder="15 (default)" value="${cg!=null?cg:''}" style="width:100px;background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none" data-i18n-ph="min_default_15"></div></div>
+    <button class="dsv" style="margin-top:10px" onclick="saveClosingGrace(this)" data-i18n="save_btn">Save</button>
     </div>`;
   }
-  html+=`<div class="ms"><div class="ms-t">Working Hours &amp; Booking Slots</div>
-    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Opens</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Closes</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Booking slot interval</span><select id="wh-slot" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none">
-      <option value="30" ${(partnerShop?.slotDurationMins||30)==30?'selected':''}>30 min</option>
-      <option value="60" ${(partnerShop?.slotDurationMins||30)==60?'selected':''}>60 min</option>
+  html+=`<div class="ms"><div class="ms-t">${CQI18N.t('working_hours_slots')}</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('opens_label')}</span><input type="time" id="wh-open" value="${partnerShop?.openTime||'09:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('closes_label')}</span><input type="time" id="wh-close" value="${partnerShop?.closeTime||'22:00'}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <div class="sr" style="margin-top:7px"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('booking_slot_interval')}</span><select id="wh-slot" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none">
+      <option value="30" ${(partnerShop?.slotDurationMins||30)==30?'selected':''}>30 ${CQI18N.t('min_unit')}</option>
+      <option value="60" ${(partnerShop?.slotDurationMins||30)==60?'selected':''}>60 ${CQI18N.t('min_unit')}</option>
     </select></div></div>
-    <button class="dsv" style="margin-top:10px" onclick="saveWorkingHours(this)">Save Hours</button>
+    <button class="dsv" style="margin-top:10px" onclick="saveWorkingHours(this)" data-i18n="save_hours">Save Hours</button>
   </div>
-  <div class="ms"><div class="ms-t">Contact &amp; Directions</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Both shown to customers — the phone number so they can call in case of an issue, the description to help them find you.</div>
-    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">Phone number</span><input type="tel" id="shop-phone" placeholder="+20 100 000 0000" value="${escHtml(partnerShop?.phone||'')}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
-    <textarea id="loc-desc" rows="3" placeholder="Describe how to find your centre..." style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-top:10px;">${escHtml(partnerShop?.locationDescription||'')}</textarea>
-    <button class="dsv" style="margin-top:10px" onclick="saveContactInfo(this)">Save Contact Info</button>
+  <div class="ms"><div class="ms-t">${CQI18N.t('contact_directions')}</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('contact_directions_hint')}</div>
+    <div class="sr"><div style="display:flex;align-items:center;justify-content:space-between"><span style="color:var(--white);font-size:13px;font-weight:600">${CQI18N.t('phone_number')}</span><input type="tel" id="shop-phone" placeholder="+20 100 000 0000" value="${escHtml(partnerShop?.phone||'')}" style="background:var(--navy);border:1px solid var(--navy-light);border-radius:7px;padding:5px 9px;color:var(--white);font-size:13px;outline:none"></div></div>
+    <textarea id="loc-desc" rows="3" placeholder="Describe how to find your centre..." style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;resize:vertical;font-family:inherit;margin-top:10px;" data-i18n-ph="describe_location_ph">${escHtml(partnerShop?.locationDescription||'')}</textarea>
+    <button class="dsv" style="margin-top:10px" onclick="saveContactInfo(this)" data-i18n="save_contact_info">Save Contact Info</button>
   </div>
-  <div class="ms"><div class="ms-t">Booking Notifications</div>
-    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">Get an email from ClearQ.info@gmail.com the moment a customer books online — customer name, phone, car, service and ETA included.</div>
+  <div class="ms"><div class="ms-t">${CQI18N.t('booking_notifications')}</div>
+    <div style="font-size:11px;color:var(--gray-dark);margin-bottom:8px;">${CQI18N.t('booking_notifications_hint')}</div>
     <input type="email" id="notif-email" placeholder="you@example.com" value="${escHtml(partnerShop?.notificationEmail||'')}" style="width:100%;background:var(--navy);border:1px solid var(--navy-light);border-radius:9px;padding:10px 12px;color:var(--white);font-size:13px;outline:none;box-sizing:border-box;">
-    <button class="dsv" style="margin-top:10px" onclick="saveNotificationEmail(this)">Save</button>
+    <button class="dsv" style="margin-top:10px" onclick="saveNotificationEmail(this)" data-i18n="save_btn">Save</button>
   </div>`;
   document.getElementById('mgmt-c').innerHTML=html;
 }
@@ -917,7 +921,7 @@ function renderManage() {
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 async function saveWorkingHours(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   try {
     const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
@@ -926,16 +930,16 @@ async function saveWorkingHours(btn) {
       slotDurationMins:Number(document.getElementById('wh-slot').value),
     })});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Working hours saved`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
-  finally{btn.disabled=false;btn.textContent='Save Hours';}
+    toast(`${ICONS.check}${CQI18N.t('working_hours_saved')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
+  finally{btn.disabled=false;btn.textContent=CQI18N.t('save_hours');}
 }
 
 async function saveFixedWait(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   const raw = document.getElementById('fixed-wait').value.trim();
   try {
@@ -943,16 +947,16 @@ async function saveFixedWait(btn) {
       fixedWaitMins: raw === '' ? null : Number(raw),
     })});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Fixed wait time ${raw===''?'set back to default (60 min)':'saved'}`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
-  finally{btn.disabled=false;btn.textContent='Save';}
+    toast(`${ICONS.check}${raw===''?CQI18N.t('fixed_wait_default_toast'):CQI18N.t('fixed_wait_saved_toast')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
+  finally{btn.disabled=false;btn.textContent=CQI18N.t('save_btn');}
 }
 
 async function saveClosingGrace(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   const raw = document.getElementById('closing-grace').value.trim();
   try {
@@ -960,12 +964,12 @@ async function saveClosingGrace(btn) {
       closingGraceMins: raw === '' ? null : Number(raw),
     })});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Closing cutoff ${raw===''?'set back to default (15 min)':'saved'}`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
-  finally{btn.disabled=false;btn.textContent='Save';}
+    toast(`${ICONS.check}${raw===''?CQI18N.t('closing_cutoff_default_toast'):CQI18N.t('closing_cutoff_saved_toast')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
+  finally{btn.disabled=false;btn.textContent=CQI18N.t('save_btn');}
 }
 
 function renderPauseState() {
@@ -976,7 +980,7 @@ function renderPauseState() {
     btn.innerHTML = paused
       ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
       : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="10" y1="9" x2="10" y2="15"/><line x1="14" y1="9" x2="14" y2="15"/></svg>';
-    btn.title = paused ? 'Resume online bookings' : 'Pause new online bookings';
+    btn.title = paused ? CQI18N.t('resume_bookings_title') : CQI18N.t('pause_new_bookings');
     btn.style.color = paused ? '#f87171' : '';
   }
   if (bar) bar.classList.toggle('show', paused);
@@ -987,16 +991,16 @@ async function togglePauseBookings() {
   try {
     const res = await fetch(`${API}/api/partners/shop/${partnerShop.id}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({isPaused: next})});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
     renderPauseState();
-    toast(next ? `${ICONS.alert} Bookings paused` : `${ICONS.check} Bookings resumed`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+    toast(next ? `${ICONS.alert}${CQI18N.t('bookings_paused_toast')}` : `${ICONS.check}${CQI18N.t('bookings_resumed_toast')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
 }
 
 async function saveContactInfo(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   try {
     const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
@@ -1004,28 +1008,28 @@ async function saveContactInfo(btn) {
       locationDescription:document.getElementById('loc-desc').value,
     })});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Contact info saved`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
+    toast(`${ICONS.check}${CQI18N.t('contact_info_saved')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
   finally{btn.disabled=false;btn.textContent='Save Contact Info';}
 }
 
 async function saveNotificationEmail(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   try {
     const res = await fetch(`${API}/api/partners/shop/${shopId}/settings`,{method:'PATCH',headers:authH(),body:JSON.stringify({
       notificationEmail:document.getElementById('notif-email').value.trim(),
     })});
     const updated = await res.json();
-    if (!res.ok) throw new Error(updated?.error || 'Save failed');
+    if (!res.ok) throw new Error(updated?.error || CQI18N.t('save_failed'));
     partnerShop = {...partnerShop, ...updated};
     localStorage.setItem('partner_shop', JSON.stringify(partnerShop));
-    toast(`${ICONS.check} Notification email saved`);
-  } catch(e) { toast(ICONS.alert+' '+(e.message||'Error saving')+' — try again', 6000); }
-  finally{btn.disabled=false;btn.textContent='Save';}
+    toast(`${ICONS.check}${CQI18N.t('notification_email_saved')}`);
+  } catch(e) { toast(ICONS.alert+CQI18N.t('error_saving_retry',{msg:e.message||CQI18N.t('error_saving_generic')}), 6000); }
+  finally{btn.disabled=false;btn.textContent=CQI18N.t('save_btn');}
 }
 
 function eSvc(i,f,v){editServices[i][f]=f==='price'||f==='durationMins'?Number(v):v;}
@@ -1082,7 +1086,7 @@ function dSvc(i){if(editServices[i].id)editServices[i]._deleted=true;else editSe
 
 async function saveServices() {
   const btn=document.querySelector('.dsv');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   const failed=[];
   for(const s of editServices){
@@ -1094,8 +1098,8 @@ async function saveServices() {
       if(res&&!res.ok) failed.push(s.name||'(unnamed)');
     } catch { failed.push(s.name||'(unnamed)'); }
   }
-  if(failed.length) toast(ICONS.alert+' Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
-  else toast(`${ICONS.check} Services saved`);
+  if(failed.length) toast(ICONS.alert+CQI18N.t('failed_to_save',{list:failed.join(', ')}), 6000);
+  else toast(`${ICONS.check}${CQI18N.t('services_saved_toast')}`);
   loadManage();
   btn.disabled=false;btn.textContent='Save Changes';
 }
@@ -1105,7 +1109,7 @@ function aAddon(){editAddons.push({name:'',price:0,durationMins:0,displayOrder:e
 function dAddon(i){if(editAddons[i].id)editAddons[i]._deleted=true;else editAddons.splice(i,1);renderManage();}
 
 async function saveAddons(btn) {
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Saving...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>'+CQI18N.t('saving_dots');
   const shopId=partnerShop?.id;
   const failed=[];
   for(const a of editAddons){
@@ -1117,8 +1121,8 @@ async function saveAddons(btn) {
       if(res&&!res.ok) failed.push(a.name||'(unnamed)');
     } catch { failed.push(a.name||'(unnamed)'); }
   }
-  if(failed.length) toast(ICONS.alert+' Failed to save: '+failed.join(', ')+' — check your connection and try again', 6000);
-  else toast(`${ICONS.check} Custom wash items saved`);
+  if(failed.length) toast(ICONS.alert+CQI18N.t('failed_to_save',{list:failed.join(', ')}), 6000);
+  else toast(`${ICONS.check}${CQI18N.t('custom_wash_saved_toast')}`);
   loadManage();
   btn.disabled=false;btn.textContent='Save Changes';
 }
@@ -1140,7 +1144,7 @@ async function addWalkIn(){
   try{
     const result = await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/walkin`,{method:'POST',headers:authH(),body:JSON.stringify({washType:selectedWashType,customerName:name,customerPhone:phone,carMake,carModel,carColor,licensePlate:plate})});
     closeWI();
-    toast(result?.linkedToAccount ? `${ICONS.check} Walk-in added — linked to ${name}'s ClearQ account` : `${ICONS.check} Walk-in added: ${name}`);
+    toast(result?.linkedToAccount ? `${ICONS.check}${CQI18N.t('walkin_linked_toast',{name})}` : `${ICONS.check}${CQI18N.t('walkin_added_toast',{name})}`);
     loadQueue();loadBays();
   }catch(e){toast(ICONS.alert+' '+e.message, 7000);}
   finally{btn.disabled=false;btn.textContent='Add';}
@@ -1170,6 +1174,20 @@ async function initPartnerPush() {
     console.log('ClearQ Partner: push subscribed');
   } catch(e) { console.log('ClearQ Partner: push failed', e.message); }
 }
+
+// ─── LANGUAGE ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => CQI18N.applyStatic());
+document.addEventListener('cq:langchange', () => {
+  CQI18N.applyStatic();
+  if (partnerToken && partnerShop) {
+    loadQueue(); loadBays(); loadSummary(); loadManage();
+    const activeTab = document.querySelector('.ptab.active');
+    if (activeTab && activeTab.onclick) {
+      const match = activeTab.getAttribute('onclick').match(/setPTab\('(\w+)'/);
+      if (match && match[1] === 'customers') loadPartnerCustomers();
+    }
+  }
+});
 
 </script>
 </body>

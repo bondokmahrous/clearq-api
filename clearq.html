@@ -14,6 +14,7 @@
   window.googleMapsReadyPromise = new Promise(resolve => { window._resolveGoogleMapsReady = resolve; });
 </script>
 <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA9PAlul3ku2yuaWaS82ZdDHA2dYmAS9as&callback=_resolveGoogleMapsReady"></script>
+<script src="/i18n.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>ClearQ — Book a Car Wash Online in Sheikh Zayed, Cairo</title>
 <meta name="description" content="ClearQ is Egypt's first live car wash booking platform. See real-time queues, book a car wash in seconds, and drive straight in with no waiting. Now live in Sheikh Zayed, Cairo.">
@@ -231,6 +232,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .su-err{font-size:12px;color:var(--red);text-align:center;margin-bottom:10px;}
 .su-link{display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--gray-dark);cursor:pointer;}
 .su-link span{color:var(--blue-light);font-weight:600;}
+.su-link span.i18n-plain{color:inherit;font-weight:inherit;}
 .otp-boxes{display:flex;gap:10px;justify-content:center;margin-bottom:20px;}
 .otp-box{width:48px;height:56px;background:#1e293b;border:1px solid #334155;border-radius:11px;text-align:center;font-size:22px;font-weight:700;color:#fff;outline:none;transition:border-color 0.15s;}
 .otp-box:focus{border-color:var(--blue);}
@@ -290,6 +292,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .lp-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(63,189,176,0.14);border:1px solid rgba(63,189,176,0.35);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;color:#3FBDB0;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;position:relative;z-index:1;}
 .lp-h1{font-size:38px;font-weight:800;color:#EAF6F4;line-height:1.15;margin-bottom:8px;position:relative;z-index:1;font-family:"Helvetica Neue",Arial,sans-serif;letter-spacing:-0.5px;}
 .lp-h1 span{color:#3FBDB0;font-style:normal;}
+.lp-h1 span.lp-h1-plain{color:inherit;}
 .lp-sub{font-size:15px;color:#A9C7C4;line-height:1.6;margin-bottom:28px;position:relative;z-index:1;max-width:340px;margin-left:auto;margin-right:auto;}
 .lp-hero-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;margin-bottom:8px;}
 .lp-btn-primary{background:#3FBDB0;color:#04211F;border:none;border-radius:11px;padding:13px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:background 0.15s;}
@@ -521,6 +524,20 @@ html, body {
 /* WALK-IN MODAL OVERLAY FIX */
 #wi-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; justify-content: center; align-items: center; padding: 22px; }
 #wi-modal.open { display: flex; }
+
+/* ══ RTL (Arabic) ══════════════════════════════════════════════
+   display:flex/grid rows already mirror automatically under dir="rtl" (flex/grid tracks
+   follow the inline writing direction) — these overrides only target things that DON'T:
+   fixed/absolute-positioned left/right offsets, and explicit text-align values. */
+html[dir="rtl"] body { font-family: "Segoe UI", Tahoma, -apple-system, sans-serif; }
+html[dir="rtl"] .lang-btn { margin-left: 0; margin-right: auto; }
+html[dir="rtl"] .modal-close-btn { right: auto; left: 14px; }
+html[dir="rtl"] .wash-meta { margin-left: 0; margin-right: 8px; text-align: left; }
+html[dir="rtl"] .su-input, html[dir="rtl"] .name-in, html[dir="rtl"] .ph-in,
+html[dir="rtl"] .rating-comment, html[dir="rtl"] .acct-input { text-align: right; }
+html[dir="rtl"] #su-plate, html[dir="rtl"] #car-plate { direction: rtl; }
+html[dir="rtl"] .otp-boxes { direction: ltr; }
+html[dir="rtl"] .modal-sec, html[dir="rtl"] .signup-sub, html[dir="rtl"] .su-label { text-align: right; }
 </style>
 </head>
 <body>
@@ -588,13 +605,13 @@ html, body {
         </g>
       </svg>
     </div>
-    <div class="lp-badge">Wash without the wait</div>
-    <div class="lp-h1">See car wash <span>queues</span>, live.</div>
-    <div class="lp-sub">Real wait times at every wash centre, updated live. Book instantly. Drive straight in.</div>
+    <div class="lp-badge" data-i18n="lp_badge">Wash without the wait</div>
+    <div class="lp-h1"><span class="lp-h1-plain" data-i18n="lp_h1_a">See car wash </span><span data-i18n="lp_h1_span">queues</span><span class="lp-h1-plain" data-i18n="lp_h1_b">, live.</span></div>
+    <div class="lp-sub" data-i18n="lp_sub">Real wait times at every wash centre, updated live. Book instantly. Drive straight in.</div>
 
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:32px;">
-      <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()" style="width:100%;max-width:320px;padding:15px 24px;font-size:16px;">Book a Wash Now</button>
-      <button id="lp-signin-link" onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;">Already have an account? <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;">Sign in</span></button>
+      <button class="lp-btn-primary" id="lp-main-btn" onclick="enterApp()" style="width:100%;max-width:320px;padding:15px 24px;font-size:16px;" data-i18n="lp_book_now">Book a Wash Now</button>
+      <button id="lp-signin-link" onclick="showSignIn()" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;"><span data-i18n="lp_have_account">Already have an account?</span> <span style="color:#8FE1D9;font-weight:700;text-decoration:underline;" data-i18n="lp_sign_in">Sign in</span></button>
     </div>
 
     <!-- Nearby centres + live wait -->
@@ -603,36 +620,36 @@ html, body {
 
   <!-- Simple 3 steps -->
   <div style="background:#fff;padding:28px 22px;" id="lp-how">
-    <div style="font-size:11px;font-weight:700;color:#3FBDB0;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;">How it works</div>
+    <div style="font-size:11px;font-weight:700;color:#3FBDB0;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;" data-i18n="lp_how_label">How it works</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="9" r="6.5" stroke="#3FBDB0" stroke-width="1.8"/><path d="M9 5.5V9l3 2" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/><path d="M16 16l4.5 4.5" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
-        <div><div style="font-size:14px;font-weight:700;color:#0f172a;">See live queues</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Check wait times before you leave</div></div>
+        <div><div style="font-size:14px;font-weight:700;color:#0f172a;" data-i18n="lp_how1_t">See live queues</div><div style="font-size:12px;color:#64748b;margin-top:2px;" data-i18n="lp_how1_s">Check wait times before you leave</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <svg width="15" height="18" viewBox="0 0 18 22" fill="none"><rect x="1" y="1" width="16" height="20" rx="3" stroke="#3FBDB0" stroke-width="1.8"/><path d="M6 15.5l2.5 2.5L13 12" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Book in seconds</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Your bay is timed to your arrival</div></div>
+        <div><div style="font-size:14px;font-weight:700;color:#0f172a;" data-i18n="lp_how2_t">Book in seconds</div><div style="font-size:12px;color:#64748b;margin-top:2px;" data-i18n="lp_how2_s">Your bay is timed to your arrival</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:14px;">
         <div style="width:36px;height:36px;border-radius:18px;background:#E6F7F5;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           <svg width="20" height="15" viewBox="0 0 24 18" fill="none"><rect x="2" y="6" width="20" height="7" rx="3" fill="none" stroke="#3FBDB0" stroke-width="1.8"/><circle cx="7" cy="15" r="2.2" fill="#3FBDB0"/><circle cx="17" cy="15" r="2.2" fill="#3FBDB0"/><path d="M1 6l2-4h5M23 6l-2-4" stroke="#3FBDB0" stroke-width="1.8" stroke-linecap="round"/></svg>
         </div>
-        <div><div style="font-size:14px;font-weight:700;color:#0f172a;">Drive straight in</div><div style="font-size:12px;color:#64748b;margin-top:2px;">Bay ready, notified when car is done</div></div>
+        <div><div style="font-size:14px;font-weight:700;color:#0f172a;" data-i18n="lp_how3_t">Drive straight in</div><div style="font-size:12px;color:#64748b;margin-top:2px;" data-i18n="lp_how3_s">Bay ready, notified when car is done</div></div>
       </div>
     </div>
   </div>
 
   <!-- Partner CTA -->
   <div class="lp-partner">
-    <div class="lp-partner-title">Own a wash centre?<br><span>Join ClearQ.</span></div>
-    <div class="lp-partner-sub">Free to join. Get customers, manage your queue, track your day.</div>
-    <a href="/partner" class="lp-partner-btn">Partner Login →</a>
+    <div class="lp-partner-title"><span class="lp-h1-plain" data-i18n="lp_partner_title_a">Own a wash centre?</span><br><span data-i18n="lp_partner_title_b">Join ClearQ.</span></div>
+    <div class="lp-partner-sub" data-i18n="lp_partner_sub">Free to join. Get customers, manage your queue, track your day.</div>
+    <a href="/partner" class="lp-partner-btn" data-i18n="lp_partner_btn">Partner Login →</a>
     <div style="margin-top:14px;font-size:12px;color:#94a3b8;">
-      To register your centre, email <a href="mailto:ClearQ.info@gmail.com" style="color:#8FE1D9;font-weight:600;text-decoration:none;">ClearQ.info@gmail.com</a>
+      <span data-i18n="lp_partner_register">To register your centre, email</span> <a href="mailto:ClearQ.info@gmail.com" style="color:#8FE1D9;font-weight:600;text-decoration:none;">ClearQ.info@gmail.com</a>
     </div>
   </div>
 
@@ -641,7 +658,7 @@ html, body {
     <div class="lp-footer-logo">
       <span class="lp-footer-name">Clear<img src="/logo-transparent.png" alt="Q" style="height:0.95em;width:0.95em;object-fit:contain;vertical-align:-0.12em;display:inline-block;"></span>
     </div>
-    <div class="lp-footer-sub">Egypt's first live car wash booking platform.<br>Cairo, Egypt · 2026</div>
+    <div class="lp-footer-sub"><span data-i18n="lp_footer_sub">Egypt's first live car wash booking platform.</span><br><span data-i18n="lp_footer_location">Cairo, Egypt · 2026</span></div>
     <div class="lp-footer-links">
       <a class="lp-footer-link" href="mailto:ClearQ.info@gmail.com">ClearQ.info@gmail.com</a>
     </div>
@@ -659,47 +676,47 @@ html, body {
     <!-- STEP 1: Register -->
     <div class="signup-step active" id="su-step1">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div class="signup-title" style="margin-bottom:0">Welcome to ClearQ</div>
+        <div class="signup-title" style="margin-bottom:0" data-i18n="su_welcome">Welcome to ClearQ</div>
         <button onclick="closeSignup()" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;padding:4px;">✕</button>
       </div>
-      <div class="signup-sub">Create your account to book car washes</div>
-      <label class="su-label">Full name</label>
-      <input class="su-input" type="text" id="su-name" placeholder="Mohamed Ali">
-      <label class="su-label">Email address</label>
-      <input class="su-input" type="email" id="su-email" placeholder="you@example.com">
-      <label class="su-label">Password</label>
-      <input class="su-input" type="password" id="su-password" placeholder="Create a password">
-      <label class="su-label">Phone number</label>
+      <div class="signup-sub" data-i18n="su_create_sub">Create your account to book car washes</div>
+      <label class="su-label" data-i18n="su_full_name">Full name</label>
+      <input class="su-input" type="text" id="su-name" placeholder="Mohamed Ali" data-i18n-ph="su_full_name_ph">
+      <label class="su-label" data-i18n="su_email">Email address</label>
+      <input class="su-input" type="email" id="su-email" placeholder="you@example.com" data-i18n-ph="su_email_ph">
+      <label class="su-label" data-i18n="su_password">Password</label>
+      <input class="su-input" type="password" id="su-password" placeholder="Create a password" data-i18n-ph="su_password_ph">
+      <label class="su-label" data-i18n="su_phone">Phone number</label>
       <input class="su-input" type="tel" id="su-phone" placeholder="+20 100 000 0000">
       <div class="su-row">
         <div>
-          <label class="su-label">Car make</label>
-          <input class="su-input" type="text" id="su-car-make" placeholder="Toyota">
+          <label class="su-label" data-i18n="su_car_make">Car make</label>
+          <input class="su-input" type="text" id="su-car-make" placeholder="Toyota" data-i18n-ph="su_car_make_ph">
         </div>
         <div>
-          <label class="su-label">Car model</label>
-          <input class="su-input" type="text" id="su-car-model" placeholder="Corolla">
+          <label class="su-label" data-i18n="su_car_model">Car model</label>
+          <input class="su-input" type="text" id="su-car-model" placeholder="Corolla" data-i18n-ph="su_car_model_ph">
         </div>
       </div>
       <div class="su-row">
         <div>
-          <label class="su-label">Color</label>
-          <input class="su-input" type="text" id="su-car-color" placeholder="White">
+          <label class="su-label" data-i18n="su_car_color">Color</label>
+          <input class="su-input" type="text" id="su-car-color" placeholder="White" data-i18n-ph="su_car_color_ph">
         </div>
         <div>
-          <label class="su-label">License plate</label>
+          <label class="su-label" data-i18n="su_plate">License plate</label>
           <input class="su-input" type="text" id="su-plate" placeholder="أ ب ج 123">
         </div>
       </div>
       <div class="su-err" id="su-err1"></div>
-      <button class="su-btn" id="su-btn1" onclick="doSignup()">Create Account</button>
-      <div class="su-link" onclick="showLogin()">Already have an account? <span>Sign in</span></div>
+      <button class="su-btn" id="su-btn1" onclick="doSignup()" data-i18n="su_create_account">Create Account</button>
+      <div class="su-link" onclick="showLogin()"><span class="i18n-plain" data-i18n="su_have_account">Already have an account?</span> <span data-i18n="su_sign_in">Sign in</span></div>
     </div>
 
     <!-- STEP 2: OTP -->
     <div class="signup-step" id="su-step2">
-      <div class="signup-title">Check your email</div>
-      <div class="signup-sub" id="su-otp-sub">We sent a 6-digit code to your email</div>
+      <div class="signup-title" data-i18n="su_check_email">Check your email</div>
+      <div class="signup-sub" id="su-otp-sub" data-i18n="su_otp_sub">We sent a 6-digit code to your email</div>
       <div class="otp-boxes">
         <input class="otp-box" type="text" maxlength="1" id="otp0" oninput="otpNext(0)" onkeydown="otpBack(event,0)">
         <input class="otp-box" type="text" maxlength="1" id="otp1" oninput="otpNext(1)" onkeydown="otpBack(event,1)">
@@ -709,40 +726,40 @@ html, body {
         <input class="otp-box" type="text" maxlength="1" id="otp5" oninput="otpNext(5)" onkeydown="otpBack(event,5)">
       </div>
       <div class="su-err" id="su-err2"></div>
-      <button class="su-btn" id="su-btn2" onclick="verifyOTP()">Verify &amp; Continue</button>
-      <div class="su-link" onclick="resendOTP()">Didn't receive it? <span>Resend code</span></div>
-      <div class="su-link" onclick="showStep(1)">← Back</div>
+      <button class="su-btn" id="su-btn2" onclick="verifyOTP()" data-i18n="su_verify_continue">Verify &amp; Continue</button>
+      <div class="su-link" onclick="resendOTP()"><span class="i18n-plain" data-i18n="su_no_code">Didn't receive it?</span> <span data-i18n="su_resend">Resend code</span></div>
+      <div class="su-link" onclick="showStep(1)" data-i18n="su_back">← Back</div>
     </div>
 
     <!-- STEP 3: Login -->
     <div class="signup-step" id="su-step3">
-      <div class="signup-title">Welcome back</div>
-      <div class="signup-sub">Sign in to your ClearQ account</div>
-      <label class="su-label">Email address</label>
-      <input class="su-input" type="email" id="li-email" placeholder="you@example.com">
-      <label class="su-label">Password</label>
-      <input class="su-input" type="password" id="li-password" placeholder="Your password">
+      <div class="signup-title" data-i18n="su_welcome_back">Welcome back</div>
+      <div class="signup-sub" data-i18n="su_signin_sub">Sign in to your ClearQ account</div>
+      <label class="su-label" data-i18n="su_email">Email address</label>
+      <input class="su-input" type="email" id="li-email" placeholder="you@example.com" data-i18n-ph="su_email_ph">
+      <label class="su-label" data-i18n="su_password">Password</label>
+      <input class="su-input" type="password" id="li-password" placeholder="Your password" data-i18n-ph="su_your_password_ph">
       <div class="su-err" id="su-err3"></div>
-      <button class="su-btn" id="su-btn3" onclick="doLogin2()">Sign In</button>
-      <div class="su-link" onclick="showForgotPassword()">Forgot password?</div>
-      <div class="su-link" onclick="showStep(1)">New user? <span>Create account</span></div>
+      <button class="su-btn" id="su-btn3" onclick="doLogin2()" data-i18n="su_sign_in">Sign In</button>
+      <div class="su-link" onclick="showForgotPassword()" data-i18n="su_forgot_password">Forgot password?</div>
+      <div class="su-link" onclick="showStep(1)"><span class="i18n-plain" data-i18n="su_new_user">New user?</span> <span data-i18n="su_create_account_link">Create account</span></div>
     </div>
 
     <!-- STEP 4: Forgot password — request code -->
     <div class="signup-step" id="su-step4">
-      <div class="signup-title">Reset your password</div>
-      <div class="signup-sub">Enter your email and we'll send you a reset code</div>
-      <label class="su-label">Email address</label>
-      <input class="su-input" type="email" id="fp-email" placeholder="you@example.com">
+      <div class="signup-title" data-i18n="su_reset_title">Reset your password</div>
+      <div class="signup-sub" data-i18n="su_reset_sub">Enter your email and we'll send you a reset code</div>
+      <label class="su-label" data-i18n="su_email">Email address</label>
+      <input class="su-input" type="email" id="fp-email" placeholder="you@example.com" data-i18n-ph="su_email_ph">
       <div class="su-err" id="su-err4"></div>
-      <button class="su-btn" id="su-btn4" onclick="requestPasswordReset()">Send Reset Code</button>
-      <div class="su-link" onclick="showStep(3)">← Back to sign in</div>
+      <button class="su-btn" id="su-btn4" onclick="requestPasswordReset()" data-i18n="su_send_reset">Send Reset Code</button>
+      <div class="su-link" onclick="showStep(3)" data-i18n="su_back_signin">← Back to sign in</div>
     </div>
 
     <!-- STEP 5: Forgot password — enter code + new password -->
     <div class="signup-step" id="su-step5">
-      <div class="signup-title">Check your email</div>
-      <div class="signup-sub">Enter the 6-digit code we sent, and your new password</div>
+      <div class="signup-title" data-i18n="su_check_email">Check your email</div>
+      <div class="signup-sub" data-i18n="su_reset_code_sub">Enter the 6-digit code we sent, and your new password</div>
       <div class="otp-boxes">
         <input class="otp-box" type="text" maxlength="1" id="rc0" oninput="rcNext(0)" onkeydown="rcBack(event,0)">
         <input class="otp-box" type="text" maxlength="1" id="rc1" oninput="rcNext(1)" onkeydown="rcBack(event,1)">
@@ -751,12 +768,12 @@ html, body {
         <input class="otp-box" type="text" maxlength="1" id="rc4" oninput="rcNext(4)" onkeydown="rcBack(event,4)">
         <input class="otp-box" type="text" maxlength="1" id="rc5" oninput="rcNext(5)" onkeydown="rcBack(event,5)">
       </div>
-      <label class="su-label" style="margin-top:14px;">New password</label>
-      <input class="su-input" type="password" id="rc-password" placeholder="At least 6 characters">
+      <label class="su-label" style="margin-top:14px;" data-i18n="su_new_password">New password</label>
+      <input class="su-input" type="password" id="rc-password" placeholder="At least 6 characters" data-i18n-ph="su_new_password_ph">
       <div class="su-err" id="su-err5"></div>
-      <button class="su-btn" id="su-btn5" onclick="confirmPasswordReset()">Reset Password</button>
-      <div class="su-link" onclick="requestPasswordReset(true)">Didn't receive it? <span>Resend code</span></div>
-      <div class="su-link" onclick="showStep(3)">← Back to sign in</div>
+      <button class="su-btn" id="su-btn5" onclick="confirmPasswordReset()" data-i18n="su_reset_password">Reset Password</button>
+      <div class="su-link" onclick="requestPasswordReset(true)"><span class="i18n-plain" data-i18n="su_no_code">Didn't receive it?</span> <span data-i18n="su_resend">Resend code</span></div>
+      <div class="su-link" onclick="showStep(3)" data-i18n="su_back_signin">← Back to sign in</div>
     </div>
   </div>
 </div>
@@ -765,7 +782,7 @@ html, body {
   <a class="nav-brand" onclick="showLanding()">
     <span class="nav-name">Clear<img src="/logo-transparent.png" alt="Q" style="height:0.95em;width:0.95em;object-fit:contain;vertical-align:-0.12em;display:inline-block;"></span>
   </a>
-  <a href="/partner" style="font-size:12px;color:rgba(255,255,255,0.85);font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.3);border-radius:7px;padding:6px 12px;">Partner Login →</a>
+  <a href="/partner" style="font-size:12px;color:rgba(255,255,255,0.85);font-weight:600;text-decoration:none;border:1px solid rgba(255,255,255,0.3);border-radius:7px;padding:6px 12px;" data-i18n="partner_login">Partner Login →</a>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -777,49 +794,49 @@ html, body {
     <div class="brand-row">
       <div>
         <div class="brand-name">ClearQ</div>
-        <div class="brand-sub">Find &amp; book a car wash near you</div>
+        <div class="brand-sub" data-i18n="brand_sub">Find &amp; book a car wash near you</div>
       </div>
-      <button class="lang-btn" onclick="toggleLang()">عربي</button>
+      <button class="lang-btn" onclick="toggleLang()" data-i18n="lang_toggle">عربي</button>
     </div>
   </div>
 
   <!-- Location banner -->
   <div class="loc-banner" id="loc-banner">
     <span style="font-size:18px">📍</span>
-    <div class="loc-banner-text">Allow location access for accurate arrival times and queue estimates</div>
-    <button class="loc-allow-btn" onclick="requestLocation()">Allow</button>
+    <div class="loc-banner-text" data-i18n="loc_banner_text">Allow location access for accurate arrival times and queue estimates</div>
+    <button class="loc-allow-btn" onclick="requestLocation()" data-i18n="loc_allow">Allow</button>
     <button class="loc-deny-btn" onclick="dismissLocBanner()">✕</button>
   </div>
 
   <div class="filters" id="city-filters">
-    <button class="chip active" onclick="setCity('All',this)">All</button>
-    <button class="chip" onclick="setCity('Sheikh Zayed',this)">Sheikh Zayed</button>
+    <button class="chip active" onclick="setCity('All',this)" data-i18n="filter_all">All</button>
+    <button class="chip" onclick="setCity('Sheikh Zayed',this)" data-i18n="filter_sz">Sheikh Zayed</button>
   </div>
 
   <div class="result-bar">
-    <span class="result-count" id="result-count">Loading...</span>
+    <span class="result-count" id="result-count" data-i18n="loading">Loading...</span>
   </div>
 
   <div class="washes-list" id="washes-list">
-    <div class="loading-screen"><div class="spin"></div><p>Loading wash centres...</p></div>
+    <div class="loading-screen"><div class="spin"></div><p data-i18n="loading_shops">Loading wash centres...</p></div>
   </div>
 
   <div class="bottom-nav">
     <button class="bnav-btn active" id="bnav-washes" onclick="showTab('washes')">
       <div class="bnav-icon"><svg width="21" height="16" viewBox="0 0 24 18" fill="none"><rect x="2" y="6" width="20" height="7" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7" cy="15" r="2.2" fill="currentColor"/><circle cx="17" cy="15" r="2.2" fill="currentColor"/><path d="M1 6l2-4h5M23 6l-2-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-      <div class="bnav-label">Washes</div>
+      <div class="bnav-label" data-i18n="bnav_washes">Washes</div>
     </button>
     <button class="bnav-btn" id="bnav-map" onclick="showTab('map')">
       <div class="bnav-icon"><svg width="18" height="21" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-7.5 7-12a7 7 0 1 0-14 0c0 4.5 7 12 7 12z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9" r="2.3" stroke="currentColor" stroke-width="1.8"/></svg></div>
-      <div class="bnav-label">Map</div>
+      <div class="bnav-label" data-i18n="bnav_map">Map</div>
     </button>
     <button class="bnav-btn" id="bnav-bookings" onclick="showTab('bookings')">
       <div class="bnav-icon"><svg width="17" height="21" viewBox="0 0 18 22" fill="none"><rect x="1" y="1" width="16" height="20" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 15.5l2.5 2.5L13 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div class="bnav-label">My Bookings</div>
+      <div class="bnav-label" data-i18n="bnav_bookings">My Bookings</div>
     </button>
     <button class="bnav-btn" id="bnav-account" onclick="showTab('account')">
       <div class="bnav-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></div>
-      <div class="bnav-label">Account</div>
+      <div class="bnav-label" data-i18n="bnav_account">Account</div>
     </button>
   </div>
 
@@ -833,14 +850,14 @@ html, body {
 
   <!-- MY BOOKINGS TAB -->
   <div id="tab-bookings" style="display:none;padding:16px 14px 100px;">
-    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:4px;">My Bookings</div>
-    <div style="font-size:13px;color:#64748b;margin-bottom:18px;">Your upcoming and past washes</div>
-    <div id="bookings-list"><div class="loading-screen"><div class="spin"></div><p>Loading bookings...</p></div></div>
+    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:4px;" data-i18n="my_bookings_title">My Bookings</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:18px;" data-i18n="my_bookings_sub">Your upcoming and past washes</div>
+    <div id="bookings-list"><div class="loading-screen"><div class="spin"></div><p data-i18n="loading_bookings">Loading bookings...</p></div></div>
   </div>
 
   <!-- ACCOUNT TAB -->
   <div id="tab-account" style="display:none;padding:16px 14px 100px;">
-    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:18px;">My Account</div>
+    <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:18px;" data-i18n="my_account_title">My Account</div>
     <div id="account-content"></div>
   </div>
 </div>
@@ -852,31 +869,31 @@ html, body {
     <div class="modal-handle"></div>
     <div class="modal-title" id="bm-name"></div>
     <div class="modal-sub" id="bm-addr"></div>
-    <div class="modal-sec">Choose service</div>
+    <div class="modal-sec" data-i18n="choose_service">Choose service</div>
     <div class="svc-grid" id="bm-svcs"></div>
     <div id="bm-promo-row" style="display:none;gap:8px;margin-bottom:8px;">
-      <input type="text" id="bm-promo-input" placeholder="Promo code" style="flex:1;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:700;color:#0f172a;outline:none;text-transform:uppercase;letter-spacing:0.5px;">
-      <button type="button" onclick="applyPromoCode()" style="background:#0f172a;color:#fff;border:none;border-radius:9px;padding:0 18px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;">Apply</button>
+      <input type="text" id="bm-promo-input" placeholder="Promo code" data-i18n-ph="promo_code_ph" style="flex:1;min-width:0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:700;color:#0f172a;outline:none;text-transform:uppercase;letter-spacing:0.5px;">
+      <button type="button" onclick="applyPromoCode()" style="background:#0f172a;color:#fff;border:none;border-radius:9px;padding:0 18px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;" data-i18n="apply">Apply</button>
     </div>
     <div id="bm-promo-msg" style="display:none;font-size:12px;margin:-2px 0 10px;"></div>
     <div id="bm-total-price" style="display:none;align-items:center;justify-content:space-between;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:11px;padding:12px 14px;margin-bottom:14px;">
-      <span style="font-size:13px;font-weight:600;color:#21867B;">Total</span>
+      <span style="font-size:13px;font-weight:600;color:#21867B;" data-i18n="total">Total</span>
       <span style="display:flex;align-items:baseline;gap:8px;">
         <span id="bm-total-price-original" style="display:none;font-size:13px;font-weight:600;color:#94a3b8;text-decoration:line-through;"></span>
         <span id="bm-total-price-amt" style="font-size:20px;font-weight:800;color:#21867B;"></span>
       </span>
     </div>
-    <div class="modal-sec">When?</div>
+    <div class="modal-sec" data-i18n="when_q">When?</div>
     <div class="when-toggle" style="display:flex;gap:8px;margin-bottom:12px;">
-      <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;">Now</button>
-      <button type="button" id="when-schedule-btn" onclick="setBookingMode('schedule')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;">Schedule</button>
+      <button type="button" id="when-now-btn" onclick="setBookingMode('now')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#E6F7F5;color:#21867B;font-weight:700;font-size:13px;cursor:pointer;" data-i18n="when_now">Now</button>
+      <button type="button" id="when-schedule-btn" onclick="setBookingMode('schedule')" style="flex:1;padding:10px;border-radius:9px;border:1px solid #e2e8f0;background:#fff;color:#64748b;font-weight:700;font-size:13px;cursor:pointer;" data-i18n="when_schedule">Schedule</button>
     </div>
     <select id="bm-slot-time" onchange="onSlotTimeChange()" style="display:none;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:11px 12px;font-size:13px;font-weight:600;color:#0f172a;outline:none;margin-bottom:14px;"></select>
     <div class="info-box">
-      <div class="info-item"><div class="info-v" id="bm-q">0</div><div class="info-l">in line</div></div>
-      <div class="info-item"><div class="info-v" id="bm-w">0</div><div class="info-l">min wait</div></div>
-      <div class="info-item"><div class="info-v blue" id="bm-start">—</div><div class="info-l">your start</div></div>
-      <div class="info-item"><div class="info-v blue" id="bm-ready">—</div><div class="info-l">ready by</div></div>
+      <div class="info-item"><div class="info-v" id="bm-q">0</div><div class="info-l" data-i18n="in_line">in line</div></div>
+      <div class="info-item"><div class="info-v" id="bm-w">0</div><div class="info-l" data-i18n="min_wait">min wait</div></div>
+      <div class="info-item"><div class="info-v blue" id="bm-start">—</div><div class="info-l" data-i18n="your_start">your start</div></div>
+      <div class="info-item"><div class="info-v blue" id="bm-ready">—</div><div class="info-l" data-i18n="ready_by">ready by</div></div>
     </div>
     <div id="bm-location-status" style="display:none;background:#E6F7F5;border:1px solid #B7E8E1;border-radius:9px;padding:9px 12px;font-size:12px;color:#21867B;margin-bottom:14px;align-items:center;gap:7px"></div>
     <div id="bm-closing-warning" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:9px;padding:9px 12px;font-size:12px;color:#b91c1c;margin-bottom:14px;align-items:center;gap:7px"></div>
@@ -889,10 +906,10 @@ html, body {
           <div id="bm-user-name" style="font-size:14px;font-weight:700;color:#0f172a;"></div>
           <div id="bm-user-phone" style="font-size:12px;color:#64748b;margin-top:1px;"></div>
         </div>
-        <a onclick="showTab('account')" style="font-size:11px;color:#3FBDB0;font-weight:600;cursor:pointer;">Edit →</a>
+        <a onclick="showTab('account')" style="font-size:11px;color:#3FBDB0;font-weight:600;cursor:pointer;" data-i18n="edit_arrow">Edit →</a>
       </div>
       <div id="bm-car-section">
-        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">Which car?</div>
+        <div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;" data-i18n="which_car">Which car?</div>
         <select id="bm-car-select" onchange="onCarSelectChange()" style="width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;color:#0f172a;outline:none;"></select>
       </div>
     </div>
@@ -901,7 +918,7 @@ html, body {
     <input type="hidden" id="bm-cname">
     <input type="hidden" id="bm-phone">
     <div class="modal-err" id="bm-err"></div>
-    <button class="confirm-btn" id="bm-confirm" onclick="confirmBooking()">Confirm Booking</button>
+    <button class="confirm-btn" id="bm-confirm" onclick="confirmBooking()" data-i18n="confirm_booking">Confirm Booking</button>
   </div>
 </div>
 
@@ -923,30 +940,30 @@ html, body {
 <div class="rating-bg" id="booking-confirmed-modal">
   <div class="rating-box">
     <div class="rating-icon">✅</div>
-    <div class="rating-title">Booking Confirmed!</div>
+    <div class="rating-title" data-i18n="booking_confirmed">Booking Confirmed!</div>
     <div class="rating-centre" id="bcm-shop"></div>
     <div class="info-row" style="display:flex;justify-content:space-around;margin-bottom:20px;">
-      <div class="info-item"><div class="info-v" id="bcm-service">—</div><div class="info-l">service</div></div>
-      <div class="info-item"><div class="info-v blue" id="bcm-start">—</div><div class="info-l">start</div></div>
-      <div class="info-item"><div class="info-v blue" id="bcm-ready">—</div><div class="info-l">ready by</div></div>
-      <div class="info-item"><div class="info-v" id="bcm-price">—</div><div class="info-l">price</div></div>
+      <div class="info-item"><div class="info-v" id="bcm-service">—</div><div class="info-l" data-i18n="service_label">service</div></div>
+      <div class="info-item"><div class="info-v blue" id="bcm-start">—</div><div class="info-l" data-i18n="start_label">start</div></div>
+      <div class="info-item"><div class="info-v blue" id="bcm-ready">—</div><div class="info-l" data-i18n="ready_label">ready by</div></div>
+      <div class="info-item"><div class="info-v" id="bcm-price">—</div><div class="info-l" data-i18n="price_label">price</div></div>
     </div>
-    <button onclick="closeBookingConfirmedModal(true)" style="width:100%;background:#3FBDB0;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;">View My Booking</button>
-    <button onclick="closeBookingConfirmedModal(false)" style="background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;">Done</button>
+    <button onclick="closeBookingConfirmedModal(true)" style="width:100%;background:#3FBDB0;color:#fff;border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;" data-i18n="view_my_booking">View My Booking</button>
+    <button onclick="closeBookingConfirmedModal(false)" style="background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;" data-i18n="done">Done</button>
   </div>
 </div>
 
 <div class="review-nudge" id="review-nudge">
   <div class="review-nudge-icon">⭐</div>
-  <div class="review-nudge-text">How was your wash?<div class="review-nudge-sub" id="rn-shop-name"></div></div>
-  <button class="review-nudge-btn" onclick="openNudgedRating()">Rate</button>
+  <div class="review-nudge-text"><span data-i18n="how_was_wash">How was your wash?</span><div class="review-nudge-sub" id="rn-shop-name"></div></div>
+  <button class="review-nudge-btn" onclick="openNudgedRating()" data-i18n="rate">Rate</button>
   <button class="review-nudge-close" onclick="dismissReviewNudge()">✕</button>
 </div>
 
 <div class="rating-bg" id="rating-modal">
   <div class="rating-box">
     <div class="rating-icon">✅</div>
-    <div class="rating-title">How was your wash?</div>
+    <div class="rating-title" data-i18n="how_was_wash">How was your wash?</div>
     <div class="rating-centre" id="rm-centre"></div>
     <div class="stars" id="stars">
       <span class="star" onclick="setStar(1)">★</span>
@@ -958,22 +975,22 @@ html, body {
     <div id="rm-star-label" style="font-size:13px;color:#64748b;margin-bottom:14px;min-height:18px;"></div>
     <input type="hidden" id="rm-booking-id">
     <input type="hidden" id="rm-shop-id">
-    <textarea class="rating-comment" placeholder="Tell others about your experience (optional)" id="rm-comment"></textarea>
+    <textarea class="rating-comment" placeholder="Tell others about your experience (optional)" id="rm-comment" data-i18n-ph="comment_ph"></textarea>
     <!-- Photo upload -->
     <div style="margin-bottom:14px;">
-      <label style="display:block;font-size:12px;color:#64748b;margin-bottom:8px;">Add a photo (optional)</label>
+      <label style="display:block;font-size:12px;color:#64748b;margin-bottom:8px;" data-i18n="add_photo_label">Add a photo (optional)</label>
       <div id="rm-photo-preview" style="display:none;margin-bottom:8px;position:relative;">
         <img id="rm-photo-img" style="width:100%;max-height:180px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;" />
         <button onclick="removePhoto()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.6);border:none;color:#fff;border-radius:50%;width:26px;height:26px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
       <label id="rm-photo-label" style="display:flex;align-items:center;gap:8px;background:#f8fafc;border:1.5px dashed #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;">
         <span style="font-size:20px;">📷</span>
-        <span style="font-size:13px;color:#64748b;">Tap to add a photo</span>
+        <span style="font-size:13px;color:#64748b;" data-i18n="tap_add_photo">Tap to add a photo</span>
         <input type="file" id="rm-photo-input" accept="image/*" style="display:none;" onchange="handlePhotoUpload(event)">
       </label>
     </div>
-    <button class="submit-btn" onclick="submitRating()" id="rm-submit-btn">Submit Rating</button>
-    <button class="skip-btn" onclick="closeRating()">Skip</button>
+    <button class="submit-btn" onclick="submitRating()" id="rm-submit-btn" data-i18n="submit_rating">Submit Rating</button>
+    <button class="skip-btn" onclick="closeRating()" data-i18n="skip">Skip</button>
   </div>
 </div>
 
@@ -1045,12 +1062,21 @@ function switchView(v) {
 }
 
 // ─── LANGUAGE ───────────────────────────────────────────────────
-let isArabic = false;
+function isArabic() { return CQI18N.getLang() === 'ar'; }
 function toggleLang() {
-  isArabic = !isArabic;
-  document.querySelector('.lang-btn').textContent = isArabic ? 'English' : 'عربي';
-  document.querySelector('.brand-sub').textContent = isArabic ? 'ابحث واحجز غسيل سيارتك' : 'Find & book a car wash near you';
+  CQI18N.toggle();
 }
+document.addEventListener('cq:langchange', () => {
+  CQI18N.applyStatic();
+  if (typeof renderShops === 'function') renderShops();
+  const bookingsTabVisible = document.getElementById('tab-bookings')?.style.display === 'block';
+  if (bookingsTabVisible && typeof loadMyBookings === 'function') loadMyBookings();
+  const accountTabVisible = document.getElementById('tab-account')?.style.display === 'block';
+  if (accountTabVisible && typeof renderAccount === 'function') renderAccount();
+  if (document.getElementById('booking-modal')?.classList.contains('open') && selectedWash) {
+    proceedToBookingModal(selectedWash.id);
+  }
+});
 
 // ─── USER: LOAD SHOPS ───────────────────────────────────────────
 async function loadShops() {
@@ -1210,14 +1236,14 @@ function renderShops() {
     const ms = !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
     return mc && ms && (s.isActive || s.id === ghostShopId);
   });
-  document.getElementById('result-count').textContent = `${list.length} wash${list.length!==1?'es':''} found`;
+  document.getElementById('result-count').textContent = CQI18N.t(list.length===1?'wash_found_one':'wash_found_many', {n: list.length});
   const container = document.getElementById('washes-list');
 
   if (!list.length) {
     // Only replace when not already showing this — avoids the same destroy/rebuild flicker
     // this whole function is otherwise designed to prevent.
     if (!container.querySelector('.no-washes-empty')) {
-      container.innerHTML = '<div class="loading-screen no-washes-empty"><p>No wash centres found.</p></div>';
+      container.innerHTML = `<div class="loading-screen no-washes-empty"><p>${CQI18N.t('no_washes_found')}</p></div>`;
     }
     return;
   }
@@ -1255,8 +1281,8 @@ function renderShops() {
           return `
           <div class="svc-box">
             <div class="svc-box-name">${sv.name}</div>
-            <div class="svc-box-price">${sv.price} EGP</div>
-            <div class="svc-box-dur">${sv.durationMins} min</div>
+            <div class="svc-box-price">${sv.price} ${CQI18N.t('egp')}</div>
+            <div class="svc-box-dur">${sv.durationMins} ${CQI18N.t('min_short')}</div>
             ${d.text ? `<div class="svc-box-desc" ${d.truncated ? `onclick="event.stopPropagation();openSvcInfoById(${s.id},${sv.id})"` : ''}>${escHtmlSD(d.text)}${d.truncated ? `<span class="svc-box-more">… more</span>` : ''}</div>` : ''}
           </div>`;
         }).join('')}
@@ -1264,15 +1290,15 @@ function renderShops() {
       </div>`;
     } else {
       const fallback = [];
-      if (s.priceExterior) fallback.push({name:'EXT',price:s.priceExterior,dur:s.minsExterior||30});
-      if (s.priceInterior) fallback.push({name:'INT',price:s.priceInterior,dur:s.minsInterior||30});
-      if (s.priceFull) fallback.push({name:'FULL',price:s.priceFull,dur:s.minsFull||45});
+      if (s.priceExterior) fallback.push({name:CQI18N.t('ext_short'),price:s.priceExterior,dur:s.minsExterior||30});
+      if (s.priceInterior) fallback.push({name:CQI18N.t('int_short'),price:s.priceInterior,dur:s.minsInterior||30});
+      if (s.priceFull) fallback.push({name:CQI18N.t('full_short'),price:s.priceFull,dur:s.minsFull||45});
       svcsHtml = `<div class="svc-boxes">
         <div class="svc-boxes-row">${fallback.map(sv => `
           <div class="svc-box">
             <div class="svc-box-name">${sv.name}</div>
-            <div class="svc-box-price">${sv.price} EGP</div>
-            <div class="svc-box-dur">${sv.dur} min</div>
+            <div class="svc-box-price">${sv.price} ${CQI18N.t('egp')}</div>
+            <div class="svc-box-dur">${sv.dur} ${CQI18N.t('min_short')}</div>
           </div>`).join('')}
         </div>
       </div>`;
@@ -1290,35 +1316,35 @@ function renderShops() {
       <div class="card-top">
         <div class="card-row1">
           <div>
-            <div class="wash-name">${s.name}${s.isPaused ? ` <span style="display:inline-block;vertical-align:middle;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">Temporarily Unavailable</span>` : ''}</div>
+            <div class="wash-name">${s.name}${s.isPaused ? ` <span style="display:inline-block;vertical-align:middle;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">${CQI18N.t('temporarily_unavailable_badge')}</span>` : ''}</div>
             <div class="wash-addr">📍 ${s.address}</div>
-            ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;text-decoration:underline;">(${s.ratingCount || 0} review${s.ratingCount===1?'':'s'}) ›</span></div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:2px;text-decoration:underline;">See details ›</div>`}
+            ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;text-decoration:underline;">(${s.ratingCount || 0} ${CQI18N.t(s.ratingCount===1?'review_one':'review_many')}) ›</span></div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:2px;text-decoration:underline;">${CQI18N.t('see_details')} ›</div>`}
           </div>
           <div class="wash-meta">
             ${s.isPaused || closesTooLate
-              ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">Book</button>`
-              : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">Book</button>`}
+              ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">${CQI18N.t('book_btn')}</button>`
+              : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">${CQI18N.t('book_btn')}</button>`}
           </div>
         </div>
         ${s.isPaused
-          ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">Temporarily unavailable — not accepting online bookings right now</div>`
+          ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">${CQI18N.t('unavailable_no_bookings')}</div>`
           : closesTooLate
-            ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">⛔ Closes at ${s.closeTime} — no online booking today would be ready in time</div>`
+            ? `<div style="padding:10px 13px;margin:0 13px 4px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;font-weight:600;text-align:center;">${CQI18N.t('closes_too_late',{time:s.closeTime})}</div>`
             : `<div class="stats-grid">
-          <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">in line</div></div>
-          <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">min wait</div></div>
-          <div class="stat"><div class="stat-v" style="color:var(--blue)">${startStr}</div><div class="stat-l">your start</div></div>
-          <div class="stat"><div class="stat-v" style="color:var(--blue)">${readyStr}</div><div class="stat-l">ready by</div></div>
+          <div class="stat"><div class="stat-v" style="color:${qColor}">${qd.queueCount||0}</div><div class="stat-l">${CQI18N.t('in_line')}</div></div>
+          <div class="stat"><div class="stat-v" style="color:${qColor}">${effectiveWaitMins}</div><div class="stat-l">${CQI18N.t('min_wait')}</div></div>
+          <div class="stat"><div class="stat-v" style="color:var(--blue)">${startStr}</div><div class="stat-l">${CQI18N.t('your_start')}</div></div>
+          <div class="stat"><div class="stat-v" style="color:var(--blue)">${readyStr}</div><div class="stat-l">${CQI18N.t('ready_by')}</div></div>
         </div>`}
       </div>
       ${svcsHtml}
       <div class="wash-hours" style="padding:0 13px 11px;font-size:11px;color:#64748b;">🕘 ${s.openTime} – ${s.closeTime}</div>
-      ${staticMapUrl ? `<img src="${staticMapUrl}" alt="Map location" style="width:100%;height:120px;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
+      ${staticMapUrl ? `<img src="${staticMapUrl}" alt="${CQI18N.t('map_location')}" style="width:100%;height:120px;object-fit:cover;display:block;" onerror="this.style.display='none'">` : ''}
       ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
       ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" onclick="event.stopPropagation()" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
       <div class="card-bottom">
         <div class="drive-info">📍 ${s.city}</div>
-        <a class="maps-link" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">Open in Maps →</a>
+        <a class="maps-link" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${CQI18N.t('open_in_maps')}</a>
       </div>`;
     // Only touch the DOM if this card's content actually changed — a shop's card shouldn't
     // reload its map image, reset button hover state, or repaint at all on a refresh triggered
@@ -1351,11 +1377,11 @@ async function requestLocation() {
   if (loc) {
     cachedLocation = loc;
     locationTimestamp = Date.now();
-    toast('✓ Location set — showing accurate arrival times');
+    toast(CQI18N.t('location_set_ok'));
     // Refresh queue displays with location context
     filterWashes();
   } else {
-    toast('Could not access location — check browser settings');
+    toast(CQI18N.t('could_not_access_location'));
   }
 }
 
@@ -1424,7 +1450,7 @@ let appliedPromoCode = null; // the code (if any) currently applied in the open 
 function setConfirmBtnPrice(price) {
   currentTotalPrice = price;
   const btn = document.getElementById('bm-confirm');
-  if (btn) btn.textContent = price != null ? `Confirm Booking · ${price} EGP` : 'Confirm Booking';
+  if (btn) btn.textContent = price != null ? CQI18N.t('confirm_booking_price', {price}) : CQI18N.t('confirm_booking');
 }
 
 async function fetchETA(shopId, lat, lng) {
@@ -1543,9 +1569,9 @@ async function requestLocationFromModal() {
   if (loc) {
     cachedLocation = loc;
     locationTimestamp = Date.now();
-    toast('✓ Location enabled');
+    toast(CQI18N.t('location_enabled'));
   } else {
-    toast('Could not get location — check your browser settings');
+    toast(CQI18N.t('could_not_get_location'));
   }
   if (pendingBookingShopId) {
     const shopId = pendingBookingShopId;
@@ -1557,7 +1583,7 @@ async function requestLocationFromModal() {
 async function checkLocationBeforeBooking(shopId) {
   const shopForCheck = shops.find(s => s.id === shopId);
   if (shopForCheck?.isPaused) {
-    toast('This centre is temporarily unavailable — not accepting online bookings right now');
+    toast(CQI18N.t('centre_unavailable_toast'));
     return;
   }
   // Already have a fresh cached location — go straight to booking
@@ -1571,7 +1597,7 @@ async function checkLocationBeforeBooking(shopId) {
       if (result.state === 'granted') {
         return proceedToBookingModal(shopId);
       } else if (result.state === 'denied') {
-        toast('Location is blocked in your browser settings — wait time may be less accurate');
+        toast(CQI18N.t('location_blocked'));
         return proceedToBookingModal(shopId);
       } else {
         // 'prompt' — show our explainer first
@@ -1650,13 +1676,13 @@ async function proceedToBookingModal(shopId) {
     services[shopId].forEach(s => {
       const card = document.createElement('div');
       card.className = 'svc-card';
-      card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${s.price} EGP</div><div class="svc-dur">${s.durationMins} min</div>`;
+      card.innerHTML = `<div class="svc-name">${s.name}</div><div class="svc-price">${CQI18N.t('svc_price_egp',{price:s.price})}</div><div class="svc-dur">${CQI18N.t('svc_dur_min',{dur:s.durationMins})}</div>`;
       card.onclick = () => selectServiceCard(s, card);
       if (s.description) {
         const infoBtn = document.createElement('button');
         infoBtn.type = 'button';
         infoBtn.className = 'svc-info-btn';
-        infoBtn.setAttribute('aria-label', 'Service details');
+        infoBtn.setAttribute('aria-label', CQI18N.t('service_details'));
         infoBtn.textContent = 'i';
         infoBtn.onclick = (e) => { e.stopPropagation(); openSvcInfo(s); };
         card.appendChild(infoBtn);
@@ -1672,7 +1698,7 @@ async function proceedToBookingModal(shopId) {
       } catch { addons[shopId] = []; }
     }
   } catch {
-    grid.innerHTML = '<p style="color:var(--gray);font-size:12px">Could not load services</p>';
+    grid.innerHTML = `<p style="color:var(--gray);font-size:12px">${CQI18N.t('could_not_load_services')}</p>`;
   }
 
   document.getElementById('booking-modal').classList.add('open');
@@ -1686,8 +1712,8 @@ async function proceedToBookingModal(shopId) {
     // Visual card
     const initials = (u.name||'U').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     document.getElementById('bm-avatar').textContent = initials;
-    document.getElementById('bm-user-name').textContent = u.name || 'No name set';
-    document.getElementById('bm-user-phone').textContent = u.phone || 'No phone set';
+    document.getElementById('bm-user-name').textContent = u.name || CQI18N.t('no_name_set');
+    document.getElementById('bm-user-phone').textContent = u.phone || CQI18N.t('no_phone_set');
     // Populate car dropdown
     await loadUserCars();
     const carSelect = document.getElementById('bm-car-select');
@@ -1697,7 +1723,7 @@ async function proceedToBookingModal(shopId) {
       carSelect.innerHTML = userCars.map(c => `<option value="${c.id}" ${c.isDefault ? 'selected' : ''}>${carLabel(c)}${c.licensePlate ? ' · ' + c.licensePlate : ''}</option>`).join('');
       selectedCarId = userCars.find(c => c.isDefault)?.id || userCars[0]?.id || null;
     } else {
-      carSection.innerHTML = `<div style="font-size:12px;color:#94a3b8;">No cars saved yet. <a onclick="closeBModal({target:document.getElementById('booking-modal')});showTab('account');" style="color:#3FBDB0;font-weight:600;cursor:pointer;">Add a car →</a></div>`;
+      carSection.innerHTML = `<div style="font-size:12px;color:#94a3b8;">${CQI18N.t('no_cars_saved_yet')} <a onclick="closeBModal({target:document.getElementById('booking-modal')});showTab('account');" style="color:#3FBDB0;font-weight:600;cursor:pointer;">${CQI18N.t('add_a_car_arrow')}</a></div>`;
       selectedCarId = null;
     }
   }
@@ -1706,7 +1732,7 @@ async function proceedToBookingModal(shopId) {
   const locStatus = document.getElementById('bm-location-status');
   locStatus.style.display = 'flex';
   locStatus.style.alignItems = 'center';
-  locStatus.textContent = '📍 Getting your location to calculate arrival time...';
+  locStatus.textContent = CQI18N.t('getting_location');
   document.getElementById('bm-start').textContent = '...';
   document.getElementById('bm-ready').textContent = '...';
 
@@ -1721,7 +1747,7 @@ async function proceedToBookingModal(shopId) {
     const svc = selectedSvc || (services[shopId] && services[shopId][0]);
 
     if (loc) {
-      locStatus.textContent = '🗺️ Calculating travel time...';
+      locStatus.textContent = CQI18N.t('calculating_travel');
       const eta = await fetchETA(shopId, loc.latitude, loc.longitude);
       etaResult = eta;
       if (bookingMode !== 'now') return; // user switched to Schedule while this was loading
@@ -1729,12 +1755,12 @@ async function proceedToBookingModal(shopId) {
       const preview = await fetchBookingPreview(shopId, driveMins, svc ? svc.name : 'full');
       if (bookingMode !== 'now' || !preview) return;
       updatePreviewDisplay(preview);
-      locStatus.innerHTML = `✅ ~${driveMins} min drive · Bay will be ready when you arrive`;
+      locStatus.innerHTML = CQI18N.t('drive_time_ready', {mins: driveMins});
       locStatus.style.background = '#f0fdf4';
       locStatus.style.borderColor = '#bbf7d0';
       locStatus.style.color = '#166534';
     } else {
-      locStatus.innerHTML = '⚠️ Location not available — allow location access for accurate timing';
+      locStatus.innerHTML = CQI18N.t('location_not_available');
       locStatus.style.background = '#fefce8';
       locStatus.style.borderColor = '#fde68a';
       locStatus.style.color = '#92400e';
@@ -1768,8 +1794,8 @@ async function refreshNowPreview(s) {
 function openExtrasModal(svc) {
   const shopAddons = addons[selectedWash?.id] || [];
   if (!shopAddons.length) return;
-  document.getElementById('extras-modal-title').textContent = 'Add extras?';
-  document.getElementById('extras-modal-sub').textContent = `Make your ${svc.name} wash even better.`;
+  document.getElementById('extras-modal-title').textContent = CQI18N.t('add_extras_title');
+  document.getElementById('extras-modal-sub').textContent = CQI18N.t('make_wash_better', {svc: svc.name});
   document.getElementById('extras-modal-list').innerHTML = shopAddons.map(a => `
     <label style="display:flex;align-items:center;gap:9px;padding:9px 0;font-size:13px;color:#0f172a;cursor:pointer;border-bottom:1px solid #f1f5f9;">
       <input type="checkbox" value="${a.id}" ${selectedAddonIds.has(a.id)?'checked':''} onchange="toggleAddon(${a.id}, this.checked)" style="width:16px;height:16px;accent-color:#3FBDB0;flex-shrink:0;">
@@ -1798,7 +1824,7 @@ async function applyPromoCode() {
   const code = input.value.trim();
   appliedPromoCode = code || null;
   if (!selectedSvc) {
-    msgEl.textContent = 'Please select a service first';
+    msgEl.textContent = CQI18N.t('err_select_service_first');
     msgEl.style.color = '#b91c1c';
     msgEl.style.display = 'block';
     return;
@@ -1810,7 +1836,7 @@ async function applyPromoCode() {
     msgEl.textContent = `"${preview.promoApplied}" applied — ${preview.discountPercent}% off`;
     msgEl.style.color = '#166534';
   } else {
-    msgEl.textContent = 'Invalid promo code';
+    msgEl.textContent = CQI18N.t('err_invalid_promo');
     msgEl.style.color = '#b91c1c';
   }
   msgEl.style.display = 'block';
@@ -1853,7 +1879,7 @@ function populateSlotSelect() {
     scheduleBtn.disabled = true;
     scheduleBtn.style.opacity = '0.4';
     scheduleBtn.style.cursor = 'not-allowed';
-    select.innerHTML = '<option>No slots left today</option>';
+    select.innerHTML = `<option>${CQI18N.t('no_slots_left_today')}</option>`;
     return;
   }
   scheduleBtn.disabled = false;
@@ -1927,11 +1953,11 @@ async function confirmBooking() {
   const errEl = document.getElementById('bm-err');
   errEl.textContent = '';
 
-  if (!selectedSvc) { errEl.textContent = 'Please select a service'; return; }
-  if (!name) { errEl.textContent = 'Please enter your name'; return; }
-  if (!phone) { errEl.textContent = 'Please enter your phone number'; return; }
-  if (userCars.length && !selectedCarId) { errEl.textContent = 'Please select which car'; return; }
-  if (bookingMode === 'schedule' && !selectedSlotTime) { errEl.textContent = 'Please pick a time slot'; return; }
+  if (!selectedSvc) { errEl.textContent = CQI18N.t('err_select_service'); return; }
+  if (!name) { errEl.textContent = CQI18N.t('err_enter_name'); return; }
+  if (!phone) { errEl.textContent = CQI18N.t('err_enter_phone'); return; }
+  if (userCars.length && !selectedCarId) { errEl.textContent = CQI18N.t('err_select_car'); return; }
+  if (bookingMode === 'schedule' && !selectedSlotTime) { errEl.textContent = CQI18N.t('err_pick_slot'); return; }
 
   const btn = document.getElementById('bm-confirm');
   btn.disabled = true;
@@ -1978,7 +2004,7 @@ async function confirmBooking() {
     });
     if (!res.ok) {
       const d = await res.json().catch(()=>({}));
-      throw new Error(d.error || d.message || 'Booking failed');
+      throw new Error(d.error || d.message || CQI18N.t('err_booking_failed'));
     }
     const booking = await res.json();
     document.getElementById('booking-modal').classList.remove('open');
@@ -1993,8 +2019,8 @@ async function confirmBooking() {
     document.getElementById('bcm-ready').textContent = confirmedReady;
     document.getElementById('bcm-price').textContent = (booking.price || selectedSvc.price) + ' EGP';
     document.getElementById('booking-confirmed-modal').classList.add('open');
-    showNotif('📋', 'Booking confirmed!', `${selectedWash.name} · Ready by ${confirmedReady}`,
-      `showTab('bookings')`, 'View Booking');
+    showNotif('📋', CQI18N.t('booking_confirmed_notif'), `${selectedWash.name} · Ready by ${confirmedReady}`,
+      `showTab('bookings')`, CQI18N.t('view_booking'));
     
     // Immediately update queue display — don't wait for next poll
     const shopId = selectedWash.id;
@@ -2013,7 +2039,7 @@ async function confirmBooking() {
     localStorage.setItem('my_bookings', JSON.stringify(bookings.slice(0,20)));
     refreshQueues();
   } catch(e) {
-    errEl.textContent = e.message || 'Booking failed. Please try again.';
+    errEl.textContent = e.message || CQI18N.t('err_booking_failed');
   } finally {
     btn.disabled = false;
     setConfirmBtnPrice(currentTotalPrice);
@@ -2022,7 +2048,7 @@ async function confirmBooking() {
 
 // ─── RATING ─────────────────────────────────────────────────────
 let ratingPhotoBase64 = null;
-const starLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent!'];
+const starLabels = ['', CQI18N.t('rating_poor'), CQI18N.t('rating_fair'), CQI18N.t('rating_good'), CQI18N.t('rating_very_good'), CQI18N.t('rating_excellent')];
 
 function setStar(n) {
   starRating = n;
@@ -2080,8 +2106,8 @@ function truncateDesc(desc, maxLen) {
 // and the booking modal's service cards — neither has room to show the full text inline.
 function openSvcInfo(svc) {
   document.getElementById('svc-info-name').textContent = svc.name || '';
-  document.getElementById('svc-info-price').textContent = (svc.price != null ? svc.price + ' EGP' : '');
-  document.getElementById('svc-info-dur').textContent = (svc.durationMins != null ? svc.durationMins + ' min' : '');
+  document.getElementById('svc-info-price').textContent = (svc.price != null ? CQI18N.t('svc_price_egp', {price: svc.price}) : '');
+  document.getElementById('svc-info-dur').textContent = (svc.durationMins != null ? CQI18N.t('svc_dur_min', {dur: svc.durationMins}) : '');
   document.getElementById('svc-info-desc').textContent = svc.description || '';
   document.getElementById('svc-info-modal').classList.add('open');
 }
@@ -2097,16 +2123,16 @@ function openSvcInfoById(shopId, svcId) {
 
 function timeAgoSD(date) {
   const secs = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (secs < 60) return 'just now';
+  if (secs < 60) return CQI18N.t('just_now');
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return CQI18N.t('time_ago_m', {n: mins});
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return CQI18N.t('time_ago_h', {n: hrs});
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return CQI18N.t('time_ago_d', {n: days});
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  return `${Math.floor(months / 12)}y ago`;
+  if (months < 12) return CQI18N.t('time_ago_mo', {n: months});
+  return CQI18N.t('time_ago_y', {n: Math.floor(months / 12)});
 }
 
 function openShopDetail(shopId) {
@@ -2115,17 +2141,17 @@ function openShopDetail(shopId) {
   document.getElementById('sd-name').textContent = s.name;
   document.getElementById('sd-address').textContent = s.address;
   document.getElementById('sd-rating').textContent = s.avgRating
-    ? `★ ${s.avgRating} (${s.ratingCount || 0} review${s.ratingCount === 1 ? '' : 's'})`
-    : 'No reviews yet';
+    ? `★ ${s.avgRating} (${s.ratingCount || 0} ${CQI18N.t(s.ratingCount === 1 ? 'review_one' : 'review_many')})`
+    : CQI18N.t('no_reviews');
 
   const reviews = ratingsData[shopId] || [];
   let html = `<div style="margin-bottom:16px;">
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">Hours</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">${CQI18N.t('hours_label')}</div>
       <div style="font-size:13px;color:#374151;">${escHtmlSD(s.openTime||'')} – ${escHtmlSD(s.closeTime||'')}</div>
     </div>`;
   if (s.locationDescription) {
     html += `<div style="margin-bottom:16px;">
-      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">Directions</div>
+      <div style="font-size:11px;color:#64748b;text-transform:uppercase;font-weight:700;letter-spacing:0.3px;margin-bottom:6px;">${CQI18N.t('directions_label')}</div>
       <div style="font-size:13px;color:#374151;line-height:1.5;">${escHtmlSD(s.locationDescription)}</div>
     </div>`;
   }
@@ -2135,12 +2161,12 @@ function openShopDetail(shopId) {
     </div>`;
   }
 
-  html += `<div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px;">Reviews (${reviews.length})</div>`;
+  html += `<div style="font-size:13px;font-weight:800;color:#0f172a;margin-bottom:10px;">${CQI18N.t('reviews_count',{n:reviews.length})}</div>`;
   if (!reviews.length) {
-    html += `<div style="font-size:13px;color:#94a3b8;padding:20px 0;text-align:center;">No reviews yet — be the first!</div>`;
+    html += `<div style="font-size:13px;color:#94a3b8;padding:20px 0;text-align:center;">${CQI18N.t('no_reviews_be_first')}</div>`;
   } else {
     html += reviews.map(r => {
-      const name = r.user_name || r.customer_name || 'Anonymous';
+      const name = r.user_name || r.customer_name || CQI18N.t('anonymous');
       const firstName = escHtmlSD(String(name).split(' ')[0]);
       const stars = '★'.repeat(r.stars) + '☆'.repeat(5 - r.stars);
       const date = r.created_at ? timeAgoSD(new Date(r.created_at)) : '';
@@ -2181,7 +2207,7 @@ function showUserRating(shopName, bookingId, shopId) {
 function handlePhotoUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { toast('Photo too large — max 5MB'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast(CQI18N.t('photo_too_large')); return; }
   const reader = new FileReader();
   reader.onload = (e) => {
     ratingPhotoBase64 = e.target.result;
@@ -2200,12 +2226,12 @@ function removePhoto() {
 }
 
 async function submitRating() {
-  if (starRating === 0) { toast('Please select a star rating'); return; }
+  if (starRating === 0) { toast(CQI18N.t('please_select_star')); return; }
   const bookingId = document.getElementById('rm-booking-id').value;
   const shopId = document.getElementById('rm-shop-id').value;
   const comment = document.getElementById('rm-comment').value.trim();
   const btn = document.getElementById('rm-submit-btn');
-  btn.disabled = true; btn.textContent = 'Submitting...';
+  btn.disabled = true; btn.textContent = CQI18N.t('submitting');
   try {
     // Compress photo if present
     let photoUrl = null;
@@ -2236,12 +2262,12 @@ async function submitRating() {
       })
     });
     closeRating();
-    toast('⭐ Thank you for your review!');
+    toast(CQI18N.t('thank_you_review'));
     if (document.getElementById('tab-bookings').style.display !== 'none') loadMyBookings();
   } catch(e) {
-    toast('Could not submit rating. Please try again.');
+    toast(CQI18N.t('could_not_submit_rating'));
   } finally {
-    btn.disabled = false; btn.textContent = 'Submit Rating';
+    btn.disabled = false; btn.textContent = CQI18N.t('submit_rating');
   }
 }
 
@@ -2274,7 +2300,7 @@ async function doLogin() {
       body: JSON.stringify({username: user, password: pass})
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (!res.ok) throw new Error(data.error || CQI18N.t('err_login_failed'));
     partnerToken = data.token;
     partnerShop = data.shop;
     localStorage.setItem('partner_token', partnerToken);
@@ -2336,7 +2362,7 @@ async function loadQueue(silent=false) {
 }
 
 function svcLabel(name) {
-  if (name === 'custom') return 'Custom Wash';
+  if (name === 'custom') return CQI18N.t('custom_wash');
   const s = partnerServices.find(sv => sv.name === name);
   return s ? s.name : name;
 }
@@ -2714,9 +2740,9 @@ async function doSignup() {
   const password = document.getElementById('su-password').value;
   const err = document.getElementById('su-err1');
   err.textContent = '';
-  if (!name || !email || !phone) { err.textContent = 'Please fill in name, email and phone'; return; }
-  if (!email.includes('@')) { err.textContent = 'Please enter a valid email'; return; }
-  if (!password || password.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  if (!name || !email || !phone) { err.textContent = CQI18N.t('err_fill_name_email_phone'); return; }
+  if (!email.includes('@')) { err.textContent = CQI18N.t('err_valid_email'); return; }
+  if (!password || password.length < 6) { err.textContent = CQI18N.t('err_password_len'); return; }
   const btn = document.getElementById('su-btn1');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
@@ -2726,7 +2752,7 @@ async function doSignup() {
       body: JSON.stringify({name, email, phone, password, carMake, carModel, carColor, licensePlate: plate})
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    if (!res.ok) throw new Error(data.error || CQI18N.t('err_registration_failed'));
     localStorage.setItem('cq_token', data.token);
     currentUser = data.user;
     localStorage.setItem('cq_user', JSON.stringify(currentUser));
@@ -2738,11 +2764,11 @@ async function doSignup() {
     setTimeout(showEmailImportanceModal, 400);
     setTimeout(checkLocationPermission, 1800);
     setTimeout(requestPushPermission, 2500);
-    toast('Welcome to ClearQ, ' + name + '!');
+    toast(CQI18N.t('welcome_to_clearq_toast', {name}));
   } catch(e) {
-    err.textContent = e.message || 'Something went wrong. Please try again.';
+    err.textContent = e.message || CQI18N.t('err_generic');
   } finally {
-    btn.disabled = false; btn.textContent = 'Create Account';
+    btn.disabled = false; btn.textContent = CQI18N.t('su_create_account');
   }
 }
 
@@ -2753,8 +2779,8 @@ async function doLogin2() {
   const password = passwordEl ? passwordEl.value : '';
   const err = document.getElementById('su-err3');
   err.textContent = '';
-  if (!email || !email.includes('@')) { err.textContent = 'Please enter a valid email'; return; }
-  if (!password) { err.textContent = 'Please enter your password'; return; }
+  if (!email || !email.includes('@')) { err.textContent = CQI18N.t('err_valid_email'); return; }
+  if (!password) { err.textContent = CQI18N.t('err_enter_password'); return; }
   const btn = document.getElementById('su-btn3');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
@@ -2764,7 +2790,7 @@ async function doLogin2() {
       body: JSON.stringify({email, password})
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (!res.ok) throw new Error(data.error || CQI18N.t('err_login_failed'));
     localStorage.setItem('cq_token', data.token);
     currentUser = data.user;
     localStorage.setItem('cq_user', JSON.stringify(currentUser));
@@ -2776,11 +2802,11 @@ async function doLogin2() {
     setTimeout(checkLocationPermission, 800);
     setTimeout(requestPushPermission, 1500);
     setTimeout(checkPendingReviewPrompt, 2500);
-    toast('Welcome back, ' + data.user.name + '!');
+    toast(CQI18N.t('welcome_back_toast', {name: data.user.name}));
   } catch(e) {
-    err.textContent = e.message || 'Incorrect email or password';
+    err.textContent = e.message || CQI18N.t('err_incorrect_credentials');
   } finally {
-    btn.disabled = false; btn.textContent = 'Sign In';
+    btn.disabled = false; btn.textContent = CQI18N.t('su_sign_in');
   }
 }
 
@@ -2796,7 +2822,7 @@ async function requestPasswordReset(isResend) {
   const errId = isResend ? 'su-err5' : 'su-err4';
   const err = document.getElementById(errId);
   err.textContent = '';
-  if (!email || !email.includes('@')) { err.textContent = 'Please enter a valid email'; if (!isResend) return; }
+  if (!email || !email.includes('@')) { err.textContent = CQI18N.t('err_valid_email'); if (!isResend) return; }
   const btn = document.getElementById(isResend ? null : 'su-btn4');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'; }
   try {
@@ -2805,15 +2831,15 @@ async function requestPasswordReset(isResend) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({email})
     });
-    if (!res.ok) throw new Error('Something went wrong. Please try again.');
+    if (!res.ok) throw new Error(CQI18N.t('err_generic'));
     ['rc0','rc1','rc2','rc3','rc4','rc5'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    toast(isResend ? '✓ Code resent' : '✓ Reset code sent to your email');
+    toast(isResend ? CQI18N.t('code_resent') : CQI18N.t('reset_code_sent'));
     showStep(5);
     document.getElementById('rc0')?.focus();
   } catch(e) {
-    err.textContent = e.message || 'Something went wrong. Please try again.';
+    err.textContent = e.message || CQI18N.t('err_generic');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Send Reset Code'; }
+    if (btn) { btn.disabled = false; btn.textContent = CQI18N.t('su_send_reset'); }
   }
 }
 
@@ -2831,8 +2857,8 @@ async function confirmPasswordReset() {
   const newPassword = document.getElementById('rc-password').value;
   const err = document.getElementById('su-err5');
   err.textContent = '';
-  if (code.length !== 6) { err.textContent = 'Please enter the 6-digit code'; return; }
-  if (!newPassword || newPassword.length < 6) { err.textContent = 'Password must be at least 6 characters'; return; }
+  if (code.length !== 6) { err.textContent = CQI18N.t('err_enter_code'); return; }
+  if (!newPassword || newPassword.length < 6) { err.textContent = CQI18N.t('err_password_len'); return; }
   const btn = document.getElementById('su-btn5');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
   try {
@@ -2842,7 +2868,7 @@ async function confirmPasswordReset() {
       body: JSON.stringify({email, code, newPassword})
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Could not reset password');
+    if (!res.ok) throw new Error(data.error || CQI18N.t('err_could_not_reset'));
     localStorage.setItem('cq_token', data.token);
     currentUser = data.user;
     localStorage.setItem('cq_user', JSON.stringify(currentUser));
@@ -2851,11 +2877,11 @@ async function confirmPasswordReset() {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById('view-user').classList.add('active');
     renderAccount();
-    toast('✓ Password reset — welcome back, ' + data.user.name + '!');
+    toast(CQI18N.t('password_reset_welcome_toast', {name: data.user.name}));
   } catch(e) {
-    err.textContent = e.message || 'Could not reset password';
+    err.textContent = e.message || CQI18N.t('err_could_not_reset');
   } finally {
-    btn.disabled = false; btn.textContent = 'Reset Password';
+    btn.disabled = false; btn.textContent = CQI18N.t('su_reset_password');
   }
 }
 
@@ -2937,7 +2963,7 @@ function initMap() {
       const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       gMap.setCenter(userPos);
       gUserMarker = new google.maps.Marker({
-        position: userPos, map: gMap, title: 'You are here',
+        position: userPos, map: gMap, title: CQI18N.t('you_are_here'),
         icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#3FBDB0', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 }
       });
     }, () => {});
@@ -2977,9 +3003,9 @@ function refreshMapPins() {
         </div>`).join('');
     } else {
       const fallback = [];
-      if (s.priceExterior) fallback.push({n:'EXT', p:s.priceExterior});
-      if (s.priceInterior) fallback.push({n:'INT', p:s.priceInterior});
-      if (s.priceFull) fallback.push({n:'FULL', p:s.priceFull});
+      if (s.priceExterior) fallback.push({n:CQI18N.t('ext_short'), p:s.priceExterior});
+      if (s.priceInterior) fallback.push({n:CQI18N.t('int_short'), p:s.priceInterior});
+      if (s.priceFull) fallback.push({n:CQI18N.t('full_short'), p:s.priceFull});
       priceHtml = fallback.map(f => `
         <div style="flex:1;background:#f8fafc;border-radius:7px;padding:6px 4px;text-align:center;border:1px solid #e8edf3;">
           <div style="font-size:9px;color:#64748b;text-transform:uppercase;font-weight:700;">${f.n}</div>
@@ -2994,7 +3020,7 @@ function refreshMapPins() {
     card.style.minWidth = '230px';
     card.innerHTML = `
       <div class="mcm-name">${s.name}</div>
-      <div class="mcm-queue" style="color:${s.isPaused || mapClosesTooLate ? '#b91c1c' : qColor};font-weight:700;">${s.isPaused ? 'Temporarily unavailable' : mapClosesTooLate ? `Closes at ${s.closeTime} — no time left today` : (qCount === 0 && waitMins === 0 ? '✓ No wait' : waitMins + ' min wait')}</div>
+      <div class="mcm-queue" style="color:${s.isPaused || mapClosesTooLate ? '#b91c1c' : qColor};font-weight:700;">${s.isPaused ? CQI18N.t('temporarily_unavailable') : mapClosesTooLate ? CQI18N.t('closes_no_time_left',{time:s.closeTime}) : (qCount === 0 && waitMins === 0 ? CQI18N.t('no_wait_check') : waitMins + ' ' + CQI18N.t('min_wait'))}</div>
       <div class="mcm-addr">📍 ${s.address}</div>
       <div style="display:flex;gap:6px;margin:10px 0;">${priceHtml}</div>
       ${s.isPaused || mapClosesTooLate
@@ -3015,22 +3041,22 @@ let bookingsPoll = null;
 
 async function loadMyBookings() {
   const list = document.getElementById('bookings-list');
-  list.innerHTML = '<div class="loading-screen"><div class="spin"></div><p>Loading...</p></div>';
+  list.innerHTML = `<div class="loading-screen"><div class="spin"></div><p>${CQI18N.t('loading_bookings_short')}</p></div>`;
   await _doLoadBookings();
 }
 
 async function _doLoadBookings() {
   const list = document.getElementById('bookings-list');
   function getStatusDisplay(status) {
-    if (status === 'completed') return { color: '#22c55e', label: 'Completed' };
-    if (status === 'in_progress') return { color: '#f59e0b', label: 'In Progress' };
-    if (status === 'cancelled') return { color: '#ef4444', label: 'Cancelled' };
-    if (status === 'pending') return { color: '#3FBDB0', label: 'Upcoming' };
-    return { color: '#94a3b8', label: status || 'Booked' };
+    if (status === 'completed') return { color: '#22c55e', label: CQI18N.t('status_completed') };
+    if (status === 'in_progress') return { color: '#f59e0b', label: CQI18N.t('status_in_progress') };
+    if (status === 'cancelled') return { color: '#ef4444', label: CQI18N.t('status_cancelled') };
+    if (status === 'pending') return { color: '#3FBDB0', label: CQI18N.t('status_upcoming2') };
+    return { color: '#94a3b8', label: status || CQI18N.t('status_booked') };
   }
   function renderBookingList(bookings) {
     if (!bookings.length) {
-      list.innerHTML = '<div class="loading-screen"><p>No bookings yet. Book your first wash!</p></div>';
+      list.innerHTML = `<div class="loading-screen"><p>${CQI18N.t('no_bookings_book_first')}</p></div>`;
       return;
     }
     list.innerHTML = '';
@@ -3045,11 +3071,11 @@ async function _doLoadBookings() {
       const startTime = b.etaArrivalAt ? new Date(b.etaArrivalAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : (b.scheduledTime || '—');
       const readyTime = b.etaReadyAt ? new Date(b.etaReadyAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}) : '—';
       const dateStr = b.scheduledDate || '';
-      const shopName = b.shopName || 'Wash Centre';
+      const shopName = b.shopName || CQI18N.t('wash_centre');
       const el = document.createElement('div');
       el.className = 'booking-item';
-      const rateBtn = (b.status === 'completed' && !b.hasRating) ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3FBDB0;font-weight:600;cursor:pointer;">⭐ Rate this wash</button>` : '';
-      el.innerHTML = `<div class="bi-top"><div><div class="bi-name">${shopName}</div><div class="bi-detail">${b.washType||''} · ${dateStr}</div></div><div class="bi-status" style="background:${sc}22;color:${sc};font-weight:700">${sl}</div></div><div class="bi-times"><div class="bi-time-item"><div class="bi-time-v">${startTime}</div><div class="bi-time-l">Start</div></div><div class="bi-time-item"><div class="bi-time-v">${readyTime}</div><div class="bi-time-l">Ready by</div></div><div class="bi-time-item"><div class="bi-time-v">${b.price||'—'} EGP</div><div class="bi-time-l">Price</div></div></div>${rateBtn}`;
+      const rateBtn = (b.status === 'completed' && !b.hasRating) ? `<button onclick="showUserRating('${shopName}','${b.id}','${b.shopId}')" style="margin-top:10px;width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;color:#3FBDB0;font-weight:600;cursor:pointer;">${CQI18N.t('rate_this_wash')}</button>` : '';
+      el.innerHTML = `<div class="bi-top"><div><div class="bi-name">${shopName}</div><div class="bi-detail">${b.washType||''} · ${dateStr}</div></div><div class="bi-status" style="background:${sc}22;color:${sc};font-weight:700">${sl}</div></div><div class="bi-times"><div class="bi-time-item"><div class="bi-time-v">${startTime}</div><div class="bi-time-l">${CQI18N.t('bi_start')}</div></div><div class="bi-time-item"><div class="bi-time-v">${readyTime}</div><div class="bi-time-l">${CQI18N.t('bi_ready')}</div></div><div class="bi-time-item"><div class="bi-time-v">${b.price||'—'} ${CQI18N.t('egp')}</div><div class="bi-time-l">${CQI18N.t('bi_price')}</div></div></div>${rateBtn}`;
       list.appendChild(el);
     });
   }
@@ -3080,7 +3106,7 @@ async function _doLoadBookings() {
     }
     renderBookingList(combined);
   } catch(e) {
-    list.innerHTML = '<div class="loading-screen"><p>Could not load bookings</p></div>';
+    list.innerHTML = `<div class="loading-screen"><p>${CQI18N.t('could_not_load_bookings')}</p></div>`;
   }
 }
 
@@ -3108,7 +3134,7 @@ async function renderAccount() {
   const el = document.getElementById('account-content');
   if (!el) return;
   if (!currentUser) {
-    el.innerHTML = '<div class="loading-screen"><p>Please sign in to view your account</p></div>';
+    el.innerHTML = `<div class="loading-screen"><p>${CQI18N.t('please_sign_in_account')}</p></div>`;
     return;
   }
   await loadUserCars();
@@ -3121,30 +3147,30 @@ async function renderAccount() {
       <div class="acct-email">${u.email||''}</div>
     </div>
     <div class="acct-card">
-      <div class="acct-field"><div class="acct-label">Full name</div><input class="acct-input" id="acct-name" value="${u.name||''}"></div>
-      <div class="acct-field"><div class="acct-label">Phone number</div><input class="acct-input" id="acct-phone" value="${u.phone||''}"></div>
-      <button class="acct-save-btn" onclick="saveAccount()">Save Changes</button>
+      <div class="acct-field"><div class="acct-label">${CQI18N.t('full_name_label')}</div><input class="acct-input" id="acct-name" value="${u.name||''}"></div>
+      <div class="acct-field"><div class="acct-label">${CQI18N.t('phone_number_label')}</div><input class="acct-input" id="acct-phone" value="${u.phone||''}"></div>
+      <button class="acct-save-btn" onclick="saveAccount()">${CQI18N.t('save_changes')}</button>
     </div>
     <div class="acct-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div style="font-size:15px;font-weight:700;color:#0f172a;">My Cars</div>
-        <button onclick="openAddCarModal()" style="background:#E6F7F5;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;color:#3FBDB0;cursor:pointer;">+ Add Car</button>
+        <div style="font-size:15px;font-weight:700;color:#0f172a;">${CQI18N.t('my_cars')}</div>
+        <button onclick="openAddCarModal()" style="background:#E6F7F5;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;color:#3FBDB0;cursor:pointer;">${CQI18N.t('add_car_plus')}</button>
       </div>
       ${userCars.length ? userCars.map(c => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:8px;">
           <div>
-            <div style="font-size:14px;font-weight:700;color:#0f172a;">${carLabel(c)} ${c.isDefault ? '<span style="font-size:10px;background:#D3F3EE;color:#21867B;border-radius:4px;padding:2px 6px;margin-left:4px;">Default</span>' : ''}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">${c.licensePlate || 'No plate set'}${c.carType ? ' · ' + c.carType : ''}</div>
+            <div style="font-size:14px;font-weight:700;color:#0f172a;">${carLabel(c)} ${c.isDefault ? `<span style="font-size:10px;background:#D3F3EE;color:#21867B;border-radius:4px;padding:2px 6px;margin-left:4px;">${CQI18N.t('default_label')}</span>` : ''}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">${c.licensePlate || CQI18N.t('no_plate_set')}${c.carType ? ' · ' + c.carType : ''}</div>
           </div>
           <div style="display:flex;gap:6px;">
-            <button onclick="openEditCarModal(${c.id})" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;font-size:11px;color:#3FBDB0;cursor:pointer;">Edit</button>
-            <button onclick="deleteCar(${c.id})" style="background:none;border:1px solid #fecaca;border-radius:6px;padding:5px 9px;font-size:11px;color:#ef4444;cursor:pointer;">Remove</button>
+            <button onclick="openEditCarModal(${c.id})" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:5px 9px;font-size:11px;color:#3FBDB0;cursor:pointer;">${CQI18N.t('edit')}</button>
+            <button onclick="deleteCar(${c.id})" style="background:none;border:1px solid #fecaca;border-radius:6px;padding:5px 9px;font-size:11px;color:#ef4444;cursor:pointer;">${CQI18N.t('remove')}</button>
           </div>
         </div>
-      `).join('') : '<div style="font-size:13px;color:#94a3b8;text-align:center;padding:16px 0;">No cars added yet</div>'}
+      `).join('') : `<div style="font-size:13px;color:#94a3b8;text-align:center;padding:16px 0;">${CQI18N.t('no_cars_added')}</div>`}
     </div>
     <div class="acct-card">
-      <button class="acct-logout-btn" onclick="logoutUser()">Sign Out</button>
+      <button class="acct-logout-btn" onclick="logoutUser()">${CQI18N.t('sign_out')}</button>
     </div>`;
 }
 
@@ -3167,7 +3193,7 @@ async function saveAccount() {
     }
   } catch(e) {}
   renderAccount();
-  toast('Account updated');
+  toast(CQI18N.t('account_updated'));
 }
 
 // ─── CAR MANAGEMENT ───────────────────────────────────────────────
@@ -3175,7 +3201,7 @@ let editingCarId = null;
 
 function openAddCarModal() {
   editingCarId = null;
-  document.getElementById('car-modal-title').textContent = 'Add a Car';
+  document.getElementById('car-modal-title').textContent = CQI18N.t('add_a_car');
   document.getElementById('car-make').value = '';
   document.getElementById('car-model').value = '';
   document.getElementById('car-color').value = '';
@@ -3189,7 +3215,7 @@ function openEditCarModal(carId) {
   const c = userCars.find(x => x.id === carId);
   if (!c) return;
   editingCarId = carId;
-  document.getElementById('car-modal-title').textContent = 'Edit Car';
+  document.getElementById('car-modal-title').textContent = CQI18N.t('edit_car');
   document.getElementById('car-make').value = c.make || '';
   document.getElementById('car-model').value = c.model || '';
   document.getElementById('car-color').value = c.color || '';
@@ -3210,9 +3236,9 @@ async function saveCar() {
   const licensePlate = document.getElementById('car-plate').value.trim();
   const carType = document.getElementById('car-type').value.trim();
   const isDefault = document.getElementById('car-default').checked;
-  if (!model) { toast('Please enter the car model'); return; }
+  if (!model) { toast(CQI18N.t('err_enter_car_model')); return; }
   const token = localStorage.getItem('cq_token');
-  if (!token) { toast('Please sign in first'); return; }
+  if (!token) { toast(CQI18N.t('err_sign_in_first')); return; }
   try {
     const url = editingCarId ? `${API}/api/users/me/cars/${editingCarId}` : `${API}/api/users/me/cars`;
     const method = editingCarId ? 'PUT' : 'POST';
@@ -3221,17 +3247,17 @@ async function saveCar() {
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token},
       body: JSON.stringify({make, model, color, licensePlate, carType, isDefault})
     });
-    if (!res.ok) throw new Error('Failed to save car');
+    if (!res.ok) throw new Error(CQI18N.t('err_failed_save_car'));
     closeCarModal();
     await renderAccount();
-    toast(editingCarId ? '✓ Car updated' : '✓ Car added');
+    toast(editingCarId ? CQI18N.t('car_updated_toast') : CQI18N.t('car_added_toast'));
   } catch(e) {
-    toast('Could not save car');
+    toast(CQI18N.t('err_could_not_save_car'));
   }
 }
 
 async function deleteCar(carId) {
-  if (!confirm('Remove this car from your account?')) return;
+  if (!confirm(CQI18N.t('remove_car_confirm'))) return;
   const token = localStorage.getItem('cq_token');
   try {
     await fetch(`${API}/api/users/me/cars/${carId}`, {
@@ -3239,19 +3265,19 @@ async function deleteCar(carId) {
       headers: {'Authorization': 'Bearer ' + token}
     });
     await renderAccount();
-    toast('Car removed');
+    toast(CQI18N.t('car_removed'));
   } catch(e) {
-    toast('Could not remove car');
+    toast(CQI18N.t('could_not_remove_car'));
   }
 }
 
 function logoutUser() {
-  if (!confirm('Sign out of ClearQ?')) return;
+  if (!confirm(CQI18N.t('sign_out_confirm'))) return;
   currentUser = null;
   localStorage.removeItem('cq_user');
   document.getElementById('signup-overlay').classList.remove('open');
   showLanding();
-  toast('Signed out');
+  toast(CQI18N.t('signed_out'));
 }
 
 function showLanding() {
@@ -3288,7 +3314,7 @@ function updateLandingMock() {
       btn.textContent = 'Continue → ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'App');
       if (signinLink) signinLink.style.display = 'none';
     } else {
-      btn.textContent = 'Book a Wash Now';
+      btn.textContent = CQI18N.t('lp_book_now');
       if (signinLink) signinLink.style.display = 'block';
     }
   }
@@ -3304,7 +3330,7 @@ function updateLandingLiveTicker() {
     const qd = queues[s.id];
     const waitMins = qd?.minsUntilNextFree || 0;
     const tag = waitMins === 0
-      ? { bg: 'rgba(34,197,94,0.18)', fg: '#4ade80', label: 'Free now' }
+      ? { bg: 'rgba(34,197,94,0.18)', fg: '#4ade80', label: CQI18N.t('lp_free_now') }
       : waitMins < 30
         ? { bg: 'rgba(245,158,11,0.18)', fg: '#fbbf24', label: `~${waitMins} min wait` }
         : { bg: 'rgba(239,68,68,0.18)', fg: '#f87171', label: `~${waitMins} min wait` };
@@ -3325,7 +3351,7 @@ function switchView(v) {
   if (v === 'user') checkAuth();
 }
 
-function showNotif(icon, title, body, action=null, actionLabel='View') {
+function showNotif(icon, title, body, action=null, actionLabel=CQI18N.t('lp_view')) {
   const bar = document.getElementById('notif-bar');
   const el = document.createElement('div');
   el.className = 'notif';
@@ -3376,6 +3402,10 @@ async function subscribeToPush() {
 function startBookingStatusPoll() {}
 
 // ─── INIT ────────────────────────────────────────────────────────
+// Deferred to DOMContentLoaded — several data-i18n elements (car modal, location/email
+// explainer modals, extras modal) are defined in the HTML *after* this script block, so
+// calling this immediately here would miss them.
+document.addEventListener('DOMContentLoaded', () => CQI18N.applyStatic());
 initServiceWorker();
 loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock()).finally(() => window.scrollTo(0, 0));
 showLanding();
@@ -3387,43 +3417,43 @@ window.scrollTo(0, 0);
 <div class="rating-bg" id="car-modal-bg">
   <div class="rating-box" style="text-align:left;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <div class="rating-title" id="car-modal-title" style="margin-bottom:0;">Add a Car</div>
+      <div class="rating-title" id="car-modal-title" style="margin-bottom:0;" data-i18n="add_a_car">Add a Car</div>
       <button onclick="closeCarModal()" style="background:none;border:none;color:#64748b;font-size:22px;cursor:pointer;">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div>
-        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Make</label>
-        <input class="acct-input" id="car-make" placeholder="Toyota">
+        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;" data-i18n="make_label">Make</label>
+        <input class="acct-input" id="car-make" placeholder="Toyota" data-i18n-ph="su_car_make_ph">
       </div>
       <div>
-        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Model *</label>
-        <input class="acct-input" id="car-model" placeholder="Corolla">
+        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;" data-i18n="model_required_label">Model *</label>
+        <input class="acct-input" id="car-model" placeholder="Corolla" data-i18n-ph="su_car_model_ph">
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
       <div>
-        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Color</label>
-        <input class="acct-input" id="car-color" placeholder="White">
+        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;" data-i18n="color_label2">Color</label>
+        <input class="acct-input" id="car-color" placeholder="White" data-i18n-ph="su_car_color_ph">
       </div>
       <div>
-        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">Type</label>
+        <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;" data-i18n="type_label">Type</label>
         <select class="acct-input" id="car-type">
-          <option value="">Select type</option>
-          <option value="Sedan">Sedan</option>
-          <option value="SUV">SUV</option>
-          <option value="Hatchback">Hatchback</option>
-          <option value="Pickup">Pickup</option>
-          <option value="Van">Van</option>
+          <option value="" data-i18n="select_type">Select type</option>
+          <option value="Sedan" data-i18n="car_type_sedan">Sedan</option>
+          <option value="SUV" data-i18n="car_type_suv">SUV</option>
+          <option value="Hatchback" data-i18n="car_type_hatchback">Hatchback</option>
+          <option value="Pickup" data-i18n="car_type_pickup">Pickup</option>
+          <option value="Van" data-i18n="car_type_van">Van</option>
         </select>
       </div>
     </div>
-    <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;">License Plate</label>
+    <label style="font-size:11px;color:#94a3b8;font-weight:700;text-transform:uppercase;display:block;margin-bottom:6px;" data-i18n="license_plate_label">License Plate</label>
     <input class="acct-input" id="car-plate" placeholder="أ ب ج 123" style="margin-bottom:14px;">
     <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b;margin-bottom:18px;cursor:pointer;">
       <input type="checkbox" id="car-default" style="width:16px;height:16px;">
-      Set as default car
+      <span data-i18n="set_as_default_car">Set as default car</span>
     </label>
-    <button class="submit-btn" onclick="saveCar()">Save Car</button>
+    <button class="submit-btn" onclick="saveCar()" data-i18n="save_car">Save Car</button>
   </div>
 </div>
 
@@ -3432,23 +3462,23 @@ window.scrollTo(0, 0);
 <div class="rating-bg" id="loc-modal-bg">
   <div class="rating-box" style="text-align:center;">
     <div style="font-size:48px;margin-bottom:8px;">📍</div>
-    <div class="rating-title" style="margin-bottom:8px;">Turn on location</div>
+    <div class="rating-title" style="margin-bottom:8px;" data-i18n="turn_on_location">Turn on location</div>
     <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px;">
-      ClearQ uses your location to calculate exactly when your bay will be ready — so your car wash starts the moment you arrive, with no extra wait.
+      <span data-i18n="location_explainer">ClearQ uses your location to calculate exactly when your bay will be ready — so your car wash starts the moment you arrive, with no extra wait.</span>
     </div>
-    <button class="submit-btn" onclick="requestLocationFromModal()" style="margin-bottom:10px;">Allow Location Access</button>
-    <button class="skip-btn" onclick="closeLocModal()">Not now</button>
+    <button class="submit-btn" onclick="requestLocationFromModal()" style="margin-bottom:10px;" data-i18n="allow_location_access">Allow Location Access</button>
+    <button class="skip-btn" onclick="closeLocModal()" data-i18n="not_now">Not now</button>
   </div>
 </div>
 
 <div class="rating-bg" id="email-modal-bg">
   <div class="rating-box" style="text-align:center;">
     <div style="font-size:48px;margin-bottom:8px;">📧</div>
-    <div class="rating-title" style="margin-bottom:8px;">Don't miss your emails</div>
-    <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px;">
+    <div class="rating-title" style="margin-bottom:8px;" data-i18n="dont_miss_emails">Don't miss your emails</div>
+    <div style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:24px;" data-i18n-html="email_explainer_html">
       We'll email you when your booking is confirmed, when your car is ready, and about offers from your wash centre. If you don't see one in your inbox, check your <strong>Spam / Junk</strong> folder — and mark it <strong>"Not Spam"</strong> so future emails land where you'll see them.
     </div>
-    <button class="submit-btn" onclick="closeEmailModal()">Got it</button>
+    <button class="submit-btn" onclick="closeEmailModal()" data-i18n="got_it">Got it</button>
   </div>
 </div>
 
@@ -3474,12 +3504,12 @@ window.scrollTo(0, 0);
 <div class="rating-bg" id="extras-modal-bg">
   <div class="rating-box" style="text-align:left;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div class="rating-title" id="extras-modal-title" style="margin-bottom:0;">Add extras?</div>
+      <div class="rating-title" id="extras-modal-title" style="margin-bottom:0;" data-i18n="add_extras_title">Add extras?</div>
       <button onclick="closeExtrasModal()" style="background:none;border:none;color:#64748b;font-size:20px;cursor:pointer;flex-shrink:0;">✕</button>
     </div>
-    <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="extras-modal-sub">Make your wash even better.</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:14px;" id="extras-modal-sub" data-i18n="make_wash_better_generic">Make your wash even better.</div>
     <div id="extras-modal-list"></div>
-    <button class="submit-btn" onclick="closeExtrasModal()" style="margin-top:14px;">Done</button>
+    <button class="submit-btn" onclick="closeExtrasModal()" style="margin-top:14px;" data-i18n="done">Done</button>
   </div>
 </div>
 
