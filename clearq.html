@@ -1128,9 +1128,10 @@ async function loadShops() {
         } catch {}
       } catch { queues[s.id] = {queueCount:0,activeCount:0,maxBays:s.maxWorkers||3,minsUntilNextFree:0}; }
     }));
-    // Real visitors see only HD CarWash. A ghost link shows *only* that ghost shop — each secret
-    // slug is meant to read as its own dedicated single-shop site, not HD CarWash plus a guest.
-    shops = shops.filter(s => ghostShopId ? s.id === ghostShopId : s.id === 6);
+    // Real visitors see every shop the owner has switched on (isActive). A ghost link shows
+    // *only* that ghost shop regardless of its active flag — each secret slug is meant to read
+    // as its own dedicated single-shop site, not the real shop list plus a guest.
+    shops = shops.filter(s => ghostShopId ? s.id === ghostShopId : s.isActive);
     renderShops();
     // poll every 8s
     setInterval(refreshQueues, 8000);

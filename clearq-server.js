@@ -2306,6 +2306,10 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       if (typeof body.promoCode === 'string') {
         body.promoCode = body.promoCode.trim().toUpperCase() || null;
       }
+      // is_active/is_test are INT columns — the client sends real booleans, which pg won't
+      // implicitly cast to integer, so convert explicitly rather than let the UPDATE 500.
+      if (typeof body.isActive === 'boolean') body.isActive = body.isActive ? 1 : 0;
+      if (typeof body.isTest === 'boolean') body.isTest = body.isTest ? 1 : 0;
       const fieldMap = {
         name: 'name', address: 'address', city: 'city', phone: 'phone',
         lat: 'lat', lng: 'lng', openTime: 'open_time', closeTime: 'close_time',

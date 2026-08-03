@@ -341,6 +341,12 @@ input,select{font-family:inherit;}
             <input class="login-input" style="margin-bottom:0;" id="cm-close" type="time">
           </div>
         </div>
+        <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Visibility</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:6px;">
+          <input type="checkbox" id="cm-active" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
+          <span style="font-size:13px;font-weight:600;">Active on the public site</span>
+        </label>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">Unchecked hides this centre from customers entirely — it won't appear in the shop list or be bookable, but stays fully editable here. Ghost/test centres reachable only via their secret link are unaffected by this either way.</div>
         <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Promo Code</div>
         <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">One active code at a time, taken as a flat percentage off the total at checkout. Leave the code blank to turn the promo off.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px;">
@@ -1101,6 +1107,7 @@ function openAddCentreModal() {
   document.getElementById('cm-lng').value = '';
   document.getElementById('cm-open').value = '09:00';
   document.getElementById('cm-close').value = '22:00';
+  document.getElementById('cm-active').checked = true;
   document.getElementById('cm-promo-code').value = '';
   document.getElementById('cm-promo-percent').value = '';
   document.getElementById('cm-username').value = '';
@@ -1123,6 +1130,7 @@ function openEditCentreModal(shopId) {
   document.getElementById('cm-lng').value = s.lng || '';
   document.getElementById('cm-open').value = s.openTime || '09:00';
   document.getElementById('cm-close').value = s.closeTime || '22:00';
+  document.getElementById('cm-active').checked = !!s.isActive;
   document.getElementById('cm-promo-code').value = s.promoCode || '';
   document.getElementById('cm-promo-percent').value = s.promoDiscountPercent != null ? s.promoDiscountPercent : '';
   document.getElementById('cm-username').value = s.partner?.username || '';
@@ -1146,6 +1154,7 @@ async function saveCentre() {
   const lng = parseFloat(document.getElementById('cm-lng').value) || null;
   const openTime = document.getElementById('cm-open').value;
   const closeTime = document.getElementById('cm-close').value;
+  const isActive = document.getElementById('cm-active').checked;
   const promoCode = document.getElementById('cm-promo-code').value.trim();
   const promoPercentRaw = document.getElementById('cm-promo-percent').value;
   const promoDiscountPercent = promoPercentRaw === '' ? null : parseInt(promoPercentRaw);
@@ -1174,7 +1183,7 @@ async function saveCentre() {
       const res = await fetch(`${API}/api/owner/shops`, {
         method: 'POST',
         headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
-        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime, username, password })
+        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime, isActive, username, password })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create centre');
@@ -1183,7 +1192,7 @@ async function saveCentre() {
       const res = await fetch(`${API}/api/owner/shops/${id}`, {
         method: 'PATCH',
         headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
-        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime, promoCode: promoCode || null, promoDiscountPercent })
+        body: JSON.stringify({ name, phone, address, city, maxWorkers, lat, lng, openTime, closeTime, isActive, promoCode: promoCode || null, promoDiscountPercent })
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Failed to update centre'); }
 
