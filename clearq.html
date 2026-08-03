@@ -1240,6 +1240,19 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Real drive time once /wash/eta has resolved for this shop; a straight-line distance in the
+// meantime so the card isn't blank while that loads; falls back to just the city with no
+// location at all.
+function driveInfoText(s) {
+  const eta = driveTimes[s.id];
+  if (eta) return CQI18N.t('drive_time_distance', { mins: eta.etaMinutes, km: eta.distanceKm });
+  if (cachedLocation && s.lat != null && s.lng != null) {
+    const km = haversineKm(cachedLocation.latitude, cachedLocation.longitude, s.lat, s.lng);
+    return CQI18N.t('km_away', { km: km < 10 ? km.toFixed(1) : Math.round(km) });
+  }
+  return `📍 ${s.city}`;
+}
+
 function renderShops() {
   const q = (document.getElementById('search')?.value || '').toLowerCase();
   const list = shops.filter(s => {
@@ -1363,7 +1376,7 @@ function renderShops() {
       ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
       ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" onclick="event.stopPropagation()" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
       <div class="card-bottom">
-        <div class="drive-info">📍 ${s.city}</div>
+        <div class="drive-info">${driveInfoText(s)}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${CQI18N.t('open_in_maps')}</a>
       </div>`;
     // Only touch the DOM if this card's content actually changed — a shop's card shouldn't
@@ -1391,6 +1404,24 @@ let cachedLocation = null;
 let locationTimestamp = 0;
 const LOCATION_MAX_AGE = 5 * 60 * 1000; // 5 minutes
 
+// Real drive time/distance per shop (from /wash/eta — Google Routes, falling back to OSRM then
+// a straight-line estimate). Fetched once when location resolves, not on every list poll — this
+// hits a metered external API per shop, so it shouldn't run on the same 8s cycle as the queue.
+let driveTimes = {};
+let driveTimesLoadedFor = null;
+async function loadDriveTimes() {
+  if (!cachedLocation || !shops.length) return;
+  const key = `${cachedLocation.latitude},${cachedLocation.longitude}`;
+  if (driveTimesLoadedFor === key) return;
+  driveTimesLoadedFor = key;
+  await Promise.all(shops.map(async s => {
+    if (s.lat == null || s.lng == null) return;
+    const eta = await fetchETA(s.id, cachedLocation.latitude, cachedLocation.longitude);
+    if (eta) driveTimes[s.id] = eta;
+  }));
+  renderShops();
+}
+
 async function requestLocation() {
   dismissLocBanner();
   const loc = await getUserLocation();
@@ -1400,6 +1431,7 @@ async function requestLocation() {
     toast(CQI18N.t('location_set_ok'));
     // Refresh queue displays with location context
     filterWashes();
+    loadDriveTimes();
   } else {
     toast(CQI18N.t('could_not_access_location'));
   }
@@ -1439,7 +1471,7 @@ function checkLocationPermission() {
     navigator.permissions.query({name: 'geolocation'}).then(result => {
       if (result.state === 'granted') {
         getUserLocation().then(loc => {
-          if (loc) { cachedLocation = loc; locationTimestamp = Date.now(); }
+          if (loc) { cachedLocation = loc; locationTimestamp = Date.now(); renderShops(); loadDriveTimes(); }
         });
         document.getElementById('loc-banner').classList.remove('show');
       } else if (result.state === 'prompt') {
@@ -1590,6 +1622,7 @@ async function requestLocationFromModal() {
     cachedLocation = loc;
     locationTimestamp = Date.now();
     toast(CQI18N.t('location_enabled'));
+    loadDriveTimes();
   } else {
     toast(CQI18N.t('could_not_get_location'));
   }
@@ -3427,7 +3460,7 @@ function startBookingStatusPoll() {}
 // calling this immediately here would miss them.
 document.addEventListener('DOMContentLoaded', () => CQI18N.applyStatic());
 initServiceWorker();
-loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock()).finally(() => window.scrollTo(0, 0));
+loadShops().then(() => { updateLandingMock(); loadDriveTimes(); }).catch(() => updateLandingMock()).finally(() => window.scrollTo(0, 0));
 showLanding();
 window.scrollTo(0, 0);
 
@@ -3440,6 +3473,7 @@ getUserLocation().then(loc => {
     document.getElementById('loc-banner')?.classList.remove('show');
     renderShops();
     updateLandingLiveTicker();
+    loadDriveTimes();
   }
 });
 

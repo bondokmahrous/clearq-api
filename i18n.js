@@ -201,6 +201,8 @@
       min_short: "min",
       egp: "EGP",
       map_location: "Map location",
+      drive_time_distance: "🚗 {mins} min · {km} km",
+      km_away: "📍 {km} km away",
 
       // ── shop detail / rating summary ──
       book_a_wash: "Book a wash",
@@ -772,6 +774,8 @@
       min_short: "د",
       egp: "جنيه",
       map_location: "موقع الخريطة",
+      drive_time_distance: "🚗 {mins} د · {km} كم",
+      km_away: "📍 على بعد {km} كم",
 
       book_a_wash: "احجز غسيل",
       no_ratings_yet: "لا توجد تقييمات بعد",
