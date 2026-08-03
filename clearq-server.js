@@ -2250,6 +2250,10 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const partnersList = await db(`SELECT id, shop_id, username, is_active FROM wash_partners ORDER BY shop_id`);
       const result = shopsList.map(s => ({
         ...shop(s),
+        // Only ever exposed on this owner-authenticated route — the shared shop() formatter
+        // deliberately omits it since GET /wash/shops/:id is public and unauthenticated, and
+        // a ghost shop's whole point is that its link isn't discoverable there.
+        secretSlug: s.secret_slug || null,
         partner: partnersList.find(pp => pp.shop_id === s.id) || null
       }));
       return respond(res, 200, result);
@@ -2327,7 +2331,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       vals.push(shopId);
       const [updated] = await db(`UPDATE wash_shops SET ${sets.join(",")},updated_at=NOW() WHERE id=$${i} RETURNING *`, vals);
       if (!updated) return respond(res, 404, { error: "Shop not found" });
-      return respond(res, 200, shop(updated));
+      return respond(res, 200, { ...shop(updated), secretSlug: updated.secret_slug || null });
     }
 
     // DELETE /owner/shops/:id — deactivate a shop

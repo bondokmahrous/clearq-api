@@ -346,7 +346,10 @@ input,select{font-family:inherit;}
           <input type="checkbox" id="cm-active" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
           <span style="font-size:13px;font-weight:600;">Active on the public site</span>
         </label>
-        <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">Unchecked hides this centre from customers entirely — it won't appear in the shop list or be bookable, but stays fully editable here. Ghost/test centres reachable only via their secret link are unaffected by this either way.</div>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:14px;">Unchecked hides this centre from customers entirely — it won't appear in the shop list or be bookable, but stays fully editable here. Ghost/test centres reachable only via their secret link are unaffected by this either way.</div>
+        <button type="button" class="login-btn" style="width:auto;padding:9px 16px;font-size:12px;margin-bottom:8px;" id="cm-ghost-btn" onclick="createGhostSite()">👻 Create Ghost Website</button>
+        <div style="font-size:11px;color:var(--gray);margin-bottom:6px;">Spins up a private demo — its own link showing only this centre, plus a fully working dashboard for it — without touching whether it's on the public site above. Safe to click even if this centre already has one; it'll just show you the existing link again.</div>
+        <div id="cm-ghost-link" style="font-size:12px;margin-bottom:10px;"></div>
         <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:18px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Promo Code</div>
         <div style="font-size:11px;color:var(--gray);margin-bottom:10px;">One active code at a time, taken as a flat percentage off the total at checkout. Leave the code blank to turn the promo off.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px;">
@@ -1108,6 +1111,7 @@ function openAddCentreModal() {
   document.getElementById('cm-open').value = '09:00';
   document.getElementById('cm-close').value = '22:00';
   document.getElementById('cm-active').checked = true;
+  document.getElementById('cm-ghost-link').innerHTML = '';
   document.getElementById('cm-promo-code').value = '';
   document.getElementById('cm-promo-percent').value = '';
   document.getElementById('cm-username').value = '';
@@ -1131,6 +1135,7 @@ function openEditCentreModal(shopId) {
   document.getElementById('cm-open').value = s.openTime || '09:00';
   document.getElementById('cm-close').value = s.closeTime || '22:00';
   document.getElementById('cm-active').checked = !!s.isActive;
+  document.getElementById('cm-ghost-link').innerHTML = s.secretSlug ? ghostLinkHtml(s.secretSlug) : '';
   document.getElementById('cm-promo-code').value = s.promoCode || '';
   document.getElementById('cm-promo-percent').value = s.promoDiscountPercent != null ? s.promoDiscountPercent : '';
   document.getElementById('cm-username').value = s.partner?.username || '';
@@ -1141,6 +1146,47 @@ function openEditCentreModal(shopId) {
 
 function closeCentreModal() {
   document.getElementById('centre-modal-bg').style.display = 'none';
+}
+
+function ghostLinkHtml(slug) {
+  const link = `https://clearq.online/?g=${slug}`;
+  return `Ghost link: <a href="${link}" target="_blank" style="color:var(--blue);">${link}</a> ` +
+    `<button type="button" onclick="navigator.clipboard.writeText('${link}');this.textContent='Copied!';" style="background:var(--navy);border:1px solid var(--navy-light);color:var(--gray);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;margin-left:6px;">Copy</button>`;
+}
+
+async function createGhostSite() {
+  const id = document.getElementById('cm-id').value;
+  if (!id) { alert('Save this centre first, then create its ghost site.'); return; }
+  const s = ownerShopsData.find(sh => sh.id == id);
+  const linkEl = document.getElementById('cm-ghost-link');
+
+  // Already has one — just show it again, no need to touch the shop.
+  if (s?.secretSlug) { linkEl.innerHTML = ghostLinkHtml(s.secretSlug); return; }
+
+  const base = document.getElementById('cm-name').value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (!base) { alert('Enter a centre name first'); return; }
+  const existingSlugs = new Set(ownerShopsData.map(sh => sh.secretSlug).filter(Boolean));
+  let slug = base, n = 2;
+  while (existingSlugs.has(slug)) { slug = base + n; n++; }
+
+  const btn = document.getElementById('cm-ghost-btn');
+  btn.disabled = true; btn.textContent = 'Creating...';
+  try {
+    const res = await fetch(`${API}/api/owner/shops/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
+      body: JSON.stringify({ isTest: true, secretSlug: slug })
+    });
+    const updated = await res.json();
+    if (!res.ok) throw new Error(updated.error || 'Failed to create ghost site');
+    const idx = ownerShopsData.findIndex(sh => sh.id == id);
+    if (idx > -1) ownerShopsData[idx] = { ...ownerShopsData[idx], ...updated };
+    linkEl.innerHTML = ghostLinkHtml(updated.secretSlug);
+  } catch(e) {
+    alert(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '👻 Create Ghost Website';
+  }
 }
 
 async function saveCentre() {

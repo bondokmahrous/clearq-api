@@ -1230,6 +1230,16 @@ function shopClosesTooLate(shop, startDate, readyDate) {
   return readyDate.getTime() > boundary.getTime() + graceMs;
 }
 
+// Straight-line distance, not drive time — good enough for ordering the list, and instant
+// (no per-shop API round trip the way the Google Routes ETA lookup would need).
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function renderShops() {
   const q = (document.getElementById('search')?.value || '').toLowerCase();
   const list = shops.filter(s => {
@@ -1237,6 +1247,15 @@ function renderShops() {
     const ms = !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
     return mc && ms && (s.isActive || s.id === ghostShopId);
   });
+  // Nearest first once we have the visitor's location — shops without coordinates sort last
+  // rather than dropping out of the list.
+  if (cachedLocation) {
+    list.sort((a, b) => {
+      const da = (a.lat != null && a.lng != null) ? haversineKm(cachedLocation.latitude, cachedLocation.longitude, a.lat, a.lng) : Infinity;
+      const db = (b.lat != null && b.lng != null) ? haversineKm(cachedLocation.latitude, cachedLocation.longitude, b.lat, b.lng) : Infinity;
+      return da - db;
+    });
+  }
   document.getElementById('result-count').textContent = CQI18N.t(list.length===1?'wash_found_one':'wash_found_many', {n: list.length});
   const container = document.getElementById('washes-list');
 
@@ -3411,6 +3430,18 @@ initServiceWorker();
 loadShops().then(() => updateLandingMock()).catch(() => updateLandingMock()).finally(() => window.scrollTo(0, 0));
 showLanding();
 window.scrollTo(0, 0);
+
+// Ask for location the moment the site opens — not after a click — so the shop list can be
+// sorted nearest-first from the very first render instead of reordering under the visitor.
+getUserLocation().then(loc => {
+  if (loc) {
+    cachedLocation = loc;
+    locationTimestamp = Date.now();
+    document.getElementById('loc-banner')?.classList.remove('show');
+    renderShops();
+    updateLandingLiveTicker();
+  }
+});
 
 </script>
 
