@@ -203,6 +203,10 @@
       map_location: "Map location",
       drive_time_distance: "🚗 {mins} min · {km} km",
       km_away: "📍 {km} km away",
+      sort_distance: "Nearest",
+      sort_price_asc: "Price: Low to High",
+      sort_price_desc: "Price: High to Low",
+      sort_rating: "Top Rated",
 
       // ── shop detail / rating summary ──
       book_a_wash: "Book a wash",
@@ -776,6 +780,10 @@
       map_location: "موقع الخريطة",
       drive_time_distance: "🚗 {mins} د · {km} كم",
       km_away: "📍 على بعد {km} كم",
+      sort_distance: "الأقرب",
+      sort_price_asc: "السعر: من الأقل للأعلى",
+      sort_price_desc: "السعر: من الأعلى للأقل",
+      sort_rating: "الأعلى تقييماً",
 
       book_a_wash: "احجز غسيل",
       no_ratings_yet: "لا توجد تقييمات بعد",

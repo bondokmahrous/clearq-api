@@ -815,6 +815,12 @@ html[dir="rtl"] .modal-sec, html[dir="rtl"] .signup-sub, html[dir="rtl"] .su-lab
 
   <div class="result-bar">
     <span class="result-count" id="result-count" data-i18n="loading">Loading...</span>
+    <select id="sort-select" onchange="setSortMode(this.value)" style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:6px 9px;font-size:12px;font-weight:600;color:#334155;outline:none;">
+      <option value="distance" data-i18n="sort_distance">Nearest</option>
+      <option value="price_asc" data-i18n="sort_price_asc">Price: Low to High</option>
+      <option value="price_desc" data-i18n="sort_price_desc">Price: High to Low</option>
+      <option value="rating" data-i18n="sort_rating">Top Rated</option>
+    </select>
   </div>
 
   <div class="washes-list" id="washes-list">
@@ -1241,16 +1247,31 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 // Real drive time once /wash/eta has resolved for this shop; a straight-line distance in the
-// meantime so the card isn't blank while that loads; falls back to just the city with no
-// location at all.
-function driveInfoText(s) {
+// meantime so the badge isn't blank while that loads; null (badge just doesn't render) with no
+// location at all, rather than showing something misleading.
+function distanceBadgeText(s) {
   const eta = driveTimes[s.id];
   if (eta) return CQI18N.t('drive_time_distance', { mins: eta.etaMinutes, km: eta.distanceKm });
   if (cachedLocation && s.lat != null && s.lng != null) {
     const km = haversineKm(cachedLocation.latitude, cachedLocation.longitude, s.lat, s.lng);
     return CQI18N.t('km_away', { km: km < 10 ? km.toFixed(1) : Math.round(km) });
   }
-  return `📍 ${s.city}`;
+  return null;
+}
+
+// Cheapest listed service for a shop — live services if loaded, else its own base price
+// fields — used for the price sort options.
+function shopMinPrice(s) {
+  const live = (services[s.id] || []).map(sv => sv.price).filter(p => p > 0);
+  if (live.length) return Math.min(...live);
+  const prices = [s.priceExterior, s.priceInterior, s.priceFull].filter(p => p > 0);
+  return prices.length ? Math.min(...prices) : Infinity;
+}
+
+let sortMode = 'distance';
+function setSortMode(mode) {
+  sortMode = mode;
+  renderShops();
 }
 
 function renderShops() {
@@ -1260,14 +1281,23 @@ function renderShops() {
     const ms = !q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
     return mc && ms && (s.isActive || s.id === ghostShopId);
   });
-  // Nearest first once we have the visitor's location — shops without coordinates sort last
+  // Shops missing the data a given sort needs (no coords, no rating yet) sort to the end
   // rather than dropping out of the list.
-  if (cachedLocation) {
+  if (sortMode === 'distance' && cachedLocation) {
     list.sort((a, b) => {
       const da = (a.lat != null && a.lng != null) ? haversineKm(cachedLocation.latitude, cachedLocation.longitude, a.lat, a.lng) : Infinity;
       const db = (b.lat != null && b.lng != null) ? haversineKm(cachedLocation.latitude, cachedLocation.longitude, b.lat, b.lng) : Infinity;
       return da - db;
     });
+  } else if (sortMode === 'price_asc') {
+    list.sort((a, b) => shopMinPrice(a) - shopMinPrice(b));
+  } else if (sortMode === 'price_desc') {
+    list.sort((a, b) => {
+      const pa = shopMinPrice(a), pb = shopMinPrice(b);
+      return (pb === Infinity ? -1 : pb) - (pa === Infinity ? -1 : pa);
+    });
+  } else if (sortMode === 'rating') {
+    list.sort((a, b) => (parseFloat(b.avgRating) || 0) - (parseFloat(a.avgRating) || 0));
   }
   document.getElementById('result-count').textContent = CQI18N.t(list.length===1?'wash_found_one':'wash_found_many', {n: list.length});
   const container = document.getElementById('washes-list');
@@ -1354,9 +1384,10 @@ function renderShops() {
             ${s.avgRating ? `<div style="font-size:11px;color:#f59e0b;margin-top:2px;">★ ${parseFloat(s.avgRating).toFixed(1)} <span style="color:#64748b;text-decoration:underline;">(${s.ratingCount || 0} ${CQI18N.t(s.ratingCount===1?'review_one':'review_many')}) ›</span></div>` : `<div style="font-size:11px;color:#94a3b8;margin-top:2px;text-decoration:underline;">${CQI18N.t('see_details')} ›</div>`}
           </div>
           <div class="wash-meta">
-            ${s.isPaused || closesTooLate
+            ${distanceBadgeText(s) ? `<div style="display:inline-block;background:#E6F7F5;color:#21867B;border-radius:12px;padding:3px 9px;font-size:11px;font-weight:800;white-space:nowrap;margin-bottom:6px;">${distanceBadgeText(s)}</div>` : ''}
+            <div>${s.isPaused || closesTooLate
               ? `<button class="book-btn" disabled style="background:#e2e8f0;color:#94a3b8;cursor:not-allowed;">${CQI18N.t('book_btn')}</button>`
-              : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">${CQI18N.t('book_btn')}</button>`}
+              : `<button class="book-btn" onclick="event.stopPropagation();checkLocationBeforeBooking(${s.id})">${CQI18N.t('book_btn')}</button>`}</div>
           </div>
         </div>
         ${s.isPaused
@@ -1376,7 +1407,7 @@ function renderShops() {
       ${s.locationDescription ? `<div style="padding:9px 13px 0;font-size:11px;color:#64748b;line-height:1.5;">📍 ${s.locationDescription}</div>` : ''}
       ${s.phone ? `<div style="padding:6px 13px 0;font-size:11px;"><a href="tel:${s.phone.replace(/\s+/g,'')}" onclick="event.stopPropagation()" style="color:#21867B;font-weight:600;text-decoration:none;">📞 ${s.phone}</a></div>` : ''}
       <div class="card-bottom">
-        <div class="drive-info">${driveInfoText(s)}</div>
+        <div class="drive-info">📍 ${s.city}</div>
         <a class="maps-link" href="${mapsUrl}" target="_blank" onclick="event.stopPropagation()">${CQI18N.t('open_in_maps')}</a>
       </div>`;
     // Only touch the DOM if this card's content actually changed — a shop's card shouldn't
