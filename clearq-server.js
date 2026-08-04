@@ -47,7 +47,15 @@ const OWNER_NOTIFICATION_EMAILS = ['mahrousjr@gmail.com'];
 // use. Cars added without dimensions yet fall back to the old shared size-class estimate below.
 const PPF_ROLL_WIDTH_M = 1.52;   // standard 60" PPF/wrap roll width
 const PPF_WRAP_BUFFER_M = 3;     // buffer for bumpers, mirrors, waste — from the "+10-15ft" rule
-const PPF_LENGTH_MULTIPLIER = 3; // the "length × 3" wrap-industry rule of thumb
+// Full-body coverage is modelled as the car's exterior "unfolded" like a box — top face (hood +
+// roof + trunk) + both side faces (doors/fenders/quarters) + both end faces (bumpers) — then
+// scaled down by PPF_COVERAGE_FACTOR since PPF never actually covers the whole box (glass, wheels,
+// grille, lights, underside are excluded). A pure "length × 3" rule (the simplest version of the
+// industry rule of thumb) was tried first but barely differentiated a compact car from a full-size
+// SUV, since two vehicles of similar length can differ hugely in width/height — this fixes that by
+// pricing off all three dimensions, calibrated so a typical mid-size sedan lands near the ~250 sq ft
+// full-body figure commonly cited in 2026 PPF/wrap pricing guides.
+const PPF_COVERAGE_FACTOR = 0.85;
 
 const PPF_PANELS = [
   { key: 'front_bumper', label: 'Front Bumper' },
@@ -87,10 +95,15 @@ const PANEL_AREA_SQM = {
   pickup_van:      { front_bumper: 2.0, rear_bumper: 1.6, hood: 2.0, roof: 3.2, front_doors: 2.6, rear_doors: 2.2, fenders: 1.6, quarter_panels: 1.4, trunk: 1.2, mirrors: 0.16 },
 };
 
-// Full-body linear metres needed for a car, from its own real length — the actual wrap-industry
-// rule of thumb (verified against 2026 PPF/wrap pricing guides).
+// Full-body linear metres needed for a car, from its own real length/width/height (see
+// PPF_COVERAGE_FACTOR comment above for the model).
 function ppfFullBodyLinearMetres(car) {
-  if (car.length_mm) return (car.length_mm / 1000) * PPF_LENGTH_MULTIPLIER + PPF_WRAP_BUFFER_M;
+  if (car.length_mm && car.width_mm && car.height_mm) {
+    const L = car.length_mm / 1000, W = car.width_mm / 1000, H = car.height_mm / 1000;
+    const boxSurfaceSqm = (L * W) + 2 * (L * H) + 2 * (W * H);
+    const coveredSqm = boxSurfaceSqm * PPF_COVERAGE_FACTOR;
+    return coveredSqm / PPF_ROLL_WIDTH_M + PPF_WRAP_BUFFER_M;
+  }
   // Fallback: derive an equivalent length from the size-class sqm total (reverse the roll-width math).
   const areas = PANEL_AREA_SQM[car.size_category];
   if (!areas) return null;
