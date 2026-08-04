@@ -29,6 +29,60 @@ const GMAIL_SENDER = process.env.GMAIL_SENDER || 'ClearQ <ClearQ.info@gmail.com>
 // shop's own optional notification_email (which only that shop's partner sees).
 const OWNER_NOTIFICATION_EMAILS = ['mahrousjr@gmail.com'];
 
+// ─── PPF (Paint Protection Film) reference data ───────────────────────────────
+// PPF is quoted per panel (bumper, hood, doors, etc.), not off a flat "car size" price — but no
+// manufacturer or dealer publishes literal per-panel measurements for individual models. Real PPF
+// installers don't measure each car either: they work from known average panel coverage for a
+// vehicle's class (sedan, compact SUV, full-size SUV, ...). PANEL_AREA_SQM below is exactly that —
+// approximate square-metre coverage per panel, per size class — grounded in typical real-world
+// panel dimensions for cars in that class. A shop's quote = sum of selected panels' area (for the
+// car's size class) × their own price-per-square-metre for the chosen film.
+const PPF_PANELS = [
+  { key: 'front_bumper', label: 'Front Bumper' },
+  { key: 'rear_bumper', label: 'Rear Bumper' },
+  { key: 'hood', label: 'Hood' },
+  { key: 'roof', label: 'Roof' },
+  { key: 'front_doors', label: 'Front Doors (pair)' },
+  { key: 'rear_doors', label: 'Rear Doors (pair)' },
+  { key: 'fenders', label: 'Front Fenders (pair)' },
+  { key: 'quarter_panels', label: 'Rear Quarter Panels (pair)' },
+  { key: 'trunk', label: 'Trunk / Tailgate' },
+  { key: 'mirrors', label: 'Side Mirrors (pair)' },
+];
+const PPF_PANEL_KEYS = PPF_PANELS.map(p => p.key);
+
+const PPF_SIZE_CATEGORIES = [
+  { key: 'hatchback_small', label: 'Small Hatchback' },
+  { key: 'sedan_compact', label: 'Compact Sedan' },
+  { key: 'sedan_mid', label: 'Mid-Size Sedan' },
+  { key: 'sedan_large', label: 'Full-Size / Luxury Sedan' },
+  { key: 'suv_compact', label: 'Compact SUV' },
+  { key: 'suv_mid', label: 'Mid-Size SUV' },
+  { key: 'suv_full', label: 'Full-Size SUV' },
+  { key: 'pickup_van', label: 'Pickup / Van' },
+];
+
+// sqm per panel per size class.
+const PANEL_AREA_SQM = {
+  hatchback_small: { front_bumper: 1.1, rear_bumper: 1.0, hood: 1.0, roof: 1.6, front_doors: 1.6, rear_doors: 1.4, fenders: 0.9, quarter_panels: 0.9, trunk: 0.7, mirrors: 0.10 },
+  sedan_compact:   { front_bumper: 1.3, rear_bumper: 1.2, hood: 1.3, roof: 2.0, front_doors: 2.0, rear_doors: 1.8, fenders: 1.1, quarter_panels: 1.1, trunk: 0.9, mirrors: 0.12 },
+  sedan_mid:       { front_bumper: 1.5, rear_bumper: 1.4, hood: 1.6, roof: 2.4, front_doors: 2.3, rear_doors: 2.1, fenders: 1.3, quarter_panels: 1.3, trunk: 1.1, mirrors: 0.14 },
+  sedan_large:     { front_bumper: 1.8, rear_bumper: 1.7, hood: 2.0, roof: 2.8, front_doors: 2.7, rear_doors: 2.5, fenders: 1.5, quarter_panels: 1.5, trunk: 1.3, mirrors: 0.16 },
+  suv_compact:     { front_bumper: 1.6, rear_bumper: 1.5, hood: 1.5, roof: 2.6, front_doors: 2.2, rear_doors: 2.0, fenders: 1.3, quarter_panels: 1.2, trunk: 1.2, mirrors: 0.14 },
+  suv_mid:         { front_bumper: 1.9, rear_bumper: 1.8, hood: 1.8, roof: 3.0, front_doors: 2.5, rear_doors: 2.3, fenders: 1.5, quarter_panels: 1.4, trunk: 1.4, mirrors: 0.16 },
+  suv_full:        { front_bumper: 2.3, rear_bumper: 2.2, hood: 2.2, roof: 3.6, front_doors: 2.9, rear_doors: 2.7, fenders: 1.7, quarter_panels: 1.6, trunk: 1.6, mirrors: 0.18 },
+  pickup_van:      { front_bumper: 2.0, rear_bumper: 1.6, hood: 2.0, roof: 3.2, front_doors: 2.6, rear_doors: 2.2, fenders: 1.6, quarter_panels: 1.4, trunk: 1.2, mirrors: 0.16 },
+};
+
+function computePPFQuote(sizeCategory, panelKeys, pricePerSqm) {
+  const areas = PANEL_AREA_SQM[sizeCategory];
+  if (!areas) return null;
+  const validPanels = (panelKeys || []).filter(k => PPF_PANEL_KEYS.includes(k));
+  const sqm = validPanels.reduce((sum, k) => sum + (areas[k] || 0), 0);
+  const price = Math.round(sqm * pricePerSqm);
+  return { sqm: Math.round(sqm * 100) / 100, price, panels: validPanels };
+}
+
 if (!DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is required");
   process.exit(1);
@@ -303,6 +357,50 @@ async function initDB() {
     AND NOT EXISTS (SELECT 1 FROM user_cars WHERE user_cars.user_id = wash_users.id)
   `);
   await ensureShopServices();
+
+  // ── PPF (Paint Protection Film) ──────────────────────────────────────────
+  await db(`
+    CREATE TABLE IF NOT EXISTS ppf_car_models (
+      id SERIAL PRIMARY KEY,
+      brand TEXT NOT NULL,
+      model TEXT NOT NULL,
+      size_category TEXT NOT NULL,
+      is_active INT NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(brand, model)
+    )
+  `);
+  await db(`
+    CREATE TABLE IF NOT EXISTS ppf_film_types (
+      id SERIAL PRIMARY KEY,
+      shop_id INT NOT NULL REFERENCES wash_shops(id),
+      name TEXT NOT NULL,
+      description TEXT,
+      price_per_sqm INT NOT NULL DEFAULT 0,
+      is_active INT NOT NULL DEFAULT 1,
+      display_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db(`
+    CREATE TABLE IF NOT EXISTS ppf_requests (
+      id SERIAL PRIMARY KEY,
+      shop_id INT NOT NULL REFERENCES wash_shops(id),
+      car_model_id INT REFERENCES ppf_car_models(id),
+      car_text TEXT NOT NULL DEFAULT '',
+      panels JSONB NOT NULL DEFAULT '[]'::jsonb,
+      film_type_id INT REFERENCES ppf_film_types(id),
+      film_name TEXT,
+      estimated_sqm NUMERIC(6,2),
+      estimated_price INT,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await seedPPFCarModels();
   console.log("✓ Database ready");
 }
 
@@ -364,6 +462,92 @@ async function ensureShopServices() {
     }
     if (rows.length) console.log(`Seeded ${rows.length} services for shop ${s.id} (${s.name})`);
   }
+}
+
+// First-pass catalogue of new cars actively sold in Egypt (Aug 2026), by brand/model, tagged to a
+// PPF size class. Not exhaustive of every trim/generation — covers the models a customer would
+// actually type in. Expandable later without a migration (owner can insert more rows any time).
+const PPF_CAR_SEED = [
+  ['Mercedes-Benz','A-Class','sedan_compact'],['Mercedes-Benz','C-Class','sedan_mid'],['Mercedes-Benz','E-Class','sedan_large'],
+  ['Mercedes-Benz','S-Class','sedan_large'],['Mercedes-Benz','CLA','sedan_compact'],['Mercedes-Benz','GLA','suv_compact'],
+  ['Mercedes-Benz','GLB','suv_compact'],['Mercedes-Benz','GLC','suv_mid'],['Mercedes-Benz','GLE','suv_mid'],
+  ['Mercedes-Benz','GLS','suv_full'],['Mercedes-Benz','G-Class','suv_full'],
+  ['BMW','1 Series','sedan_compact'],['BMW','2 Series','sedan_compact'],['BMW','3 Series','sedan_mid'],
+  ['BMW','5 Series','sedan_large'],['BMW','7 Series','sedan_large'],['BMW','X1','suv_compact'],
+  ['BMW','X3','suv_mid'],['BMW','X5','suv_mid'],['BMW','X7','suv_full'],
+  ['Audi','A3','sedan_compact'],['Audi','A4','sedan_mid'],['Audi','A6','sedan_large'],['Audi','A8','sedan_large'],
+  ['Audi','Q2','suv_compact'],['Audi','Q3','suv_compact'],['Audi','Q5','suv_mid'],['Audi','Q7','suv_full'],['Audi','Q8','suv_full'],
+  ['Volkswagen','Polo','hatchback_small'],['Volkswagen','Golf','sedan_compact'],['Volkswagen','Jetta','sedan_compact'],
+  ['Volkswagen','Passat','sedan_mid'],['Volkswagen','T-Roc','suv_compact'],['Volkswagen','Tiguan','suv_mid'],['Volkswagen','Teramont','suv_full'],
+  ['Skoda','Fabia','hatchback_small'],['Skoda','Octavia','sedan_mid'],['Skoda','Superb','sedan_large'],
+  ['Skoda','Kamiq','suv_compact'],['Skoda','Karoq','suv_compact'],['Skoda','Kodiaq','suv_mid'],
+  ['Peugeot','208','hatchback_small'],['Peugeot','301','sedan_compact'],['Peugeot','2008','suv_compact'],
+  ['Peugeot','3008','suv_mid'],['Peugeot','5008','suv_mid'],
+  ['Citroen','C3','hatchback_small'],['Citroen','C4','sedan_compact'],['Citroen','C5 Aircross','suv_mid'],
+  ['Renault','Logan','sedan_compact'],['Renault','Sandero','hatchback_small'],['Renault','Duster','suv_compact'],
+  ['Renault','Megane','sedan_compact'],['Renault','Koleos','suv_mid'],
+  ['Fiat','Tipo','sedan_compact'],['Fiat','500','hatchback_small'],['Fiat','Panda','hatchback_small'],
+  ['Jeep','Renegade','suv_compact'],['Jeep','Compass','suv_compact'],['Jeep','Grand Cherokee','suv_mid'],['Jeep','Wrangler','suv_mid'],
+  ['Opel','Corsa','hatchback_small'],['Opel','Astra','sedan_compact'],['Opel','Grandland','suv_mid'],
+  ['Volvo','S60','sedan_mid'],['Volvo','XC40','suv_compact'],['Volvo','XC60','suv_mid'],['Volvo','XC90','suv_full'],
+  ['Porsche','911','sedan_compact'],['Porsche','Macan','suv_mid'],['Porsche','Cayenne','suv_full'],['Porsche','Panamera','sedan_large'],
+  ['Land Rover','Range Rover Evoque','suv_compact'],['Land Rover','Discovery Sport','suv_mid'],['Land Rover','Discovery','suv_mid'],
+  ['Land Rover','Defender','suv_full'],['Land Rover','Range Rover Sport','suv_full'],['Land Rover','Range Rover','suv_full'],
+  ['Jaguar','XE','sedan_mid'],['Jaguar','F-Pace','suv_mid'],
+  ['Mini','Cooper','hatchback_small'],['Mini','Countryman','suv_compact'],
+  ['Cadillac','XT5','suv_mid'],['Cadillac','Escalade','suv_full'],
+  ['Chevrolet','Optra','sedan_compact'],['Chevrolet','Aveo','hatchback_small'],['Chevrolet','Groove','hatchback_small'],
+  ['Chevrolet','Captiva','suv_mid'],
+  ['Toyota','Yaris','hatchback_small'],['Toyota','Corolla','sedan_compact'],['Toyota','Corolla Cross','suv_compact'],
+  ['Toyota','Camry','sedan_mid'],['Toyota','RAV4','suv_compact'],['Toyota','Fortuner','suv_mid'],
+  ['Toyota','Hilux','pickup_van'],['Toyota','Land Cruiser Prado','suv_full'],['Toyota','Land Cruiser','suv_full'],
+  ['Honda','City','sedan_compact'],['Honda','Civic','sedan_compact'],['Honda','Accord','sedan_mid'],
+  ['Honda','HR-V','suv_compact'],['Honda','CR-V','suv_mid'],
+  ['Nissan','Sunny','sedan_compact'],['Nissan','Sentra','sedan_compact'],['Nissan','Qashqai','suv_compact'],
+  ['Nissan','X-Trail','suv_mid'],['Nissan','Patrol','suv_full'],
+  ['Mitsubishi','Attrage','sedan_compact'],['Mitsubishi','Xpander','pickup_van'],['Mitsubishi','Outlander','suv_mid'],['Mitsubishi','Pajero','suv_full'],
+  ['Suzuki','Swift','hatchback_small'],['Suzuki','Baleno','hatchback_small'],['Suzuki','Ertiga','pickup_van'],
+  ['Suzuki','Vitara','suv_compact'],['Suzuki','Jimny','suv_compact'],
+  ['Mazda','Mazda2','hatchback_small'],['Mazda','Mazda3','sedan_compact'],['Mazda','CX-5','suv_compact'],['Mazda','CX-9','suv_full'],
+  ['Hyundai','i10','hatchback_small'],['Hyundai','Accent','sedan_compact'],['Hyundai','Elantra','sedan_compact'],
+  ['Hyundai','Creta','suv_compact'],['Hyundai','Tucson','suv_compact'],['Hyundai','Santa Fe','suv_mid'],['Hyundai','Palisade','suv_full'],
+  ['Kia','Picanto','hatchback_small'],['Kia','Rio','sedan_compact'],['Kia','Cerato','sedan_compact'],['Kia','K5','sedan_mid'],
+  ['Kia','Seltos','suv_compact'],['Kia','Sportage','suv_compact'],['Kia','Sorento','suv_mid'],['Kia','Carnival','pickup_van'],
+  ['Genesis','G70','sedan_mid'],['Genesis','GV70','suv_mid'],['Genesis','GV80','suv_full'],
+  ['Lexus','ES','sedan_large'],['Lexus','NX','suv_compact'],['Lexus','RX','suv_mid'],['Lexus','LX','suv_full'],
+  ['Isuzu','D-Max','pickup_van'],
+  ['MG','MG3','hatchback_small'],['MG','MG5','sedan_compact'],['MG','ZS','suv_compact'],['MG','HS','suv_mid'],
+  ['MG','RX5','suv_mid'],['MG','RX8','suv_full'],
+  ['Geely','Emgrand','sedan_compact'],['Geely','Coolray','suv_compact'],['Geely','Azkarra','suv_mid'],['Geely','Okavango','suv_full'],
+  ['Chery','Arrizo 5','sedan_compact'],['Chery','Arrizo 6','sedan_mid'],['Chery','Tiggo 4 Pro','suv_compact'],
+  ['Chery','Tiggo 7 Pro','suv_mid'],['Chery','Tiggo 8 Pro','suv_full'],
+  ['Jaecoo','J7','suv_mid'],['Omoda','C5','suv_compact'],
+  ['BYD','Dolphin','hatchback_small'],['BYD','Seal','sedan_mid'],['BYD','Han','sedan_large'],
+  ['BYD','Atto 3','suv_compact'],['BYD','Song Plus','suv_mid'],
+  ['Jetour','Dashing','suv_compact'],['Jetour','X70','suv_mid'],['Jetour','X90','suv_full'],
+  ['Changan','Alsvin','sedan_compact'],['Changan','Eado','sedan_compact'],['Changan','CS35 Plus','suv_compact'],['Changan','CS55 Plus','suv_compact'],
+  ['GAC','GS3','suv_compact'],['GAC','Emkoo','suv_compact'],['GAC','GS8','suv_full'],
+  ['Haval','Jolion','suv_compact'],['Haval','H6','suv_mid'],['Haval','Dargo','suv_mid'],
+  ['JAC','JS3','suv_compact'],['JAC','JS4','suv_compact'],['JAC','J7','sedan_compact'],['JAC','Sunray','pickup_van'],
+  ['Dongfeng','AX7','suv_mid'],['Dongfeng','Rich 6','pickup_van'],
+  ['BAIC','X25','suv_compact'],['BAIC','X55','suv_compact'],['BAIC','Beijing X7','suv_mid'],
+  ['Soueast','DX3','suv_compact'],['Soueast','DX8','suv_full'],
+  ['Proton','Saga','sedan_compact'],['Proton','X50','suv_compact'],['Proton','X70','suv_mid'],
+  ['DFSK','Glory 500','suv_compact'],['DFSK','Glory 580','suv_mid'],
+];
+
+async function seedPPFCarModels() {
+  const count = await db1(`SELECT COUNT(*) as cnt FROM ppf_car_models`);
+  if (parseInt(count.cnt) > 0) return;
+  const values = [];
+  const params = [];
+  PPF_CAR_SEED.forEach(([brand, model, size], i) => {
+    const n = i * 3;
+    values.push(`($${n+1},$${n+2},$${n+3})`);
+    params.push(brand, model, size);
+  });
+  await db(`INSERT INTO ppf_car_models (brand, model, size_category) VALUES ${values.join(',')} ON CONFLICT (brand,model) DO NOTHING`, params);
+  console.log(`✓ Seeded ${PPF_CAR_SEED.length} PPF car models`);
 }
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
@@ -702,6 +886,28 @@ function addon(a) {
     id: a.id, shopId: a.shop_id, name: a.name, description: a.description,
     price: a.price, durationMins: a.duration_mins, displayOrder: a.display_order,
     isActive: a.is_active, createdAt: a.created_at, updatedAt: a.updated_at,
+  };
+}
+
+function ppfCarModel(c) {
+  return { id: c.id, brand: c.brand, model: c.model, sizeCategory: c.size_category, isActive: !!c.is_active };
+}
+
+function ppfFilmType(f) {
+  return {
+    id: f.id, shopId: f.shop_id, name: f.name, description: f.description,
+    pricePerSqm: f.price_per_sqm, isActive: !!f.is_active, displayOrder: f.display_order,
+    createdAt: f.created_at, updatedAt: f.updated_at,
+  };
+}
+
+function ppfRequest(r) {
+  return {
+    id: r.id, shopId: r.shop_id, carModelId: r.car_model_id, carText: r.car_text,
+    panels: r.panels, filmTypeId: r.film_type_id, filmName: r.film_name,
+    estimatedSqm: r.estimated_sqm != null ? parseFloat(r.estimated_sqm) : null,
+    estimatedPrice: r.estimated_price, customerName: r.customer_name, customerPhone: r.customer_phone,
+    status: r.status, createdAt: r.created_at,
   };
 }
 
@@ -1410,6 +1616,67 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 200, addons.map(addon));
     }
 
+    // ── PPF (Paint Protection Film) — public ────────────────────────────────
+
+    // GET /wash/ppf/panels — static panel taxonomy + size classes, for the customer picker UI
+    if (m === "GET" && p === "/wash/ppf/panels") {
+      return respond(res, 200, { panels: PPF_PANELS, sizeCategories: PPF_SIZE_CATEGORIES });
+    }
+
+    // GET /wash/ppf/car-models?q=search — brand/model search for the car picker
+    if (m === "GET" && p === "/wash/ppf/car-models") {
+      const q = (url.searchParams.get("q") || "").trim();
+      const rows = q
+        ? await db(`SELECT * FROM ppf_car_models WHERE is_active=1 AND (brand ILIKE $1 OR model ILIKE $1 OR (brand || ' ' || model) ILIKE $1) ORDER BY brand, model LIMIT 50`, [`%${q}%`])
+        : await db(`SELECT * FROM ppf_car_models WHERE is_active=1 ORDER BY brand, model`);
+      return respond(res, 200, rows.map(ppfCarModel));
+    }
+
+    // GET /wash/ppf/film-types/:shopId — active films a shop offers, with pricing
+    if (m === "GET" && /^\/wash\/ppf\/film-types\/\d+$/.test(p)) {
+      const shopId = +p.split("/")[4];
+      const rows = await db(`SELECT * FROM ppf_film_types WHERE shop_id=$1 AND is_active=1 ORDER BY display_order`, [shopId]);
+      return respond(res, 200, rows.map(ppfFilmType));
+    }
+
+    // POST /wash/ppf/quote — { carModelId, panels: [...], filmTypeId } -> { sqm, price, panels }
+    if (m === "POST" && p === "/wash/ppf/quote") {
+      const { carModelId, panels, filmTypeId } = await readBody(req);
+      const car = await db1(`SELECT * FROM ppf_car_models WHERE id=$1`, [carModelId]);
+      if (!car) return respond(res, 404, { error: "Car model not found" });
+      const film = await db1(`SELECT * FROM ppf_film_types WHERE id=$1 AND is_active=1`, [filmTypeId]);
+      if (!film) return respond(res, 404, { error: "Film type not found" });
+      const quote = computePPFQuote(car.size_category, panels, film.price_per_sqm);
+      if (!quote) return respond(res, 400, { error: "Unable to compute quote" });
+      return respond(res, 200, { ...quote, filmName: film.name, pricePerSqm: film.price_per_sqm });
+    }
+
+    // POST /wash/ppf/requests — submit a protection quote request (lead), notifies the shop
+    if (m === "POST" && p === "/wash/ppf/requests") {
+      const { shopId, carModelId, carText, panels, filmTypeId, customerName, customerPhone } = await readBody(req);
+      const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
+      if (!s) return respond(res, 404, { error: "Shop not found" });
+      if (!customerName || !customerPhone) return respond(res, 400, { error: "customerName and customerPhone required" });
+      let estimatedSqm = null, estimatedPrice = null, filmName = null;
+      const car = carModelId ? await db1(`SELECT * FROM ppf_car_models WHERE id=$1`, [carModelId]) : null;
+      const film = filmTypeId ? await db1(`SELECT * FROM ppf_film_types WHERE id=$1`, [filmTypeId]) : null;
+      if (car && film) {
+        const quote = computePPFQuote(car.size_category, panels, film.price_per_sqm);
+        if (quote) { estimatedSqm = quote.sqm; estimatedPrice = quote.price; }
+      }
+      if (film) filmName = film.name;
+      const validPanels = Array.isArray(panels) ? panels.filter(k => PPF_PANEL_KEYS.includes(k)) : [];
+      const [reqRow] = await db(
+        `INSERT INTO ppf_requests (shop_id, car_model_id, car_text, panels, film_type_id, film_name, estimated_sqm, estimated_price, customer_name, customer_phone, status, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'new',NOW()) RETURNING *`,
+        [shopId, carModelId || null, carText || (car ? `${car.brand} ${car.model}` : ''), JSON.stringify(validPanels), filmTypeId || null, filmName, estimatedSqm, estimatedPrice, customerName.trim(), customerPhone.trim()]
+      );
+      try {
+        await notifyPartner(shopId, { title: 'New PPF Request!', body: `${customerName.trim()} requested a protection quote${estimatedPrice ? ` (~${estimatedPrice} EGP)` : ''}`, icon: '/icon-192.png' });
+      } catch(e) {}
+      return respond(res, 201, ppfRequest(reqRow));
+    }
+
     // GET /wash/queue/:shopId
     if (m === "GET" && /^\/wash\/queue\/\d+$/.test(p)) {
       const shopId = +p.split("/")[3];
@@ -1890,6 +2157,61 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addonId = +p.split("/").pop();
       await db(`DELETE FROM wash_addons WHERE id=$1 AND shop_id=$2`, [addonId, shopId]);
       return respond(res, 200, { success: true });
+    }
+
+    // ── PPF (Paint Protection Film) — partner-managed ───────────────────────
+
+    // GET /partners/shop/:id/ppf/film-types
+    if (m === "GET" && /\/partners\/shop\/\d+\/ppf\/film-types$/.test(p)) {
+      const rows = await db(`SELECT * FROM ppf_film_types WHERE shop_id=$1 ORDER BY display_order`, [shopId]);
+      return respond(res, 200, rows.map(ppfFilmType));
+    }
+
+    // POST /partners/shop/:id/ppf/film-types
+    if (m === "POST" && /\/partners\/shop\/\d+\/ppf\/film-types$/.test(p)) {
+      const { name, description, pricePerSqm, displayOrder } = await readBody(req);
+      if (!name || pricePerSqm == null) return respond(res, 400, { error: "name and pricePerSqm required" });
+      const [f] = await db(
+        `INSERT INTO ppf_film_types (shop_id,name,description,price_per_sqm,display_order,is_active,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,1,NOW(),NOW()) RETURNING *`,
+        [shopId, name.trim(), description?.trim()||null, pricePerSqm, displayOrder||0]
+      );
+      return respond(res, 201, ppfFilmType(f));
+    }
+
+    // PUT /partners/shop/:id/ppf/film-types/:filmId
+    if (m === "PUT" && /\/partners\/shop\/\d+\/ppf\/film-types\/\d+$/.test(p)) {
+      const filmId = +p.split("/").pop();
+      const body = await readBody(req);
+      const ex = await db1(`SELECT * FROM ppf_film_types WHERE id=$1 AND shop_id=$2`, [filmId, shopId]);
+      if (!ex) return respond(res, 404, { error: "Film type not found" });
+      const [updated] = await db(
+        `UPDATE ppf_film_types SET name=COALESCE($1,name), description=COALESCE($2,description), price_per_sqm=COALESCE($3,price_per_sqm), display_order=COALESCE($4,display_order), is_active=COALESCE($5,is_active), updated_at=NOW() WHERE id=$6 RETURNING *`,
+        [body.name?.trim()||null, body.description?.trim()||null, body.pricePerSqm!=null?body.pricePerSqm:null, body.displayOrder!=null?body.displayOrder:null, body.isActive!=null?(body.isActive?1:0):null, filmId]
+      );
+      return respond(res, 200, ppfFilmType(updated));
+    }
+
+    // DELETE /partners/shop/:id/ppf/film-types/:filmId
+    if (m === "DELETE" && /\/partners\/shop\/\d+\/ppf\/film-types\/\d+$/.test(p)) {
+      const filmId = +p.split("/").pop();
+      await db(`DELETE FROM ppf_film_types WHERE id=$1 AND shop_id=$2`, [filmId, shopId]);
+      return respond(res, 200, { success: true });
+    }
+
+    // GET /partners/shop/:id/ppf/requests — submitted protection quote requests (leads)
+    if (m === "GET" && /\/partners\/shop\/\d+\/ppf\/requests$/.test(p)) {
+      const rows = await db(`SELECT * FROM ppf_requests WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 200`, [shopId]);
+      return respond(res, 200, rows.map(ppfRequest));
+    }
+
+    // PATCH /partners/shop/:id/ppf/requests/:reqId — mark contacted/closed etc.
+    if (m === "PATCH" && /\/partners\/shop\/\d+\/ppf\/requests\/\d+$/.test(p)) {
+      const reqId = +p.split("/").pop();
+      const { status } = await readBody(req);
+      const ex = await db1(`SELECT * FROM ppf_requests WHERE id=$1 AND shop_id=$2`, [reqId, shopId]);
+      if (!ex) return respond(res, 404, { error: "Request not found" });
+      const [updated] = await db(`UPDATE ppf_requests SET status=COALESCE($1,status) WHERE id=$2 RETURNING *`, [status||null, reqId]);
+      return respond(res, 200, ppfRequest(updated));
     }
 
     // GET /partners/shop/:id/settings

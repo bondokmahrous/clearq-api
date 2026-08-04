@@ -529,6 +529,7 @@ a { text-decoration: none; }
       <div class="nav-section-label" data-i18n="settings_label">Settings</div>
       <button class="nav-item" onclick="showView('services',this)"><span class="ni-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span data-i18n="services_prices_nav">Services & Prices</span></button>
       <button class="nav-item" id="nav-addons" style="display:none" onclick="showView('addons',this)"><span class="ni-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2.59 12.58V2h10.58l8.42 8.42a2 2 0 0 1 0 2.99z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></span><span data-i18n="custom_wash_items_nav">Custom Wash Items</span></button>
+      <button class="nav-item" id="nav-protection" style="display:none" onclick="showView('protection',this)"><span class="ni-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3.5v6c0 5-3.4 9-8 10.5C7.4 20.5 4 16.5 4 11.5v-6L12 2z"/></svg></span><span>Protection Services</span><span class="nav-badge" id="nb-ppf" style="display:none">0</span></button>
       <button class="nav-item" onclick="showView('settings',this)"><span class="ni-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/></svg></span><span data-i18n="shop_settings_nav">Shop Settings</span></button>
       <div class="nav-section-label" data-i18n="links_label">Links</div>
       <button class="nav-item" onclick="window.open('index.html','_blank')"><span class="ni-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span data-i18n="customer_app_arrow">Customer App ↗</span></button>
@@ -678,6 +679,26 @@ a { text-decoration: none; }
         <div style="font-size:12px;color:var(--gray);margin:-8px 0 14px;" data-i18n="custom_wash_hint">Customers can build a Custom Wash from these, or add any of them on top of Exterior/Interior/Full.</div>
         <div class="services-grid" id="addons-grid">
           <div class="loading-state"><div class="spin"></div><span data-i18n="loading_items">Loading items...</span></div>
+        </div>
+      </div>
+
+      <!-- PROTECTION (PPF) VIEW -->
+      <div class="view" id="view-protection">
+        <div class="section-hd">
+          <div class="section-title">Film Types &amp; Pricing</div>
+          <button class="section-action" onclick="addNewPPFFilm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Film</button>
+        </div>
+        <div style="font-size:12px;color:var(--gray);margin:-8px 0 14px;">Customers pick panels to cover — price is panel area × your price per square metre for the film they choose.</div>
+        <div class="services-grid" id="ppf-films-grid">
+          <div class="loading-state"><div class="spin"></div><span>Loading film types...</span></div>
+        </div>
+
+        <div class="section-hd" style="margin-top:32px;">
+          <div class="section-title">Quote Requests</div>
+        </div>
+        <div style="font-size:12px;color:var(--gray);margin:-8px 0 14px;">Customers who requested a protection quote from your Protection tab.</div>
+        <div id="ppf-requests-list">
+          <div class="loading-state"><div class="spin"></div><span>Loading requests...</span></div>
         </div>
       </div>
 
@@ -875,6 +896,8 @@ let currentShopId = partnerShop?.id || null;
 let currentBookings = [];
 let currentServices = [];
 let currentAddons = [];
+let currentPPFFilms = [];
+let currentPPFRequests = [];
 let queueFilter = 'all';
 let selectedWashType = null;
 let pollInterval = null;
@@ -1082,6 +1105,8 @@ async function showDashboard() {
 function toggleAddonsNav() {
   const nav = document.getElementById('nav-addons');
   if (nav) nav.style.display = currentShopId === 6 ? '' : 'none';
+  const ppfNav = document.getElementById('nav-protection');
+  if (ppfNav) ppfNav.style.display = currentShopId === 12 ? '' : 'none';
 }
 
 function onShopChange() {
@@ -1095,7 +1120,7 @@ function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   // Skip views with editable forms — re-rendering mid-edit would wipe out unsaved typing and steal focus
   pollInterval = setInterval(() => {
-    if (currentViewName !== 'services' && currentViewName !== 'addons' && currentViewName !== 'settings') loadCurrentView();
+    if (currentViewName !== 'services' && currentViewName !== 'addons' && currentViewName !== 'settings' && currentViewName !== 'protection') loadCurrentView();
   }, 5000);
 }
 
@@ -1106,6 +1131,7 @@ function loadCurrentView() {
   else if (currentViewName==='summary') loadSummary();
   else if (currentViewName==='services') loadServices();
   else if (currentViewName==='addons') loadAddons();
+  else if (currentViewName==='protection') loadProtection();
   else if (currentViewName==='settings') loadSettings();
   else if (currentViewName==='customers') loadManagerCustomers();
 }
@@ -1252,7 +1278,7 @@ function showView(name, btn) {
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   const titleKeys = {queue:'live_queue',bays:'bay_status',summary:'todays_summary',services:'services_prices_nav',addons:'custom_wash_items_nav',settings:'shop_settings_nav',customers:'customers_nav'};
-  document.getElementById('topbar-title').textContent = titleKeys[name] ? CQI18N.t(titleKeys[name]) : '';
+  document.getElementById('topbar-title').textContent = name === 'protection' ? 'Protection Services' : (titleKeys[name] ? CQI18N.t(titleKeys[name]) : '');
   loadCurrentView();
   closeSidebar();
 }
@@ -1817,6 +1843,149 @@ async function deleteAddon(i, btn) {
     renderAddons();
   } catch(e) { toast(e.message,'error',ICONS.xCircle); }
   finally { unspin(btn); btn.textContent='Delete'; }
+}
+
+// ─── PROTECTION (PPF) ───────────────────────────────────────────
+async function loadProtection() {
+  if (!currentShopId) return;
+  try {
+    const [films, requests] = await Promise.all([
+      api('/api/partners/shop/'+currentShopId+'/ppf/film-types'),
+      api('/api/partners/shop/'+currentShopId+'/ppf/requests'),
+    ]);
+    currentPPFFilms = films;
+    currentPPFRequests = requests;
+    renderPPFFilms();
+    renderPPFRequests();
+    const newCount = requests.filter(r => r.status === 'new').length;
+    const badge = document.getElementById('nb-ppf');
+    if (badge) { badge.style.display = newCount ? '' : 'none'; badge.textContent = newCount; }
+  } catch(e) {}
+}
+
+function renderPPFFilms() {
+  const grid = document.getElementById('ppf-films-grid');
+  grid.innerHTML = currentPPFFilms.map((f,i)=>`
+    <div class="service-card" id="ppf-film-card-${f.id||'new'+i}">
+      <div class="svc-card-hd">
+        <div>
+          <div class="svc-card-name">${f.name||'New Film'}</div>
+          <div style="font-size:11px;color:var(--gray);margin-top:3px">${f.description||''}</div>
+        </div>
+        <div class="svc-card-price">${f.pricePerSqm||0} EGP/m²</div>
+      </div>
+      <label class="svc-label">Film name</label>
+      <input class="svc-input" value="${f.name||''}" placeholder="e.g. XPEL Ultimate Plus" oninput="updatePPFFilm(${i},'name',this.value)" style="margin-bottom:10px">
+      <label class="svc-label">Description</label>
+      <input class="svc-input" value="${f.description||''}" placeholder="e.g. Self-healing gloss finish" oninput="updatePPFFilm(${i},'description',this.value)" style="margin-bottom:10px">
+      <label class="svc-label">Price per square metre (EGP)</label>
+      <input class="svc-input" type="number" value="${f.pricePerSqm||0}" oninput="updatePPFFilm(${i},'pricePerSqm',Number(this.value))">
+      <div class="svc-card-actions">
+        <button class="svc-save-btn" onclick="savePPFFilm(${i},this)">Save Changes</button>
+        <button class="svc-del-btn" onclick="deletePPFFilm(${i},this)">Delete</button>
+      </div>
+    </div>`).join('') +
+    `<div class="add-svc-card" onclick="addNewPPFFilm()">
+      <div style="display:flex;justify-content:center"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      <div style="font-size:13px;font-weight:600">Add Film Type</div>
+    </div>`;
+  if (!currentPPFFilms.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:var(--gray);padding:14px;">No film types yet — add your first one.</div>` + grid.innerHTML;
+  }
+}
+
+function updatePPFFilm(i, field, val) {
+  currentPPFFilms[i][field] = val;
+  const f = currentPPFFilms[i];
+  const card = document.getElementById('ppf-film-card-'+(f.id||'new'+i));
+  if (card) {
+    const nameEl = card.querySelector('.svc-card-name');
+    const priceEl = card.querySelector('.svc-card-price');
+    if (nameEl && field==='name') nameEl.textContent = val||'New Film';
+    if (priceEl && field==='pricePerSqm') priceEl.textContent = val+' EGP/m²';
+  }
+}
+
+function addNewPPFFilm() {
+  currentPPFFilms.push({name:'',description:'',pricePerSqm:0,displayOrder:currentPPFFilms.length,isActive:1,isNew:true});
+  renderPPFFilms();
+  setTimeout(()=>{ const cards=document.querySelectorAll('#ppf-films-grid .service-card'); if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth'}); },100);
+}
+
+async function savePPFFilm(i, btn) {
+  const f = currentPPFFilms[i];
+  if (!f.name.trim()) { toast('Film name is required','error',ICONS.xCircle); return; }
+  spin(btn);
+  try {
+    if (f.isNew) {
+      const created = await api('/api/partners/shop/'+currentShopId+'/ppf/film-types',{
+        method:'POST', body:JSON.stringify({name:f.name,description:f.description,pricePerSqm:Number(f.pricePerSqm),displayOrder:f.displayOrder})
+      });
+      currentPPFFilms[i] = created;
+    } else {
+      const updated = await api('/api/partners/shop/'+currentShopId+'/ppf/film-types/'+f.id,{
+        method:'PUT', body:JSON.stringify({name:f.name,description:f.description,pricePerSqm:Number(f.pricePerSqm),displayOrder:f.displayOrder,isActive:f.isActive??1})
+      });
+      currentPPFFilms[i] = updated;
+    }
+    toast('Film saved','success',ICONS.save);
+    renderPPFFilms();
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
+  finally { unspin(btn); btn.textContent='Save Changes'; }
+}
+
+async function deletePPFFilm(i, btn) {
+  const f = currentPPFFilms[i];
+  if (!confirm('Delete "'+f.name+'"? This cannot be undone.')) return;
+  spin(btn);
+  try {
+    if (!f.isNew) {
+      await api('/api/partners/shop/'+currentShopId+'/ppf/film-types/'+f.id,{method:'DELETE'});
+    }
+    currentPPFFilms.splice(i,1);
+    toast('Film deleted','success',ICONS.check);
+    renderPPFFilms();
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
+  finally { unspin(btn); btn.textContent='Delete'; }
+}
+
+function renderPPFRequests() {
+  const box = document.getElementById('ppf-requests-list');
+  if (!currentPPFRequests.length) {
+    box.innerHTML = `<div style="font-size:12px;color:var(--gray);padding:14px;">No quote requests yet.</div>`;
+    return;
+  }
+  box.innerHTML = currentPPFRequests.map(r => `
+    <div style="background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--white,#fff);">${r.customerName} <span style="font-weight:400;color:var(--gray);">· ${r.customerPhone}</span></div>
+          <div style="font-size:12px;color:var(--gray);margin-top:3px;">${r.carText || 'Car not specified'} · ${(r.panels||[]).length} panels · ${r.filmName||'—'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:16px;font-weight:800;color:#3FBDB0;">${r.estimatedPrice ? r.estimatedPrice.toLocaleString()+' EGP' : '—'}</div>
+          <div style="font-size:11px;color:var(--gray);">${new Date(r.createdAt).toLocaleDateString()}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+        <select onchange="setPPFRequestStatus(${r.id},this.value)" style="background:var(--bg,#0f172a);border:1px solid var(--border,#334155);border-radius:7px;padding:6px 9px;font-size:12px;color:var(--white,#fff);">
+          <option value="new" ${r.status==='new'?'selected':''}>New</option>
+          <option value="contacted" ${r.status==='contacted'?'selected':''}>Contacted</option>
+          <option value="closed" ${r.status==='closed'?'selected':''}>Closed</option>
+        </select>
+      </div>
+    </div>`).join('');
+}
+
+async function setPPFRequestStatus(id, status) {
+  try {
+    await api('/api/partners/shop/'+currentShopId+'/ppf/requests/'+id,{method:'PATCH', body:JSON.stringify({status})});
+    const r = currentPPFRequests.find(x=>x.id===id);
+    if (r) r.status = status;
+    const newCount = currentPPFRequests.filter(r => r.status === 'new').length;
+    const badge = document.getElementById('nb-ppf');
+    if (badge) { badge.style.display = newCount ? '' : 'none'; badge.textContent = newCount; }
+  } catch(e) { toast(e.message,'error',ICONS.xCircle); }
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────
