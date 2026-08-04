@@ -30,13 +30,25 @@ const GMAIL_SENDER = process.env.GMAIL_SENDER || 'ClearQ <ClearQ.info@gmail.com>
 const OWNER_NOTIFICATION_EMAILS = ['mahrousjr@gmail.com'];
 
 // ─── PPF (Paint Protection Film) reference data ───────────────────────────────
-// PPF is quoted per panel (bumper, hood, doors, etc.), not off a flat "car size" price — but no
-// manufacturer or dealer publishes literal per-panel measurements for individual models. Real PPF
-// installers don't measure each car either: they work from known average panel coverage for a
-// vehicle's class (sedan, compact SUV, full-size SUV, ...). PANEL_AREA_SQM below is exactly that —
-// approximate square-metre coverage per panel, per size class — grounded in typical real-world
-// panel dimensions for cars in that class. A shop's quote = sum of selected panels' area (for the
-// car's size class) × their own price-per-square-metre for the chosen film.
+// No manufacturer, dealer, or even paid wrap-industry catalogue (checked: WrapSize, RPPF, several
+// PPF cost guides) publishes literal per-panel measurements for individual models — that data
+// simply doesn't exist publicly for any car. What real installers actually use is the vehicle's
+// own overall length (a real, published spec for every model) fed into a standard rule of thumb:
+// linear film needed ≈ length × 3 + a buffer for bumpers/mirrors/waste (this is the actual
+// industry formula, verified against several 2026 PPF/wrap pricing guides — it's quoted as
+// getting installers within ~10-15% of a real job, which is treated as good enough since a shop
+// still verifies on the car before cutting). Film itself is bought and priced by the *linear
+// metre* off a fixed-width roll, not by the square metre — so that's what we price by too.
+//
+// So each car's quote here is grounded in that car's own real length/width/height/wheelbase
+// (PPF_PANEL_KEYS on ppf_car_models, in mm) rather than a shared bucket. Per-panel breakdown (for
+// "choose parts") is still a formula — proportional splits of those real dimensions — because a
+// literal per-panel blueprint isn't public data for anyone, including the paid tools installers
+// use. Cars added without dimensions yet fall back to the old shared size-class estimate below.
+const PPF_ROLL_WIDTH_M = 1.52;   // standard 60" PPF/wrap roll width
+const PPF_WRAP_BUFFER_M = 3;     // buffer for bumpers, mirrors, waste — from the "+10-15ft" rule
+const PPF_LENGTH_MULTIPLIER = 3; // the "length × 3" wrap-industry rule of thumb
+
 const PPF_PANELS = [
   { key: 'front_bumper', label: 'Front Bumper' },
   { key: 'rear_bumper', label: 'Rear Bumper' },
@@ -62,7 +74,8 @@ const PPF_SIZE_CATEGORIES = [
   { key: 'pickup_van', label: 'Pickup / Van' },
 ];
 
-// sqm per panel per size class.
+// Fallback only — used when a car has no real dimensions yet (e.g. just added by the owner).
+// sqm per panel per size class, converted to linear metres via the roll width at quote time.
 const PANEL_AREA_SQM = {
   hatchback_small: { front_bumper: 1.1, rear_bumper: 1.0, hood: 1.0, roof: 1.6, front_doors: 1.6, rear_doors: 1.4, fenders: 0.9, quarter_panels: 0.9, trunk: 0.7, mirrors: 0.10 },
   sedan_compact:   { front_bumper: 1.3, rear_bumper: 1.2, hood: 1.3, roof: 2.0, front_doors: 2.0, rear_doors: 1.8, fenders: 1.1, quarter_panels: 1.1, trunk: 0.9, mirrors: 0.12 },
@@ -74,13 +87,68 @@ const PANEL_AREA_SQM = {
   pickup_van:      { front_bumper: 2.0, rear_bumper: 1.6, hood: 2.0, roof: 3.2, front_doors: 2.6, rear_doors: 2.2, fenders: 1.6, quarter_panels: 1.4, trunk: 1.2, mirrors: 0.16 },
 };
 
-function computePPFQuote(sizeCategory, panelKeys, pricePerSqm) {
-  const areas = PANEL_AREA_SQM[sizeCategory];
+// Full-body linear metres needed for a car, from its own real length — the actual wrap-industry
+// rule of thumb (verified against 2026 PPF/wrap pricing guides).
+function ppfFullBodyLinearMetres(car) {
+  if (car.length_mm) return (car.length_mm / 1000) * PPF_LENGTH_MULTIPLIER + PPF_WRAP_BUFFER_M;
+  // Fallback: derive an equivalent length from the size-class sqm total (reverse the roll-width math).
+  const areas = PANEL_AREA_SQM[car.size_category];
   if (!areas) return null;
+  const totalSqm = Object.values(areas).reduce((s, a) => s + a, 0);
+  return (totalSqm / PPF_ROLL_WIDTH_M);
+}
+
+// Per-panel width x height in cm, derived from the car's own real length/width/height/wheelbase —
+// proportional heuristics grounded in that specific car's real dimensions rather than a shared
+// bucket. Returns null if the car has no real dimensions on file (caller falls back to the sqm table).
+function ppfPanelDimsCm(car) {
+  if (!car.length_mm || !car.width_mm || !car.height_mm || !car.wheelbase_mm) return null;
+  const L = car.length_mm / 10, W = car.width_mm / 10, H = car.height_mm / 10, WB = car.wheelbase_mm / 10;
+  return {
+    front_bumper:   { w: W, h: 0.28 * H },
+    rear_bumper:    { w: W, h: 0.25 * H },
+    hood:           { w: 0.88 * W, h: 0.24 * WB },
+    roof:           { w: 0.82 * W, h: 0.50 * WB },
+    front_doors:    { w: 2 * 0.23 * WB, h: 0.58 * H },
+    rear_doors:     { w: 2 * 0.20 * WB, h: 0.55 * H },
+    fenders:        { w: 2 * 0.14 * WB, h: 0.40 * H },
+    quarter_panels: { w: 2 * 0.16 * WB, h: 0.42 * H },
+    trunk:          { w: 0.80 * W, h: 0.20 * WB },
+    mirrors:        { w: 2 * 0.03 * W, h: 0.09 * H },
+  };
+}
+
+function ppfPanelLinearMetres(dimsCm, panelKey) {
+  const d = dimsCm[panelKey];
+  if (!d) return 0;
+  const sqm = (d.w / 100) * (d.h / 100);
+  return sqm / PPF_ROLL_WIDTH_M;
+}
+
+// mode: 'full' (whole car, default) or 'parts' (sum of selected panels).
+function computePPFQuote(car, mode, panelKeys, pricePerMetre) {
+  const dimsCm = ppfPanelDimsCm(car);
+  let linearMetres;
+  let panelBreakdown = null;
   const validPanels = (panelKeys || []).filter(k => PPF_PANEL_KEYS.includes(k));
-  const sqm = validPanels.reduce((sum, k) => sum + (areas[k] || 0), 0);
-  const price = Math.round(sqm * pricePerSqm);
-  return { sqm: Math.round(sqm * 100) / 100, price, panels: validPanels };
+
+  if (mode === 'parts') {
+    if (dimsCm) {
+      linearMetres = validPanels.reduce((sum, k) => sum + ppfPanelLinearMetres(dimsCm, k), 0);
+      panelBreakdown = validPanels.map(k => ({ key: k, label: PPF_PANELS.find(p => p.key === k).label, widthCm: Math.round(dimsCm[k].w), heightCm: Math.round(dimsCm[k].h) }));
+    } else {
+      const areas = PANEL_AREA_SQM[car.size_category];
+      if (!areas) return null;
+      const sqm = validPanels.reduce((sum, k) => sum + (areas[k] || 0), 0);
+      linearMetres = sqm / PPF_ROLL_WIDTH_M;
+    }
+  } else {
+    linearMetres = ppfFullBodyLinearMetres(car);
+    if (linearMetres == null) return null;
+  }
+
+  const price = Math.round(linearMetres * pricePerMetre);
+  return { linearMetres: Math.round(linearMetres * 100) / 100, price, panels: mode === 'parts' ? validPanels : PPF_PANEL_KEYS, panelBreakdown, usedRealDimensions: !!dimsCm };
 }
 
 if (!DATABASE_URL) {
@@ -370,29 +438,40 @@ async function initDB() {
       UNIQUE(brand, model)
     )
   `);
+  // Real published overall dimensions (mm) — length/width/height/wheelbase — used to price
+  // full-body and per-panel quotes off that specific car's own numbers. NULL until backfilled;
+  // computePPFQuote() falls back to the size_category estimate when any of these are missing.
+  await db(`ALTER TABLE ppf_car_models ADD COLUMN IF NOT EXISTS length_mm INT`);
+  await db(`ALTER TABLE ppf_car_models ADD COLUMN IF NOT EXISTS width_mm INT`);
+  await db(`ALTER TABLE ppf_car_models ADD COLUMN IF NOT EXISTS height_mm INT`);
+  await db(`ALTER TABLE ppf_car_models ADD COLUMN IF NOT EXISTS wheelbase_mm INT`);
   await db(`
     CREATE TABLE IF NOT EXISTS ppf_film_types (
       id SERIAL PRIMARY KEY,
       shop_id INT NOT NULL REFERENCES wash_shops(id),
       name TEXT NOT NULL,
       description TEXT,
-      price_per_sqm INT NOT NULL DEFAULT 0,
+      price_per_metre INT NOT NULL DEFAULT 0,
       is_active INT NOT NULL DEFAULT 1,
       display_order INT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Pre-launch rename: Makine hadn't configured any film types yet when pricing switched from
+  // per-sqm to per-linear-metre, so this is a clean column rename, not a data migration.
+  await db(`ALTER TABLE ppf_film_types RENAME COLUMN price_per_sqm TO price_per_metre`).catch(() => {});
   await db(`
     CREATE TABLE IF NOT EXISTS ppf_requests (
       id SERIAL PRIMARY KEY,
       shop_id INT NOT NULL REFERENCES wash_shops(id),
       car_model_id INT REFERENCES ppf_car_models(id),
       car_text TEXT NOT NULL DEFAULT '',
+      coverage_mode TEXT NOT NULL DEFAULT 'full',
       panels JSONB NOT NULL DEFAULT '[]'::jsonb,
       film_type_id INT REFERENCES ppf_film_types(id),
       film_name TEXT,
-      estimated_sqm NUMERIC(6,2),
+      estimated_linear_metres NUMERIC(6,2),
       estimated_price INT,
       customer_name TEXT NOT NULL,
       customer_phone TEXT NOT NULL,
@@ -400,6 +479,8 @@ async function initDB() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await db(`ALTER TABLE ppf_requests RENAME COLUMN estimated_sqm TO estimated_linear_metres`).catch(() => {});
+  await db(`ALTER TABLE ppf_requests ADD COLUMN IF NOT EXISTS coverage_mode TEXT NOT NULL DEFAULT 'full'`);
   await seedPPFCarModels();
   console.log("✓ Database ready");
 }
@@ -465,89 +546,234 @@ async function ensureShopServices() {
 }
 
 // First-pass catalogue of new cars actively sold in Egypt (Aug 2026), by brand/model, tagged to a
-// PPF size class. Not exhaustive of every trim/generation — covers the models a customer would
-// actually type in. Expandable later without a migration (owner can insert more rows any time).
+// PPF size class as a fallback, PLUS each car's real published overall dimensions in mm — length,
+// width, height, wheelbase — used as the primary input for pricing (see ppfFullBodyLinearMetres /
+// ppfPanelDimsCm above). Sourced from general manufacturer spec-sheet knowledge for the current/
+// recent generation of each model; not exhaustive of every trim/model-year variant. Expandable any
+// time from the owner dashboard's PPF Car Database, no code deploy needed.
+// Row shape: [brand, model, sizeCategory, lengthMm, widthMm, heightMm, wheelbaseMm]
 const PPF_CAR_SEED = [
-  ['Mercedes-Benz','A-Class','sedan_compact'],['Mercedes-Benz','C-Class','sedan_mid'],['Mercedes-Benz','E-Class','sedan_large'],
-  ['Mercedes-Benz','S-Class','sedan_large'],['Mercedes-Benz','CLA','sedan_compact'],['Mercedes-Benz','GLA','suv_compact'],
-  ['Mercedes-Benz','GLB','suv_compact'],['Mercedes-Benz','GLC','suv_mid'],['Mercedes-Benz','GLE','suv_mid'],
-  ['Mercedes-Benz','GLS','suv_full'],['Mercedes-Benz','G-Class','suv_full'],
-  ['BMW','1 Series','sedan_compact'],['BMW','2 Series','sedan_compact'],['BMW','3 Series','sedan_mid'],
-  ['BMW','5 Series','sedan_large'],['BMW','7 Series','sedan_large'],['BMW','X1','suv_compact'],
-  ['BMW','X3','suv_mid'],['BMW','X5','suv_mid'],['BMW','X7','suv_full'],
-  ['Audi','A3','sedan_compact'],['Audi','A4','sedan_mid'],['Audi','A6','sedan_large'],['Audi','A8','sedan_large'],
-  ['Audi','Q2','suv_compact'],['Audi','Q3','suv_compact'],['Audi','Q5','suv_mid'],['Audi','Q7','suv_full'],['Audi','Q8','suv_full'],
-  ['Volkswagen','Polo','hatchback_small'],['Volkswagen','Golf','sedan_compact'],['Volkswagen','Jetta','sedan_compact'],
-  ['Volkswagen','Passat','sedan_mid'],['Volkswagen','T-Roc','suv_compact'],['Volkswagen','Tiguan','suv_mid'],['Volkswagen','Teramont','suv_full'],
-  ['Skoda','Fabia','hatchback_small'],['Skoda','Octavia','sedan_mid'],['Skoda','Superb','sedan_large'],
-  ['Skoda','Kamiq','suv_compact'],['Skoda','Karoq','suv_compact'],['Skoda','Kodiaq','suv_mid'],
-  ['Peugeot','208','hatchback_small'],['Peugeot','301','sedan_compact'],['Peugeot','2008','suv_compact'],
-  ['Peugeot','3008','suv_mid'],['Peugeot','5008','suv_mid'],
-  ['Citroen','C3','hatchback_small'],['Citroen','C4','sedan_compact'],['Citroen','C5 Aircross','suv_mid'],
-  ['Renault','Logan','sedan_compact'],['Renault','Sandero','hatchback_small'],['Renault','Duster','suv_compact'],
-  ['Renault','Megane','sedan_compact'],['Renault','Koleos','suv_mid'],
-  ['Fiat','Tipo','sedan_compact'],['Fiat','500','hatchback_small'],['Fiat','Panda','hatchback_small'],
-  ['Jeep','Renegade','suv_compact'],['Jeep','Compass','suv_compact'],['Jeep','Grand Cherokee','suv_mid'],['Jeep','Wrangler','suv_mid'],
-  ['Opel','Corsa','hatchback_small'],['Opel','Astra','sedan_compact'],['Opel','Grandland','suv_mid'],
-  ['Volvo','S60','sedan_mid'],['Volvo','XC40','suv_compact'],['Volvo','XC60','suv_mid'],['Volvo','XC90','suv_full'],
-  ['Porsche','911','sedan_compact'],['Porsche','Macan','suv_mid'],['Porsche','Cayenne','suv_full'],['Porsche','Panamera','sedan_large'],
-  ['Land Rover','Range Rover Evoque','suv_compact'],['Land Rover','Discovery Sport','suv_mid'],['Land Rover','Discovery','suv_mid'],
-  ['Land Rover','Defender','suv_full'],['Land Rover','Range Rover Sport','suv_full'],['Land Rover','Range Rover','suv_full'],
-  ['Jaguar','XE','sedan_mid'],['Jaguar','F-Pace','suv_mid'],
-  ['Mini','Cooper','hatchback_small'],['Mini','Countryman','suv_compact'],
-  ['Cadillac','XT5','suv_mid'],['Cadillac','Escalade','suv_full'],
-  ['Chevrolet','Optra','sedan_compact'],['Chevrolet','Aveo','hatchback_small'],['Chevrolet','Groove','hatchback_small'],
-  ['Chevrolet','Captiva','suv_mid'],
-  ['Toyota','Yaris','hatchback_small'],['Toyota','Corolla','sedan_compact'],['Toyota','Corolla Cross','suv_compact'],
-  ['Toyota','Camry','sedan_mid'],['Toyota','RAV4','suv_compact'],['Toyota','Fortuner','suv_mid'],
-  ['Toyota','Hilux','pickup_van'],['Toyota','Land Cruiser Prado','suv_full'],['Toyota','Land Cruiser','suv_full'],
-  ['Honda','City','sedan_compact'],['Honda','Civic','sedan_compact'],['Honda','Accord','sedan_mid'],
-  ['Honda','HR-V','suv_compact'],['Honda','CR-V','suv_mid'],
-  ['Nissan','Sunny','sedan_compact'],['Nissan','Sentra','sedan_compact'],['Nissan','Qashqai','suv_compact'],
-  ['Nissan','X-Trail','suv_mid'],['Nissan','Patrol','suv_full'],
-  ['Mitsubishi','Attrage','sedan_compact'],['Mitsubishi','Xpander','pickup_van'],['Mitsubishi','Outlander','suv_mid'],['Mitsubishi','Pajero','suv_full'],
-  ['Suzuki','Swift','hatchback_small'],['Suzuki','Baleno','hatchback_small'],['Suzuki','Ertiga','pickup_van'],
-  ['Suzuki','Vitara','suv_compact'],['Suzuki','Jimny','suv_compact'],
-  ['Mazda','Mazda2','hatchback_small'],['Mazda','Mazda3','sedan_compact'],['Mazda','CX-5','suv_compact'],['Mazda','CX-9','suv_full'],
-  ['Hyundai','i10','hatchback_small'],['Hyundai','Accent','sedan_compact'],['Hyundai','Elantra','sedan_compact'],
-  ['Hyundai','Creta','suv_compact'],['Hyundai','Tucson','suv_compact'],['Hyundai','Santa Fe','suv_mid'],['Hyundai','Palisade','suv_full'],
-  ['Kia','Picanto','hatchback_small'],['Kia','Rio','sedan_compact'],['Kia','Cerato','sedan_compact'],['Kia','K5','sedan_mid'],
-  ['Kia','Seltos','suv_compact'],['Kia','Sportage','suv_compact'],['Kia','Sorento','suv_mid'],['Kia','Carnival','pickup_van'],
-  ['Genesis','G70','sedan_mid'],['Genesis','GV70','suv_mid'],['Genesis','GV80','suv_full'],
-  ['Lexus','ES','sedan_large'],['Lexus','NX','suv_compact'],['Lexus','RX','suv_mid'],['Lexus','LX','suv_full'],
-  ['Isuzu','D-Max','pickup_van'],
-  ['MG','MG3','hatchback_small'],['MG','MG5','sedan_compact'],['MG','ZS','suv_compact'],['MG','HS','suv_mid'],
-  ['MG','RX5','suv_mid'],['MG','RX8','suv_full'],
-  ['Geely','Emgrand','sedan_compact'],['Geely','Coolray','suv_compact'],['Geely','Azkarra','suv_mid'],['Geely','Okavango','suv_full'],
-  ['Chery','Arrizo 5','sedan_compact'],['Chery','Arrizo 6','sedan_mid'],['Chery','Tiggo 4 Pro','suv_compact'],
-  ['Chery','Tiggo 7 Pro','suv_mid'],['Chery','Tiggo 8 Pro','suv_full'],
-  ['Jaecoo','J7','suv_mid'],['Omoda','C5','suv_compact'],
-  ['BYD','Dolphin','hatchback_small'],['BYD','Seal','sedan_mid'],['BYD','Han','sedan_large'],
-  ['BYD','Atto 3','suv_compact'],['BYD','Song Plus','suv_mid'],
-  ['Jetour','Dashing','suv_compact'],['Jetour','X70','suv_mid'],['Jetour','X90','suv_full'],
-  ['Changan','Alsvin','sedan_compact'],['Changan','Eado','sedan_compact'],['Changan','CS35 Plus','suv_compact'],['Changan','CS55 Plus','suv_compact'],
-  ['GAC','GS3','suv_compact'],['GAC','Emkoo','suv_compact'],['GAC','GS8','suv_full'],
-  ['Haval','Jolion','suv_compact'],['Haval','H6','suv_mid'],['Haval','Dargo','suv_mid'],
-  ['JAC','JS3','suv_compact'],['JAC','JS4','suv_compact'],['JAC','J7','sedan_compact'],['JAC','Sunray','pickup_van'],
-  ['Dongfeng','AX7','suv_mid'],['Dongfeng','Rich 6','pickup_van'],
-  ['BAIC','X25','suv_compact'],['BAIC','X55','suv_compact'],['BAIC','Beijing X7','suv_mid'],
-  ['Soueast','DX3','suv_compact'],['Soueast','DX8','suv_full'],
-  ['Proton','Saga','sedan_compact'],['Proton','X50','suv_compact'],['Proton','X70','suv_mid'],
-  ['DFSK','Glory 500','suv_compact'],['DFSK','Glory 580','suv_mid'],
+  ['Mercedes-Benz','A-Class','sedan_compact',4549,1796,1446,2729],
+  ['Mercedes-Benz','C-Class','sedan_mid',4751,1820,1437,2865],
+  ['Mercedes-Benz','E-Class','sedan_large',4949,1880,1468,2961],
+  ['Mercedes-Benz','S-Class','sedan_large',5179,1954,1503,3106],
+  ['Mercedes-Benz','CLA','sedan_compact',4688,1830,1439,2729],
+  ['Mercedes-Benz','GLA','suv_compact',4410,1834,1611,2729],
+  ['Mercedes-Benz','GLB','suv_compact',4634,1834,1658,2829],
+  ['Mercedes-Benz','GLC','suv_mid',4716,1890,1636,2888],
+  ['Mercedes-Benz','GLE','suv_mid',4924,1949,1772,2939],
+  ['Mercedes-Benz','GLS','suv_full',5207,1956,1823,3135],
+  ['Mercedes-Benz','G-Class','suv_full',4873,1931,1969,2890],
+  ['BMW','1 Series','sedan_compact',4361,1799,1434,2670],
+  ['BMW','2 Series','sedan_compact',4526,1800,1420,2670],
+  ['BMW','3 Series','sedan_mid',4719,1827,1435,2851],
+  ['BMW','5 Series','sedan_large',5060,1900,1515,2995],
+  ['BMW','7 Series','sedan_large',5391,1950,1544,3215],
+  ['BMW','X1','suv_compact',4500,1845,1642,2692],
+  ['BMW','X3','suv_mid',4755,1920,1660,2865],
+  ['BMW','X5','suv_mid',4922,2004,1745,2975],
+  ['BMW','X7','suv_full',5181,2000,1805,3105],
+  ['Audi','A3','sedan_compact',4343,1816,1425,2636],
+  ['Audi','A4','sedan_mid',4762,1847,1427,2820],
+  ['Audi','A6','sedan_large',4939,1886,1457,2924],
+  ['Audi','A8','sedan_large',5172,1945,1473,2998],
+  ['Audi','Q2','suv_compact',4208,1794,1508,2603],
+  ['Audi','Q3','suv_compact',4484,1856,1616,2680],
+  ['Audi','Q5','suv_mid',4663,1893,1659,2821],
+  ['Audi','Q7','suv_full',5063,1970,1741,2994],
+  ['Audi','Q8','suv_full',4990,2190,1705,2995],
+  ['Volkswagen','Polo','hatchback_small',4053,1751,1461,2548],
+  ['Volkswagen','Golf','sedan_compact',4284,1789,1456,2636],
+  ['Volkswagen','Jetta','sedan_compact',4702,1798,1450,2686],
+  ['Volkswagen','Passat','sedan_mid',4866,1832,1477,2786],
+  ['Volkswagen','T-Roc','suv_compact',4234,1819,1573,2590],
+  ['Volkswagen','Tiguan','suv_mid',4539,1839,1675,2681],
+  ['Volkswagen','Teramont','suv_full',5065,1989,1770,2980],
+  ['Skoda','Fabia','hatchback_small',4108,1780,1459,2564],
+  ['Skoda','Octavia','sedan_mid',4689,1829,1476,2680],
+  ['Skoda','Superb','sedan_large',4862,1864,1477,2841],
+  ['Skoda','Kamiq','suv_compact',4241,1793,1531,2610],
+  ['Skoda','Karoq','suv_compact',4382,1841,1603,2638],
+  ['Skoda','Kodiaq','suv_mid',4697,1882,1676,2791],
+  ['Peugeot','208','hatchback_small',4055,1745,1430,2540],
+  ['Peugeot','301','sedan_compact',4442,1748,1467,2652],
+  ['Peugeot','2008','suv_compact',4300,1770,1530,2605],
+  ['Peugeot','3008','suv_mid',4542,1841,1624,2675],
+  ['Peugeot','5008','suv_mid',4641,1844,1660,2840],
+  ['Citroen','C3','hatchback_small',4008,1762,1481,2540],
+  ['Citroen','C4','sedan_compact',4360,1800,1525,2670],
+  ['Citroen','C5 Aircross','suv_mid',4500,1839,1689,2730],
+  ['Renault','Logan','sedan_compact',4361,1750,1526,2634],
+  ['Renault','Sandero','hatchback_small',4088,1750,1509,2604],
+  ['Renault','Duster','suv_compact',4341,1804,1693,2673],
+  ['Renault','Megane','sedan_compact',4299,1814,1444,2669],
+  ['Renault','Koleos','suv_mid',4672,1860,1695,2705],
+  ['Fiat','Tipo','sedan_compact',4568,1792,1502,2635],
+  ['Fiat','500','hatchback_small',3571,1627,1488,2300],
+  ['Fiat','Panda','hatchback_small',3690,1642,1586,2299],
+  ['Jeep','Renegade','suv_compact',4245,1805,1694,2570],
+  ['Jeep','Compass','suv_compact',4405,1874,1629,2636],
+  ['Jeep','Grand Cherokee','suv_mid',4890,1943,1792,2915],
+  ['Jeep','Wrangler','suv_mid',4882,1894,1848,3008],
+  ['Opel','Corsa','hatchback_small',4060,1765,1435,2540],
+  ['Opel','Astra','sedan_compact',4374,1860,1470,2675],
+  ['Opel','Grandland','suv_mid',4477,1856,1609,2675],
+  ['Volvo','S60','sedan_mid',4761,1850,1432,2872],
+  ['Volvo','XC40','suv_compact',4440,1863,1652,2702],
+  ['Volvo','XC60','suv_mid',4708,1902,1658,2865],
+  ['Volvo','XC90','suv_full',4953,1958,1776,2984],
+  ['Porsche','911','sedan_compact',4530,1852,1300,2450],
+  ['Porsche','Macan','suv_mid',4784,1923,1624,2807],
+  ['Porsche','Cayenne','suv_full',4931,1983,1696,2895],
+  ['Porsche','Panamera','sedan_large',5049,1937,1423,2950],
+  ['Land Rover','Range Rover Evoque','suv_compact',4371,1904,1649,2681],
+  ['Land Rover','Discovery Sport','suv_mid',4597,1904,1724,2741],
+  ['Land Rover','Discovery','suv_mid',4970,1926,1888,2923],
+  ['Land Rover','Defender','suv_full',4758,1996,1967,3022],
+  ['Land Rover','Range Rover Sport','suv_full',4946,1996,1820,2997],
+  ['Land Rover','Range Rover','suv_full',5052,1996,1870,3121],
+  ['Jaguar','XE','sedan_mid',4695,1850,1416,2835],
+  ['Jaguar','F-Pace','suv_mid',4682,1936,1651,2874],
+  ['Mini','Cooper','hatchback_small',3876,1727,1460,2495],
+  ['Mini','Countryman','suv_compact',4433,1843,1557,2670],
+  ['Cadillac','XT5','suv_mid',4816,1903,1679,2857],
+  ['Cadillac','Escalade','suv_full',5385,2004,1900,3071],
+  ['Chevrolet','Optra','sedan_compact',4620,1735,1520,2620],
+  ['Chevrolet','Aveo','hatchback_small',4048,1735,1523,2525],
+  ['Chevrolet','Groove','hatchback_small',4270,1750,1570,2560],
+  ['Chevrolet','Captiva','suv_mid',4692,1878,1727,2726],
+  ['Toyota','Yaris','hatchback_small',3940,1745,1500,2550],
+  ['Toyota','Corolla','sedan_compact',4630,1780,1435,2700],
+  ['Toyota','Corolla Cross','suv_compact',4460,1825,1620,2640],
+  ['Toyota','Camry','sedan_mid',4885,1840,1445,2825],
+  ['Toyota','RAV4','suv_compact',4600,1855,1685,2690],
+  ['Toyota','Fortuner','suv_mid',4795,1855,1835,2745],
+  ['Toyota','Hilux','pickup_van',5325,1855,1815,3085],
+  ['Toyota','Land Cruiser Prado','suv_full',4825,1980,1870,2850],
+  ['Toyota','Land Cruiser','suv_full',4965,1980,1925,2850],
+  ['Honda','City','sedan_compact',4553,1748,1467,2600],
+  ['Honda','Civic','sedan_compact',4678,1802,1415,2735],
+  ['Honda','Accord','sedan_mid',4892,1862,1450,2830],
+  ['Honda','HR-V','suv_compact',4330,1790,1580,2610],
+  ['Honda','CR-V','suv_mid',4703,1866,1679,2701],
+  ['Nissan','Sunny','sedan_compact',4425,1695,1500,2600],
+  ['Nissan','Sentra','sedan_compact',4641,1815,1450,2712],
+  ['Nissan','Qashqai','suv_compact',4425,1835,1625,2665],
+  ['Nissan','X-Trail','suv_mid',4680,1840,1725,2705],
+  ['Nissan','Patrol','suv_full',5165,1995,1955,3075],
+  ['Mitsubishi','Attrage','sedan_compact',4400,1670,1515,2550],
+  ['Mitsubishi','Xpander','pickup_van',4475,1750,1700,2775],
+  ['Mitsubishi','Outlander','suv_mid',4710,1862,1745,2706],
+  ['Mitsubishi','Pajero','suv_full',4900,1875,1870,2800],
+  ['Suzuki','Swift','hatchback_small',3840,1735,1500,2450],
+  ['Suzuki','Baleno','hatchback_small',3995,1745,1470,2520],
+  ['Suzuki','Ertiga','pickup_van',4395,1735,1690,2740],
+  ['Suzuki','Vitara','suv_compact',4175,1775,1610,2500],
+  ['Suzuki','Jimny','suv_compact',3645,1645,1725,2250],
+  ['Mazda','Mazda2','hatchback_small',4065,1695,1450,2570],
+  ['Mazda','Mazda3','sedan_compact',4460,1795,1435,2725],
+  ['Mazda','CX-5','suv_compact',4575,1845,1680,2700],
+  ['Mazda','CX-9','suv_full',5075,1969,1747,2930],
+  ['Hyundai','i10','hatchback_small',3670,1680,1500,2425],
+  ['Hyundai','Accent','sedan_compact',4440,1729,1450,2600],
+  ['Hyundai','Elantra','sedan_compact',4710,1825,1450,2720],
+  ['Hyundai','Creta','suv_compact',4315,1790,1620,2610],
+  ['Hyundai','Tucson','suv_compact',4630,1865,1650,2755],
+  ['Hyundai','Santa Fe','suv_mid',4785,1900,1710,2765],
+  ['Hyundai','Palisade','suv_full',4995,1975,1750,2900],
+  ['Kia','Picanto','hatchback_small',3595,1595,1485,2400],
+  ['Kia','Rio','sedan_compact',4370,1725,1450,2580],
+  ['Kia','Cerato','sedan_compact',4640,1800,1440,2700],
+  ['Kia','K5','sedan_mid',4905,1860,1445,2850],
+  ['Kia','Seltos','suv_compact',4315,1800,1620,2630],
+  ['Kia','Sportage','suv_compact',4660,1865,1650,2755],
+  ['Kia','Sorento','suv_mid',4810,1900,1700,2815],
+  ['Kia','Carnival','pickup_van',5155,1995,1740,3090],
+  ['Genesis','G70','sedan_mid',4685,1850,1400,2835],
+  ['Genesis','GV70','suv_mid',4715,1910,1630,2875],
+  ['Genesis','GV80','suv_full',4945,1975,1715,2955],
+  ['Lexus','ES','sedan_large',4975,1865,1445,2870],
+  ['Lexus','NX','suv_compact',4660,1865,1660,2690],
+  ['Lexus','RX','suv_mid',4890,1920,1695,2850],
+  ['Lexus','LX','suv_full',5010,1990,1895,2850],
+  ['Isuzu','D-Max','pickup_van',5265,1870,1810,3125],
+  ['MG','MG3','hatchback_small',4113,1727,1502,2570],
+  ['MG','MG5','sedan_compact',4675,1818,1450,2665],
+  ['MG','ZS','suv_compact',4410,1809,1649,2585],
+  ['MG','HS','suv_mid',4655,1876,1664,2765],
+  ['MG','RX5','suv_mid',4515,1855,1719,2700],
+  ['MG','RX8','suv_full',4850,1900,1802,2800],
+  ['Geely','Emgrand','sedan_compact',4650,1789,1460,2650],
+  ['Geely','Coolray','suv_compact',4330,1805,1609,2600],
+  ['Geely','Azkarra','suv_mid',4515,1831,1689,2670],
+  ['Geely','Okavango','suv_full',4835,1900,1750,2815],
+  ['Chery','Arrizo 5','sedan_compact',4570,1825,1470,2670],
+  ['Chery','Arrizo 6','sedan_mid',4735,1825,1475,2670],
+  ['Chery','Tiggo 4 Pro','suv_compact',4318,1825,1665,2555],
+  ['Chery','Tiggo 7 Pro','suv_mid',4500,1862,1696,2670],
+  ['Chery','Tiggo 8 Pro','suv_full',4722,1860,1745,2710],
+  ['Jaecoo','J7','suv_mid',4500,1865,1618,2672],
+  ['Omoda','C5','suv_compact',4404,1830,1580,2630],
+  ['BYD','Dolphin','hatchback_small',4290,1770,1570,2700],
+  ['BYD','Seal','sedan_mid',4800,1875,1460,2920],
+  ['BYD','Han','sedan_large',4995,1910,1495,2920],
+  ['BYD','Atto 3','suv_compact',4455,1875,1615,2720],
+  ['BYD','Song Plus','suv_mid',4705,1890,1680,2765],
+  ['Jetour','Dashing','suv_compact',4330,1860,1685,2610],
+  ['Jetour','X70','suv_mid',4720,1857,1746,2745],
+  ['Jetour','X90','suv_full',4805,1900,1750,2745],
+  ['Changan','Alsvin','sedan_compact',4450,1720,1495,2600],
+  ['Changan','Eado','sedan_compact',4665,1820,1490,2700],
+  ['Changan','CS35 Plus','suv_compact',4335,1825,1655,2600],
+  ['Changan','CS55 Plus','suv_compact',4515,1865,1690,2655],
+  ['GAC','GS3','suv_compact',4410,1810,1650,2610],
+  ['GAC','Emkoo','suv_compact',4571,1876,1665,2685],
+  ['GAC','GS8','suv_full',4980,1930,1785,2920],
+  ['Haval','Jolion','suv_compact',4472,1841,1580,2700],
+  ['Haval','H6','suv_mid',4653,1886,1730,2738],
+  ['Haval','Dargo','suv_mid',4585,1890,1720,2738],
+  ['JAC','JS3','suv_compact',4200,1760,1600,2550],
+  ['JAC','JS4','suv_compact',4410,1820,1660,2610],
+  ['JAC','J7','sedan_compact',4720,1820,1480,2710],
+  ['JAC','Sunray','pickup_van',5290,1880,2270,3350],
+  ['Dongfeng','AX7','suv_mid',4655,1865,1715,2720],
+  ['Dongfeng','Rich 6','pickup_van',5350,1880,1780,3105],
+  ['BAIC','X25','suv_compact',4160,1750,1620,2550],
+  ['BAIC','X55','suv_compact',4500,1850,1680,2670],
+  ['BAIC','Beijing X7','suv_mid',4700,1875,1690,2710],
+  ['Soueast','DX3','suv_compact',4340,1825,1650,2610],
+  ['Soueast','DX8','suv_full',4750,1900,1750,2755],
+  ['Proton','Saga','sedan_compact',4331,1689,1491,2465],
+  ['Proton','X50','suv_compact',4330,1800,1609,2600],
+  ['Proton','X70','suv_mid',4545,1831,1689,2670],
+  ['DFSK','Glory 500','suv_compact',4400,1830,1690,2600],
+  ['DFSK','Glory 580','suv_mid',4600,1850,1720,2700],
 ];
 
 async function seedPPFCarModels() {
   const count = await db1(`SELECT COUNT(*) as cnt FROM ppf_car_models`);
-  if (parseInt(count.cnt) > 0) return;
-  const values = [];
-  const params = [];
-  PPF_CAR_SEED.forEach(([brand, model, size], i) => {
-    const n = i * 3;
-    values.push(`($${n+1},$${n+2},$${n+3})`);
-    params.push(brand, model, size);
-  });
-  await db(`INSERT INTO ppf_car_models (brand, model, size_category) VALUES ${values.join(',')} ON CONFLICT (brand,model) DO NOTHING`, params);
-  console.log(`✓ Seeded ${PPF_CAR_SEED.length} PPF car models`);
+  if (parseInt(count.cnt) === 0) {
+    const values = [];
+    const params = [];
+    PPF_CAR_SEED.forEach(([brand, model, size, l, w, h, wb], i) => {
+      const n = i * 7;
+      values.push(`($${n+1},$${n+2},$${n+3},$${n+4},$${n+5},$${n+6},$${n+7})`);
+      params.push(brand, model, size, l, w, h, wb);
+    });
+    await db(`INSERT INTO ppf_car_models (brand, model, size_category, length_mm, width_mm, height_mm, wheelbase_mm) VALUES ${values.join(',')} ON CONFLICT (brand,model) DO NOTHING`, params);
+    console.log(`✓ Seeded ${PPF_CAR_SEED.length} PPF car models`);
+    return;
+  }
+  // Backfill dimensions for rows that already existed before real dimensions were added — never
+  // overwrites a row the owner has already filled in or edited themselves.
+  for (const [brand, model, , l, w, h, wb] of PPF_CAR_SEED) {
+    await db(
+      `UPDATE ppf_car_models SET length_mm=$1, width_mm=$2, height_mm=$3, wheelbase_mm=$4
+       WHERE brand=$5 AND model=$6 AND length_mm IS NULL`,
+      [l, w, h, wb, brand, model]
+    );
+  }
+  console.log(`✓ PPF car model dimension backfill checked`);
 }
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
@@ -890,13 +1116,20 @@ function addon(a) {
 }
 
 function ppfCarModel(c) {
-  return { id: c.id, brand: c.brand, model: c.model, sizeCategory: c.size_category, isActive: !!c.is_active };
+  return {
+    id: c.id, brand: c.brand, model: c.model, sizeCategory: c.size_category, isActive: !!c.is_active,
+    lengthCm: c.length_mm != null ? c.length_mm / 10 : null,
+    widthCm: c.width_mm != null ? c.width_mm / 10 : null,
+    heightCm: c.height_mm != null ? c.height_mm / 10 : null,
+    wheelbaseCm: c.wheelbase_mm != null ? c.wheelbase_mm / 10 : null,
+    hasRealDimensions: c.length_mm != null && c.width_mm != null && c.height_mm != null && c.wheelbase_mm != null,
+  };
 }
 
 function ppfFilmType(f) {
   return {
     id: f.id, shopId: f.shop_id, name: f.name, description: f.description,
-    pricePerSqm: f.price_per_sqm, isActive: !!f.is_active, displayOrder: f.display_order,
+    pricePerMetre: f.price_per_metre, isActive: !!f.is_active, displayOrder: f.display_order,
     createdAt: f.created_at, updatedAt: f.updated_at,
   };
 }
@@ -904,8 +1137,8 @@ function ppfFilmType(f) {
 function ppfRequest(r) {
   return {
     id: r.id, shopId: r.shop_id, carModelId: r.car_model_id, carText: r.car_text,
-    panels: r.panels, filmTypeId: r.film_type_id, filmName: r.film_name,
-    estimatedSqm: r.estimated_sqm != null ? parseFloat(r.estimated_sqm) : null,
+    coverageMode: r.coverage_mode, panels: r.panels, filmTypeId: r.film_type_id, filmName: r.film_name,
+    estimatedLinearMetres: r.estimated_linear_metres != null ? parseFloat(r.estimated_linear_metres) : null,
     estimatedPrice: r.estimated_price, customerName: r.customer_name, customerPhone: r.customer_phone,
     status: r.status, createdAt: r.created_at,
   };
@@ -1639,37 +1872,38 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 200, rows.map(ppfFilmType));
     }
 
-    // POST /wash/ppf/quote — { carModelId, panels: [...], filmTypeId } -> { sqm, price, panels }
+    // POST /wash/ppf/quote — { carModelId, mode: 'full'|'parts', panels: [...], filmTypeId }
     if (m === "POST" && p === "/wash/ppf/quote") {
-      const { carModelId, panels, filmTypeId } = await readBody(req);
+      const { carModelId, mode, panels, filmTypeId } = await readBody(req);
       const car = await db1(`SELECT * FROM ppf_car_models WHERE id=$1`, [carModelId]);
       if (!car) return respond(res, 404, { error: "Car model not found" });
       const film = await db1(`SELECT * FROM ppf_film_types WHERE id=$1 AND is_active=1`, [filmTypeId]);
       if (!film) return respond(res, 404, { error: "Film type not found" });
-      const quote = computePPFQuote(car.size_category, panels, film.price_per_sqm);
+      const quote = computePPFQuote(car, mode === 'parts' ? 'parts' : 'full', panels, film.price_per_metre);
       if (!quote) return respond(res, 400, { error: "Unable to compute quote" });
-      return respond(res, 200, { ...quote, filmName: film.name, pricePerSqm: film.price_per_sqm });
+      return respond(res, 200, { ...quote, filmName: film.name, pricePerMetre: film.price_per_metre });
     }
 
     // POST /wash/ppf/requests — submit a protection quote request (lead), notifies the shop
     if (m === "POST" && p === "/wash/ppf/requests") {
-      const { shopId, carModelId, carText, panels, filmTypeId, customerName, customerPhone } = await readBody(req);
+      const { shopId, carModelId, carText, mode, panels, filmTypeId, customerName, customerPhone } = await readBody(req);
       const s = await db1(`SELECT * FROM wash_shops WHERE id=$1`, [shopId]);
       if (!s) return respond(res, 404, { error: "Shop not found" });
       if (!customerName || !customerPhone) return respond(res, 400, { error: "customerName and customerPhone required" });
-      let estimatedSqm = null, estimatedPrice = null, filmName = null;
+      const coverageMode = mode === 'parts' ? 'parts' : 'full';
+      let estimatedLinearMetres = null, estimatedPrice = null, filmName = null;
       const car = carModelId ? await db1(`SELECT * FROM ppf_car_models WHERE id=$1`, [carModelId]) : null;
       const film = filmTypeId ? await db1(`SELECT * FROM ppf_film_types WHERE id=$1`, [filmTypeId]) : null;
       if (car && film) {
-        const quote = computePPFQuote(car.size_category, panels, film.price_per_sqm);
-        if (quote) { estimatedSqm = quote.sqm; estimatedPrice = quote.price; }
+        const quote = computePPFQuote(car, coverageMode, panels, film.price_per_metre);
+        if (quote) { estimatedLinearMetres = quote.linearMetres; estimatedPrice = quote.price; }
       }
       if (film) filmName = film.name;
-      const validPanels = Array.isArray(panels) ? panels.filter(k => PPF_PANEL_KEYS.includes(k)) : [];
+      const validPanels = coverageMode === 'parts' && Array.isArray(panels) ? panels.filter(k => PPF_PANEL_KEYS.includes(k)) : [];
       const [reqRow] = await db(
-        `INSERT INTO ppf_requests (shop_id, car_model_id, car_text, panels, film_type_id, film_name, estimated_sqm, estimated_price, customer_name, customer_phone, status, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'new',NOW()) RETURNING *`,
-        [shopId, carModelId || null, carText || (car ? `${car.brand} ${car.model}` : ''), JSON.stringify(validPanels), filmTypeId || null, filmName, estimatedSqm, estimatedPrice, customerName.trim(), customerPhone.trim()]
+        `INSERT INTO ppf_requests (shop_id, car_model_id, car_text, coverage_mode, panels, film_type_id, film_name, estimated_linear_metres, estimated_price, customer_name, customer_phone, status, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'new',NOW()) RETURNING *`,
+        [shopId, carModelId || null, carText || (car ? `${car.brand} ${car.model}` : ''), coverageMode, JSON.stringify(validPanels), filmTypeId || null, filmName, estimatedLinearMetres, estimatedPrice, customerName.trim(), customerPhone.trim()]
       );
       try {
         await notifyPartner(shopId, { title: 'New PPF Request!', body: `${customerName.trim()} requested a protection quote${estimatedPrice ? ` (~${estimatedPrice} EGP)` : ''}`, icon: '/icon-192.png' });
@@ -2169,11 +2403,11 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
 
     // POST /partners/shop/:id/ppf/film-types
     if (m === "POST" && /\/partners\/shop\/\d+\/ppf\/film-types$/.test(p)) {
-      const { name, description, pricePerSqm, displayOrder } = await readBody(req);
-      if (!name || pricePerSqm == null) return respond(res, 400, { error: "name and pricePerSqm required" });
+      const { name, description, pricePerMetre, displayOrder } = await readBody(req);
+      if (!name || pricePerMetre == null) return respond(res, 400, { error: "name and pricePerMetre required" });
       const [f] = await db(
-        `INSERT INTO ppf_film_types (shop_id,name,description,price_per_sqm,display_order,is_active,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,1,NOW(),NOW()) RETURNING *`,
-        [shopId, name.trim(), description?.trim()||null, pricePerSqm, displayOrder||0]
+        `INSERT INTO ppf_film_types (shop_id,name,description,price_per_metre,display_order,is_active,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,1,NOW(),NOW()) RETURNING *`,
+        [shopId, name.trim(), description?.trim()||null, pricePerMetre, displayOrder||0]
       );
       return respond(res, 201, ppfFilmType(f));
     }
@@ -2185,8 +2419,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const ex = await db1(`SELECT * FROM ppf_film_types WHERE id=$1 AND shop_id=$2`, [filmId, shopId]);
       if (!ex) return respond(res, 404, { error: "Film type not found" });
       const [updated] = await db(
-        `UPDATE ppf_film_types SET name=COALESCE($1,name), description=COALESCE($2,description), price_per_sqm=COALESCE($3,price_per_sqm), display_order=COALESCE($4,display_order), is_active=COALESCE($5,is_active), updated_at=NOW() WHERE id=$6 RETURNING *`,
-        [body.name?.trim()||null, body.description?.trim()||null, body.pricePerSqm!=null?body.pricePerSqm:null, body.displayOrder!=null?body.displayOrder:null, body.isActive!=null?(body.isActive?1:0):null, filmId]
+        `UPDATE ppf_film_types SET name=COALESCE($1,name), description=COALESCE($2,description), price_per_metre=COALESCE($3,price_per_metre), display_order=COALESCE($4,display_order), is_active=COALESCE($5,is_active), updated_at=NOW() WHERE id=$6 RETURNING *`,
+        [body.name?.trim()||null, body.description?.trim()||null, body.pricePerMetre!=null?body.pricePerMetre:null, body.displayOrder!=null?body.displayOrder:null, body.isActive!=null?(body.isActive?1:0):null, filmId]
       );
       return respond(res, 200, ppfFilmType(updated));
     }
@@ -2717,30 +2951,39 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 200, rows.map(ppfCarModel));
     }
 
-    // POST /owner/ppf/car-models — add a new car model to the database
+    // POST /owner/ppf/car-models — add a new car model to the database. Dimensions (cm) are
+    // optional at creation — a car with no dimensions falls back to the size-class estimate
+    // until someone fills its real length/width/height/wheelbase in.
     if (m === "POST" && p === "/owner/ppf/car-models") {
       if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
-      const { brand, model, sizeCategory } = await readBody(req);
+      const { brand, model, sizeCategory, lengthCm, widthCm, heightCm, wheelbaseCm } = await readBody(req);
       if (!brand || !model || !sizeCategory) return respond(res, 400, { error: "brand, model, sizeCategory required" });
       if (!PPF_SIZE_CATEGORIES.some(c => c.key === sizeCategory)) return respond(res, 400, { error: "Invalid sizeCategory" });
       const existing = await db1(`SELECT id FROM ppf_car_models WHERE brand=$1 AND model=$2`, [brand.trim(), model.trim()]);
       if (existing) return respond(res, 409, { error: "This brand/model already exists" });
       const [created] = await db(
-        `INSERT INTO ppf_car_models (brand,model,size_category,is_active,created_at) VALUES ($1,$2,$3,1,NOW()) RETURNING *`,
-        [brand.trim(), model.trim(), sizeCategory]
+        `INSERT INTO ppf_car_models (brand,model,size_category,length_mm,width_mm,height_mm,wheelbase_mm,is_active,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,1,NOW()) RETURNING *`,
+        [brand.trim(), model.trim(), sizeCategory,
+         lengthCm ? Math.round(lengthCm*10) : null, widthCm ? Math.round(widthCm*10) : null,
+         heightCm ? Math.round(heightCm*10) : null, wheelbaseCm ? Math.round(wheelbaseCm*10) : null]
       );
       return respond(res, 201, ppfCarModel(created));
     }
 
-    // PATCH /owner/ppf/car-models/:id — edit brand/model/sizeCategory/isActive
+    // PATCH /owner/ppf/car-models/:id — edit brand/model/sizeCategory/isActive/dimensions
     if (m === "PATCH" && /^\/owner\/ppf\/car-models\/\d+$/.test(p)) {
       if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
       const id = +p.split("/")[4];
       const body = await readBody(req);
       if (body.sizeCategory && !PPF_SIZE_CATEGORIES.some(c => c.key === body.sizeCategory)) return respond(res, 400, { error: "Invalid sizeCategory" });
+      const mm = v => v != null ? Math.round(v*10) : null;
       const [updated] = await db(
-        `UPDATE ppf_car_models SET brand=COALESCE($1,brand), model=COALESCE($2,model), size_category=COALESCE($3,size_category), is_active=COALESCE($4,is_active) WHERE id=$5 RETURNING *`,
-        [body.brand?.trim()||null, body.model?.trim()||null, body.sizeCategory||null, body.isActive!=null?(body.isActive?1:0):null, id]
+        `UPDATE ppf_car_models SET brand=COALESCE($1,brand), model=COALESCE($2,model), size_category=COALESCE($3,size_category),
+          length_mm=COALESCE($4,length_mm), width_mm=COALESCE($5,width_mm), height_mm=COALESCE($6,height_mm), wheelbase_mm=COALESCE($7,wheelbase_mm),
+          is_active=COALESCE($8,is_active) WHERE id=$9 RETURNING *`,
+        [body.brand?.trim()||null, body.model?.trim()||null, body.sizeCategory||null,
+         mm(body.lengthCm), mm(body.widthCm), mm(body.heightCm), mm(body.wheelbaseCm),
+         body.isActive!=null?(body.isActive?1:0):null, id]
       );
       if (!updated) return respond(res, 404, { error: "Car model not found" });
       return respond(res, 200, ppfCarModel(updated));

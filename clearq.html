@@ -879,34 +879,46 @@ html[dir="rtl"] .modal-sec, html[dir="rtl"] .signup-sub, html[dir="rtl"] .su-lab
   <!-- PROTECTION TAB (PPF) — Makine ghost site only -->
   <div id="tab-protection" style="display:none;padding:16px 14px 100px;">
     <div style="font-size:18px;font-weight:800;color:#0f172a;margin-bottom:4px;">Paint Protection Film</div>
-    <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Pick your car and the panels you want covered — get an instant estimate.</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Pick your car and get an instant estimate — full body by default, or choose specific panels.</div>
 
     <div style="margin-bottom:20px;">
       <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">1. Your car</div>
-      <input type="text" id="ppf-car-search" class="acct-input" placeholder="Search e.g. Mercedes C-Class" autocomplete="off" oninput="ppfSearchCars(this.value)" onfocus="ppfSearchCars(this.value)">
-      <div id="ppf-car-results" style="margin-top:6px;border-radius:9px;overflow:hidden;"></div>
-      <div id="ppf-car-selected" style="display:none;margin-top:8px;background:#E6F7F5;border:1px solid #3FBDB0;border-radius:9px;padding:10px 13px;font-size:13px;font-weight:700;color:#21867B;align-items:center;justify-content:space-between;"></div>
+      <select id="ppf-brand-select" class="acct-input" style="margin-bottom:8px;" onchange="ppfOnBrandChange(this.value)">
+        <option value="">Select brand...</option>
+      </select>
+      <select id="ppf-model-select" class="acct-input" onchange="ppfOnModelChange(this.value)" disabled>
+        <option value="">Select model...</option>
+      </select>
     </div>
 
-    <div style="margin-bottom:20px;">
-      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">2. Panels to cover</div>
-      <div id="ppf-panels-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
-    </div>
-
-    <div style="margin-bottom:20px;">
-      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">3. Film type</div>
+    <div id="ppf-film-section" style="display:none;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">2. Film type</div>
       <div id="ppf-films-list"></div>
+    </div>
+
+    <div id="ppf-coverage-section" style="display:none;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">3. Coverage</div>
+      <div id="ppf-fullbody-card" onclick="ppfSetMode('full')" style="border:2px solid #3FBDB0;background:#E6F7F5;border-radius:12px;padding:14px;margin-bottom:8px;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#0f172a;">Full Body</div>
+            <div style="font-size:11px;color:#64748b;">Complete coverage, every panel</div>
+          </div>
+          <div id="ppf-fullbody-price" style="font-weight:800;font-size:17px;color:#21867B;white-space:nowrap;">—</div>
+        </div>
+      </div>
+      <div id="ppf-parts-toggle" onclick="ppfSetMode('parts')" style="text-align:center;font-size:12px;font-weight:700;color:#64748b;padding:9px;cursor:pointer;border:1px dashed #cbd5e1;border-radius:10px;">Choose Parts Instead ▾</div>
+      <div id="ppf-panels-grid" style="display:none;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;"></div>
     </div>
 
     <div id="ppf-quote-box" style="display:none;background:#0f172a;border-radius:13px;padding:16px;margin-bottom:20px;color:#fff;"></div>
 
-    <div style="margin-bottom:8px;">
+    <div id="ppf-details-section" style="display:none;margin-bottom:8px;">
       <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:7px;">4. Your details</div>
       <input type="text" id="ppf-cust-name" class="acct-input" placeholder="Full name" style="margin-bottom:8px;">
       <input type="tel" id="ppf-cust-phone" class="acct-input" placeholder="Phone number" style="margin-bottom:12px;">
       <button class="confirm-btn" id="ppf-submit-btn" onclick="submitPPFRequest()">Request Quote</button>
     </div>
-    <div id="ppf-empty-state" style="display:none;text-align:center;padding:40px 20px;color:#94a3b8;font-size:13px;"></div>
   </div>
 </div>
 
@@ -1083,8 +1095,11 @@ async function apiFetch(url, options = {}) {
 let shops = [], queues = {}, services = {}, ratingsData = {};
 let ghostShopId = null; // set in loadShops() if a valid secret ?g= slug is present
 let isMakineGhost = false; // Makine's ghost site gets an extra "Protection" (PPF) tab
-let ppfPanelsRef = [], ppfSizeCategories = [], ppfCarModels = [], ppfFilmTypes = [];
+let ppfFilmTypes = [];
+let ppfAllCars = [];
 let ppfSelectedCar = null, ppfSelectedFilm = null, ppfSelectedPanels = new Set();
+let ppfCoverageMode = 'full'; // 'full' | 'parts'
+let ppfPanelDimsCache = null; // {key: {widthCm, heightCm, label}} for the currently selected car
 let currentCity = 'All';
 let selectedWash = null, selectedSvc = null, selectedCarId = null;
 let bookingMode = 'now', selectedSlotTime = null;
@@ -3095,66 +3110,53 @@ function showTab(tab) {
 // ─── PROTECTION (PPF) TAB — Makine ghost site only ───────────────
 async function initPPFTab() {
   try {
-    const [panelsRes, filmsRes] = await Promise.all([
-      fetch(`${API}/api/wash/ppf/panels`),
+    const [carsRes, filmsRes] = await Promise.all([
+      fetch(`${API}/api/wash/ppf/car-models`),
       fetch(`${API}/api/wash/ppf/film-types/${ghostShopId}`),
     ]);
-    const panelsData = await panelsRes.json();
-    ppfPanelsRef = panelsData.panels || [];
-    ppfSizeCategories = panelsData.sizeCategories || [];
+    ppfAllCars = carsRes.ok ? await carsRes.json() : [];
     ppfFilmTypes = filmsRes.ok ? await filmsRes.json() : [];
-  } catch(e) { ppfPanelsRef = []; ppfFilmTypes = []; }
-  renderPPFPanels();
+  } catch(e) { ppfAllCars = []; ppfFilmTypes = []; }
+  renderPPFBrandSelect();
   renderPPFFilms();
 }
 
-let ppfSearchDebounce = null;
-function ppfSearchCars(q) {
-  clearTimeout(ppfSearchDebounce);
-  const box = document.getElementById('ppf-car-results');
-  if (!q || q.trim().length < 2) { box.innerHTML = ''; return; }
-  ppfSearchDebounce = setTimeout(async () => {
-    try {
-      const res = await fetch(`${API}/api/wash/ppf/car-models?q=${encodeURIComponent(q.trim())}`);
-      const results = res.ok ? await res.json() : [];
-      if (!results.length) {
-        box.innerHTML = `<div style="padding:10px 13px;font-size:12px;color:#94a3b8;background:#f8fafc;border-radius:9px;">No matching car found</div>`;
-        return;
-      }
-      box.innerHTML = results.map(c => `
-        <div onclick="ppfSelectCar(${c.id}, '${(c.brand+' '+c.model).replace(/'/g,"\\'")}')" style="padding:10px 13px;font-size:13px;font-weight:600;color:#0f172a;background:#fff;border-bottom:1px solid #f1f5f9;cursor:pointer;">
-          ${c.brand} ${c.model}
-        </div>`).join('');
-    } catch(e) {}
-  }, 200);
+function renderPPFBrandSelect() {
+  const brands = [...new Set(ppfAllCars.map(c => c.brand))].sort();
+  document.getElementById('ppf-brand-select').innerHTML = `<option value="">Select brand...</option>` +
+    brands.map(b => `<option value="${b}">${b}</option>`).join('');
 }
 
-function ppfSelectCar(id, label) {
-  ppfSelectedCar = { id, label };
-  document.getElementById('ppf-car-search').value = '';
-  document.getElementById('ppf-car-results').innerHTML = '';
-  const sel = document.getElementById('ppf-car-selected');
-  sel.style.display = 'flex';
-  sel.innerHTML = `<span>${label}</span><span onclick="ppfClearCar()" style="cursor:pointer;color:#64748b;font-weight:400;">Change ✕</span>`;
-  updatePPFQuote();
-}
-function ppfClearCar() {
+function ppfOnBrandChange(brand) {
+  const modelSel = document.getElementById('ppf-model-select');
   ppfSelectedCar = null;
-  document.getElementById('ppf-car-selected').style.display = 'none';
-  updatePPFQuote();
+  ppfPanelDimsCache = null;
+  hideAllPPFSections();
+  if (!brand) { modelSel.disabled = true; modelSel.innerHTML = '<option value="">Select model...</option>'; return; }
+  const models = ppfAllCars.filter(c => c.brand === brand).sort((a,b) => a.model.localeCompare(b.model));
+  modelSel.disabled = false;
+  modelSel.innerHTML = `<option value="">Select model...</option>` +
+    models.map(c => `<option value="${c.id}">${c.model}</option>`).join('');
 }
 
-function renderPPFPanels() {
-  const grid = document.getElementById('ppf-panels-grid');
-  grid.innerHTML = ppfPanelsRef.map(p => {
-    const active = ppfSelectedPanels.has(p.key);
-    return `<div onclick="togglePPFPanel('${p.key}')" style="border:2px solid ${active?'#3FBDB0':'#e2e8f0'};border-radius:10px;padding:11px 8px;text-align:center;font-size:12px;font-weight:600;color:${active?'#21867B':'#334155'};background:${active?'#E6F7F5':'#fff'};cursor:pointer;transition:all 0.15s;">${p.label}</div>`;
-  }).join('');
+function hideAllPPFSections() {
+  document.getElementById('ppf-film-section').style.display = 'none';
+  document.getElementById('ppf-coverage-section').style.display = 'none';
+  document.getElementById('ppf-details-section').style.display = 'none';
+  document.getElementById('ppf-quote-box').style.display = 'none';
 }
-function togglePPFPanel(key) {
-  if (ppfSelectedPanels.has(key)) ppfSelectedPanels.delete(key); else ppfSelectedPanels.add(key);
-  renderPPFPanels();
-  updatePPFQuote();
+
+function ppfOnModelChange(carId) {
+  if (!carId) { hideAllPPFSections(); ppfSelectedCar = null; return; }
+  ppfSelectedCar = ppfAllCars.find(c => c.id === +carId);
+  ppfPanelDimsCache = null;
+  ppfCoverageMode = 'full';
+  document.getElementById('ppf-film-section').style.display = 'block';
+  if (ppfSelectedFilm) {
+    document.getElementById('ppf-coverage-section').style.display = 'block';
+    document.getElementById('ppf-details-section').style.display = 'block';
+    ppfSetMode('full');
+  }
 }
 
 function renderPPFFilms() {
@@ -3169,39 +3171,127 @@ function renderPPFFilms() {
         <div style="font-size:13px;font-weight:700;color:#0f172a;">${f.name}</div>
         ${f.description ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">${f.description}</div>` : ''}
       </div>
-      <div style="font-size:12px;font-weight:700;color:#21867B;white-space:nowrap;">${f.pricePerSqm} EGP/m²</div>
+      <div style="font-size:12px;font-weight:700;color:#21867B;white-space:nowrap;">${f.pricePerMetre} EGP/m</div>
     </div>`).join('');
 }
 function selectPPFFilm(id) {
   ppfSelectedFilm = id;
   renderPPFFilms();
+  if (ppfSelectedCar) {
+    document.getElementById('ppf-coverage-section').style.display = 'block';
+    document.getElementById('ppf-details-section').style.display = 'block';
+    ppfSetMode(ppfCoverageMode);
+  }
+}
+
+function ppfSetMode(mode) {
+  ppfCoverageMode = mode;
+  const fullCard = document.getElementById('ppf-fullbody-card');
+  const toggle = document.getElementById('ppf-parts-toggle');
+  const grid = document.getElementById('ppf-panels-grid');
+  if (mode === 'full') {
+    fullCard.style.border = '2px solid #3FBDB0'; fullCard.style.background = '#E6F7F5';
+    toggle.style.display = ''; toggle.textContent = 'Choose Parts Instead ▾';
+    grid.style.display = 'none';
+    updatePPFQuote();
+  } else {
+    fullCard.style.border = '2px solid #e2e8f0'; fullCard.style.background = '#fff';
+    toggle.style.display = 'none';
+    grid.style.display = 'grid';
+    ppfLoadPanelDims();
+  }
+}
+
+async function ppfLoadPanelDims() {
+  if (ppfPanelDimsCache || !ppfSelectedCar || !ppfSelectedFilm) { renderPPFPanels(); return; }
+  try {
+    const res = await fetch(`${API}/api/wash/ppf/quote`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ carModelId: ppfSelectedCar.id, mode: 'parts', panels: PPF_PANEL_KEYS_ALL, filmTypeId: ppfSelectedFilm })
+    });
+    if (res.ok) {
+      const q = await res.json();
+      ppfPanelDimsCache = {};
+      (q.panelBreakdown || []).forEach(p => { ppfPanelDimsCache[p.key] = p; });
+    }
+  } catch(e) {}
+  renderPPFPanels();
+  updatePPFQuote();
+}
+
+const PPF_PANEL_KEYS_ALL = ['front_bumper','rear_bumper','hood','roof','front_doors','rear_doors','fenders','quarter_panels','trunk','mirrors'];
+const PPF_PANEL_LABELS = {
+  front_bumper: 'Front Bumper', rear_bumper: 'Rear Bumper', hood: 'Hood', roof: 'Roof',
+  front_doors: 'Front Doors (pair)', rear_doors: 'Rear Doors (pair)', fenders: 'Front Fenders (pair)',
+  quarter_panels: 'Rear Quarter Panels (pair)', trunk: 'Trunk / Tailgate', mirrors: 'Side Mirrors (pair)',
+};
+
+function renderPPFPanels() {
+  const grid = document.getElementById('ppf-panels-grid');
+  grid.innerHTML = PPF_PANEL_KEYS_ALL.map(key => {
+    const active = ppfSelectedPanels.has(key);
+    const dims = ppfPanelDimsCache?.[key];
+    const dimText = dims ? `${dims.widthCm} × ${dims.heightCm} cm` : '';
+    return `<div onclick="togglePPFPanel('${key}')" style="border:2px solid ${active?'#3FBDB0':'#e2e8f0'};border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all 0.15s;background:${active?'#E6F7F5':'#fff'};">
+      <div style="font-size:12px;font-weight:600;color:${active?'#21867B':'#334155'};">${PPF_PANEL_LABELS[key]}</div>
+      ${dimText ? `<div style="font-size:10px;color:#94a3b8;margin-top:2px;">${dimText}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+function togglePPFPanel(key) {
+  if (ppfSelectedPanels.has(key)) ppfSelectedPanels.delete(key); else ppfSelectedPanels.add(key);
+  renderPPFPanels();
   updatePPFQuote();
 }
 
 async function updatePPFQuote() {
   const box = document.getElementById('ppf-quote-box');
-  if (!ppfSelectedCar || !ppfSelectedFilm || !ppfSelectedPanels.size) { box.style.display = 'none'; return; }
+  const fullPriceEl = document.getElementById('ppf-fullbody-price');
+  if (!ppfSelectedCar || !ppfSelectedFilm) { box.style.display = 'none'; return; }
+
+  // Always keep the Full Body card's price current, regardless of which mode is active.
   try {
-    const res = await fetch(`${API}/api/wash/ppf/quote`, {
+    const fullRes = await fetch(`${API}/api/wash/ppf/quote`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ carModelId: ppfSelectedCar.id, panels: [...ppfSelectedPanels], filmTypeId: ppfSelectedFilm })
+      body: JSON.stringify({ carModelId: ppfSelectedCar.id, mode: 'full', filmTypeId: ppfSelectedFilm })
     });
-    if (!res.ok) { box.style.display = 'none'; return; }
-    const q = await res.json();
-    box.style.display = 'block';
-    box.innerHTML = `
-      <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;margin-bottom:4px;">Estimated Price</div>
-      <div style="font-size:28px;font-weight:800;">${q.price.toLocaleString()} EGP</div>
-      <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${q.sqm} m² · ${q.filmName} · ${ppfSelectedPanels.size} panel${ppfSelectedPanels.size>1?'s':''}</div>`;
-  } catch(e) { box.style.display = 'none'; }
+    if (fullRes.ok) {
+      const fq = await fullRes.json();
+      fullPriceEl.textContent = fq.price.toLocaleString() + ' EGP';
+      if (ppfCoverageMode === 'full') {
+        box.style.display = 'block';
+        box.innerHTML = `
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;margin-bottom:4px;">Full Body — Estimated Price</div>
+          <div style="font-size:28px;font-weight:800;">${fq.price.toLocaleString()} EGP</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${fq.linearMetres} running metres of ${fq.filmName}</div>`;
+      }
+    }
+  } catch(e) { fullPriceEl.textContent = '—'; }
+
+  if (ppfCoverageMode === 'parts') {
+    if (!ppfSelectedPanels.size) { box.style.display = 'none'; return; }
+    try {
+      const res = await fetch(`${API}/api/wash/ppf/quote`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ carModelId: ppfSelectedCar.id, mode: 'parts', panels: [...ppfSelectedPanels], filmTypeId: ppfSelectedFilm })
+      });
+      if (!res.ok) { box.style.display = 'none'; return; }
+      const q = await res.json();
+      box.style.display = 'block';
+      box.innerHTML = `
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;font-weight:700;margin-bottom:4px;">Selected Parts — Estimated Price</div>
+        <div style="font-size:28px;font-weight:800;">${q.price.toLocaleString()} EGP</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">${q.linearMetres} running metres · ${q.filmName} · ${ppfSelectedPanels.size} panel${ppfSelectedPanels.size>1?'s':''}</div>`;
+    } catch(e) { box.style.display = 'none'; }
+  }
 }
 
 async function submitPPFRequest() {
   const name = document.getElementById('ppf-cust-name').value.trim();
   const phone = document.getElementById('ppf-cust-phone').value.trim();
   if (!ppfSelectedCar) return toast('Please select your car');
-  if (!ppfSelectedPanels.size) return toast('Please select at least one panel');
   if (!ppfSelectedFilm) return toast('Please select a film type');
+  if (ppfCoverageMode === 'parts' && !ppfSelectedPanels.size) return toast('Please select at least one panel');
   if (!name || !phone) return toast('Please enter your name and phone number');
   const btn = document.getElementById('ppf-submit-btn');
   btn.disabled = true; btn.textContent = 'Sending...';
@@ -3209,18 +3299,21 @@ async function submitPPFRequest() {
     const res = await fetch(`${API}/api/wash/ppf/requests`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        shopId: ghostShopId, carModelId: ppfSelectedCar.id, panels: [...ppfSelectedPanels],
+        shopId: ghostShopId, carModelId: ppfSelectedCar.id, mode: ppfCoverageMode,
+        panels: ppfCoverageMode === 'parts' ? [...ppfSelectedPanels] : [],
         filmTypeId: ppfSelectedFilm, customerName: name, customerPhone: phone,
       })
     });
     if (!res.ok) throw new Error('failed');
     toast('Request sent! We\'ll contact you shortly.');
-    ppfSelectedCar = null; ppfSelectedFilm = null; ppfSelectedPanels = new Set();
-    document.getElementById('ppf-car-selected').style.display = 'none';
+    ppfSelectedCar = null; ppfSelectedFilm = null; ppfSelectedPanels = new Set(); ppfPanelDimsCache = null; ppfCoverageMode = 'full';
+    document.getElementById('ppf-brand-select').value = '';
+    document.getElementById('ppf-model-select').innerHTML = '<option value="">Select model...</option>';
+    document.getElementById('ppf-model-select').disabled = true;
     document.getElementById('ppf-cust-name').value = '';
     document.getElementById('ppf-cust-phone').value = '';
-    renderPPFPanels(); renderPPFFilms();
-    document.getElementById('ppf-quote-box').style.display = 'none';
+    hideAllPPFSections();
+    renderPPFFilms();
   } catch(e) {
     toast('Could not send request — please try again');
   } finally {

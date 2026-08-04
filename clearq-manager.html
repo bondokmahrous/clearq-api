@@ -688,7 +688,7 @@ a { text-decoration: none; }
           <div class="section-title">Film Types &amp; Pricing</div>
           <button class="section-action" onclick="addNewPPFFilm()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Film</button>
         </div>
-        <div style="font-size:12px;color:var(--gray);margin:-8px 0 14px;">Customers pick panels to cover — price is panel area × your price per square metre for the film they choose.</div>
+        <div style="font-size:12px;color:var(--gray);margin:-8px 0 14px;">Customers get Full Body by default, or pick individual panels — price is calculated from the car's real length/width/height/wheelbase × your price per running metre of film.</div>
         <div class="services-grid" id="ppf-films-grid">
           <div class="loading-state"><div class="spin"></div><span>Loading film types...</span></div>
         </div>
@@ -1872,14 +1872,14 @@ function renderPPFFilms() {
           <div class="svc-card-name">${f.name||'New Film'}</div>
           <div style="font-size:11px;color:var(--gray);margin-top:3px">${f.description||''}</div>
         </div>
-        <div class="svc-card-price">${f.pricePerSqm||0} EGP/m²</div>
+        <div class="svc-card-price">${f.pricePerMetre||0} EGP/m</div>
       </div>
       <label class="svc-label">Film name</label>
       <input class="svc-input" value="${f.name||''}" placeholder="e.g. XPEL Ultimate Plus" oninput="updatePPFFilm(${i},'name',this.value)" style="margin-bottom:10px">
       <label class="svc-label">Description</label>
       <input class="svc-input" value="${f.description||''}" placeholder="e.g. Self-healing gloss finish" oninput="updatePPFFilm(${i},'description',this.value)" style="margin-bottom:10px">
-      <label class="svc-label">Price per square metre (EGP)</label>
-      <input class="svc-input" type="number" value="${f.pricePerSqm||0}" oninput="updatePPFFilm(${i},'pricePerSqm',Number(this.value))">
+      <label class="svc-label">Price per running metre of film (EGP)</label>
+      <input class="svc-input" type="number" value="${f.pricePerMetre||0}" oninput="updatePPFFilm(${i},'pricePerMetre',Number(this.value))">
       <div class="svc-card-actions">
         <button class="svc-save-btn" onclick="savePPFFilm(${i},this)">Save Changes</button>
         <button class="svc-del-btn" onclick="deletePPFFilm(${i},this)">Delete</button>
@@ -1902,12 +1902,12 @@ function updatePPFFilm(i, field, val) {
     const nameEl = card.querySelector('.svc-card-name');
     const priceEl = card.querySelector('.svc-card-price');
     if (nameEl && field==='name') nameEl.textContent = val||'New Film';
-    if (priceEl && field==='pricePerSqm') priceEl.textContent = val+' EGP/m²';
+    if (priceEl && field==='pricePerMetre') priceEl.textContent = val+' EGP/m';
   }
 }
 
 function addNewPPFFilm() {
-  currentPPFFilms.push({name:'',description:'',pricePerSqm:0,displayOrder:currentPPFFilms.length,isActive:1,isNew:true});
+  currentPPFFilms.push({name:'',description:'',pricePerMetre:0,displayOrder:currentPPFFilms.length,isActive:1,isNew:true});
   renderPPFFilms();
   setTimeout(()=>{ const cards=document.querySelectorAll('#ppf-films-grid .service-card'); if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth'}); },100);
 }
@@ -1919,12 +1919,12 @@ async function savePPFFilm(i, btn) {
   try {
     if (f.isNew) {
       const created = await api('/api/partners/shop/'+currentShopId+'/ppf/film-types',{
-        method:'POST', body:JSON.stringify({name:f.name,description:f.description,pricePerSqm:Number(f.pricePerSqm),displayOrder:f.displayOrder})
+        method:'POST', body:JSON.stringify({name:f.name,description:f.description,pricePerMetre:Number(f.pricePerMetre),displayOrder:f.displayOrder})
       });
       currentPPFFilms[i] = created;
     } else {
       const updated = await api('/api/partners/shop/'+currentShopId+'/ppf/film-types/'+f.id,{
-        method:'PUT', body:JSON.stringify({name:f.name,description:f.description,pricePerSqm:Number(f.pricePerSqm),displayOrder:f.displayOrder,isActive:f.isActive??1})
+        method:'PUT', body:JSON.stringify({name:f.name,description:f.description,pricePerMetre:Number(f.pricePerMetre),displayOrder:f.displayOrder,isActive:f.isActive??1})
       });
       currentPPFFilms[i] = updated;
     }
@@ -1960,7 +1960,7 @@ function renderPPFRequests() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
         <div>
           <div style="font-size:14px;font-weight:700;color:var(--white,#fff);">${r.customerName} <span style="font-weight:400;color:var(--gray);">· ${r.customerPhone}</span></div>
-          <div style="font-size:12px;color:var(--gray);margin-top:3px;">${r.carText || 'Car not specified'} · ${(r.panels||[]).length} panels · ${r.filmName||'—'}</div>
+          <div style="font-size:12px;color:var(--gray);margin-top:3px;">${r.carText || 'Car not specified'} · ${r.coverageMode==='parts' ? (r.panels||[]).length+' panels' : 'Full Body'} · ${r.filmName||'—'}${r.estimatedLinearMetres ? ' · '+r.estimatedLinearMetres+'m' : ''}</div>
         </div>
         <div style="text-align:right;">
           <div style="font-size:16px;font-weight:800;color:#3FBDB0;">${r.estimatedPrice ? r.estimatedPrice.toLocaleString()+' EGP' : '—'}</div>

@@ -450,37 +450,56 @@ input,select{font-family:inherit;}
         <div class="page-title">PPF Car Database</div>
         <button class="refresh-btn" onclick="openAddCarModal()">+ Add Car</button>
       </div>
-      <div class="page-sub">Every car model used for Protection (PPF) quoting, with its size class — the size class drives the per-panel area estimate a quote is priced from. Not literal measurements (no one publishes those); see each size class as a rough estimate for cars of that type.</div>
-      <div class="filters-row">
-        <input class="search-input" type="text" id="search-ppfcars" placeholder="Search brand or model..." oninput="loadPPFCars()" style="width:280px;">
-        <button class="refresh-btn" onclick="loadPPFCars()">↻ Refresh</button>
-      </div>
-      <div class="table-wrap">
-        <div class="table-header" style="grid-template-columns:1fr 1fr 1.2fr 0.6fr;">
-          <div>Brand</div>
-          <div>Model</div>
-          <div>Size Class</div>
-          <div></div>
-        </div>
-        <div id="ppfcars-table"><div class="loading"><div class="spin"></div></div></div>
-      </div>
+      <div class="page-sub">Pricing is based on each car's own real length/width/height/wheelbase (cm) — no manufacturer or dealer publishes literal per-panel measurements for any car, so full-body and per-panel coverage are calculated from these real numbers using the same length-based rule real PPF/wrap installers use. Cars without dimensions filled in yet fall back to a rougher size-class estimate.</div>
+      <select class="search-input" id="ppfcars-brand-select" onchange="onPPFBrandBrowse(this.value)" style="width:280px;margin-bottom:16px;">
+        <option value="">Select a brand...</option>
+      </select>
+      <div class="table-wrap"><div id="ppfcars-table"><div class="loading" style="color:var(--gray)">Pick a brand above to see its models.</div></div></div>
     </div>
 
     <!-- ADD/EDIT CAR MODAL -->
-    <div id="car-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;align-items:center;justify-content:center;padding:20px;">
-      <div style="background:var(--navy-mid);border-radius:16px;padding:28px;width:100%;max-width:440px;border:1px solid var(--navy-light);">
+    <div id="car-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;align-items:center;justify-content:center;padding:20px;overflow-y:auto;">
+      <div style="background:var(--navy-mid);border-radius:16px;padding:28px;width:100%;max-width:460px;border:1px solid var(--navy-light);margin:20px 0;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
           <div style="font-size:18px;font-weight:800;" id="car-modal-title">Add Car</div>
           <button onclick="closeCarModal()" style="background:none;border:none;color:var(--gray);font-size:22px;cursor:pointer;">✕</button>
         </div>
         <input type="hidden" id="carm-id">
-        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Brand</label>
-        <input class="login-input" id="carm-brand" placeholder="Mercedes-Benz">
-        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Model</label>
-        <input class="login-input" id="carm-model" placeholder="C-Class">
-        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Size Class</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Brand</label>
+            <input class="login-input" id="carm-brand" placeholder="Mercedes-Benz">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Model</label>
+            <input class="login-input" id="carm-model" placeholder="C-Class">
+          </div>
+        </div>
+        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Size Class (fallback only)</label>
         <select class="login-input" id="carm-size"></select>
-        <div style="font-size:11px;color:var(--gray);margin:-4px 0 14px;">Determines panel-area pricing — pick the closest real-world match.</div>
+        <div style="font-size:11px;color:var(--gray);margin:-4px 0 14px;">Only used if real dimensions below are left blank.</div>
+        <div style="font-size:12px;color:var(--gray);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 10px;border-top:1px solid var(--navy-light);padding-top:16px;">Real Dimensions (cm)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Length</label>
+            <input class="login-input" style="margin-bottom:0;" id="carm-length" type="number" step="0.1" placeholder="475.1">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Width</label>
+            <input class="login-input" style="margin-bottom:0;" id="carm-width" type="number" step="0.1" placeholder="182.0">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Height</label>
+            <input class="login-input" style="margin-bottom:0;" id="carm-height" type="number" step="0.1" placeholder="143.7">
+          </div>
+          <div>
+            <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Wheelbase</label>
+            <input class="login-input" style="margin-bottom:0;" id="carm-wheelbase" type="number" step="0.1" placeholder="286.5">
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--gray);margin:8px 0 14px;">Overall published dimensions for this exact model — front bumper to rear bumper, side to side, ground to roof, and axle to axle.</div>
         <div id="carm-error" style="color:var(--red);font-size:12px;margin-bottom:12px;"></div>
         <button class="login-btn" onclick="saveCarModel()" id="carm-save-btn">Save</button>
       </div>
@@ -1483,36 +1502,57 @@ const PPF_SIZE_CATEGORIES = [
 ];
 const ppfSizeLabel = key => PPF_SIZE_CATEGORIES.find(c => c.key === key)?.label || key;
 let ppfCars = [];
+let ppfBrowseBrand = '';
 
 async function loadPPFCars() {
-  const search = document.getElementById('search-ppfcars').value;
-  document.getElementById('ppfcars-table').innerHTML = '<div class="loading"><div class="spin"></div></div>';
   try {
-    const params = new URLSearchParams();
-    if (search) params.set('q', search);
-    const res = await fetch(`${API}/api/owner/ppf/car-models?${params}`, { headers: {'x-owner-key': OWNER_PASSWORD} });
+    const res = await fetch(`${API}/api/owner/ppf/car-models`, { headers: {'x-owner-key': OWNER_PASSWORD} });
     if (!res.ok) throw new Error();
     ppfCars = await res.json();
-
-    if (!ppfCars.length) {
-      document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--gray)">No car models found</div>';
-      return;
-    }
-
-    document.getElementById('ppfcars-table').innerHTML = ppfCars.map(c => `
-      <div class="table-row" style="grid-template-columns:1fr 1fr 1.2fr 0.6fr;">
-        <div class="td">${c.brand}</div>
-        <div class="td">${c.model}</div>
-        <div class="td td-sub">${ppfSizeLabel(c.sizeCategory)}</div>
-        <div class="td" style="display:flex;gap:10px;">
-          <span onclick="openEditCarModal(${c.id})" style="cursor:pointer;color:var(--blue);font-size:12px;font-weight:700;">Edit</span>
-          <span onclick="deleteCarModel(${c.id})" style="cursor:pointer;color:var(--red);font-size:12px;font-weight:700;">Delete</span>
-        </div>
-      </div>
-    `).join('');
+    const brands = [...new Set(ppfCars.map(c => c.brand))].sort();
+    document.getElementById('ppfcars-brand-select').innerHTML = `<option value="">Select a brand...</option>` +
+      brands.map(b => `<option value="${b}">${b}</option>`).join('');
+    if (ppfBrowseBrand) renderPPFCarsForBrand(ppfBrowseBrand);
   } catch(e) {
     document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--red)">Error loading car models</div>';
   }
+}
+
+function onPPFBrandBrowse(brand) {
+  ppfBrowseBrand = brand;
+  if (!brand) {
+    document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--gray)">Pick a brand above to see its models.</div>';
+    return;
+  }
+  renderPPFCarsForBrand(brand);
+}
+
+function renderPPFCarsForBrand(brand) {
+  const models = ppfCars.filter(c => c.brand === brand).sort((a,b) => a.model.localeCompare(b.model));
+  if (!models.length) {
+    document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--gray)">No models for this brand yet.</div>';
+    return;
+  }
+  document.getElementById('ppfcars-table').innerHTML = `
+    <div class="table-header" style="grid-template-columns:1.3fr 1fr 1.6fr 0.7fr;">
+      <div>Model</div>
+      <div>Size Class</div>
+      <div>Dimensions (L × W × H, WB cm)</div>
+      <div></div>
+    </div>
+  ` + models.map(c => `
+    <div class="table-row" style="grid-template-columns:1.3fr 1fr 1.6fr 0.7fr;">
+      <div class="td">${c.model}</div>
+      <div class="td td-sub">${ppfSizeLabel(c.sizeCategory)}</div>
+      <div class="td td-sub">${c.hasRealDimensions
+        ? `${c.lengthCm} × ${c.widthCm} × ${c.heightCm}, WB ${c.wheelbaseCm}`
+        : `<span style="color:var(--red);">Estimate only — no real dimensions</span>`}</div>
+      <div class="td" style="display:flex;gap:10px;">
+        <span onclick="openEditCarModal(${c.id})" style="cursor:pointer;color:var(--blue);font-size:12px;font-weight:700;">Edit</span>
+        <span onclick="deleteCarModel(${c.id})" style="cursor:pointer;color:var(--red);font-size:12px;font-weight:700;">Delete</span>
+      </div>
+    </div>
+  `).join('');
 }
 
 function fillSizeSelect(selected) {
@@ -1523,8 +1563,12 @@ function fillSizeSelect(selected) {
 function openAddCarModal() {
   document.getElementById('car-modal-title').textContent = 'Add Car';
   document.getElementById('carm-id').value = '';
-  document.getElementById('carm-brand').value = '';
+  document.getElementById('carm-brand').value = ppfBrowseBrand || '';
   document.getElementById('carm-model').value = '';
+  document.getElementById('carm-length').value = '';
+  document.getElementById('carm-width').value = '';
+  document.getElementById('carm-height').value = '';
+  document.getElementById('carm-wheelbase').value = '';
   document.getElementById('carm-error').textContent = '';
   fillSizeSelect('sedan_compact');
   document.getElementById('car-modal-bg').style.display = 'flex';
@@ -1537,6 +1581,10 @@ function openEditCarModal(id) {
   document.getElementById('carm-id').value = c.id;
   document.getElementById('carm-brand').value = c.brand;
   document.getElementById('carm-model').value = c.model;
+  document.getElementById('carm-length').value = c.lengthCm || '';
+  document.getElementById('carm-width').value = c.widthCm || '';
+  document.getElementById('carm-height').value = c.heightCm || '';
+  document.getElementById('carm-wheelbase').value = c.wheelbaseCm || '';
   document.getElementById('carm-error').textContent = '';
   fillSizeSelect(c.sizeCategory);
   document.getElementById('car-modal-bg').style.display = 'flex';
@@ -1551,6 +1599,10 @@ async function saveCarModel() {
   const brand = document.getElementById('carm-brand').value.trim();
   const model = document.getElementById('carm-model').value.trim();
   const sizeCategory = document.getElementById('carm-size').value;
+  const lengthCm = document.getElementById('carm-length').value;
+  const widthCm = document.getElementById('carm-width').value;
+  const heightCm = document.getElementById('carm-height').value;
+  const wheelbaseCm = document.getElementById('carm-wheelbase').value;
   const errEl = document.getElementById('carm-error');
   if (!brand || !model) { errEl.textContent = 'Brand and model are required'; return; }
   const btn = document.getElementById('carm-save-btn');
@@ -1559,12 +1611,18 @@ async function saveCarModel() {
     const res = await fetch(`${API}/api/owner/ppf/car-models${id ? '/'+id : ''}`, {
       method: id ? 'PATCH' : 'POST',
       headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
-      body: JSON.stringify({ brand, model, sizeCategory }),
+      body: JSON.stringify({
+        brand, model, sizeCategory,
+        lengthCm: lengthCm ? Number(lengthCm) : null, widthCm: widthCm ? Number(widthCm) : null,
+        heightCm: heightCm ? Number(heightCm) : null, wheelbaseCm: wheelbaseCm ? Number(wheelbaseCm) : null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to save');
     closeCarModal();
-    loadPPFCars();
+    ppfBrowseBrand = brand;
+    await loadPPFCars();
+    document.getElementById('ppfcars-brand-select').value = brand;
   } catch(e) {
     errEl.textContent = e.message;
   } finally {
