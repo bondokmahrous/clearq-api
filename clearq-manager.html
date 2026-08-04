@@ -1084,22 +1084,23 @@ async function showDashboard() {
     else nb.innerHTML = ICONS.bell;
   }
 
-  // Load all shops for the select
-  try {
-    allShops = await fetch(API+'/api/wash/shops').then(r=>r.json());
-    const sel = document.getElementById('shop-select');
-    sel.innerHTML = allShops.map(s=>`<option value="${s.id}" ${s.id===currentShopId?'selected':''}>${s.name}</option>`).join('');
-    // Restrict to partner's shop only
-    if (partnerShop) {
-      sel.innerHTML = `<option value="${partnerShop.id}">${partnerShop.name}</option>`;
-      currentShopId = partnerShop.id;
-    }
-  } catch {}
+  // A partner only ever has their own shop, so the select can be filled in immediately without
+  // waiting on the network — critical, since everything below (nav visibility, polling, the
+  // queue view) used to sit behind this fetch and would never run if it hung on a slow connection.
+  const sel = document.getElementById('shop-select');
+  if (partnerShop) {
+    sel.innerHTML = `<option value="${partnerShop.id}">${partnerShop.name}</option>`;
+    currentShopId = partnerShop.id;
+  }
   renderPauseState();
   toggleAddonsNav();
 
   startPolling();
   loadCurrentView();
+
+  // Full shop list isn't actually needed for a partner login (see above) — fetched in the
+  // background only in case something else ends up relying on it, never blocks the dashboard.
+  fetch(API+'/api/wash/shops').then(r=>r.json()).then(list => { allShops = list; }).catch(() => {});
 }
 
 function toggleAddonsNav() {
