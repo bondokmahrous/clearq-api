@@ -2704,6 +2704,56 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 201, created);
     }
 
+    // ─── OWNER: PPF CAR DATABASE ────────────────────────────────────────
+
+    // GET /owner/ppf/car-models?q=search — full car list (all, not just active), for the owner
+    // dashboard's car database view. Includes the size-category label for display.
+    if (m === "GET" && p === "/owner/ppf/car-models") {
+      if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
+      const q = (url.searchParams.get("q") || "").trim();
+      const rows = q
+        ? await db(`SELECT * FROM ppf_car_models WHERE (brand ILIKE $1 OR model ILIKE $1 OR (brand || ' ' || model) ILIKE $1) ORDER BY brand, model`, [`%${q}%`])
+        : await db(`SELECT * FROM ppf_car_models ORDER BY brand, model`);
+      return respond(res, 200, rows.map(ppfCarModel));
+    }
+
+    // POST /owner/ppf/car-models — add a new car model to the database
+    if (m === "POST" && p === "/owner/ppf/car-models") {
+      if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
+      const { brand, model, sizeCategory } = await readBody(req);
+      if (!brand || !model || !sizeCategory) return respond(res, 400, { error: "brand, model, sizeCategory required" });
+      if (!PPF_SIZE_CATEGORIES.some(c => c.key === sizeCategory)) return respond(res, 400, { error: "Invalid sizeCategory" });
+      const existing = await db1(`SELECT id FROM ppf_car_models WHERE brand=$1 AND model=$2`, [brand.trim(), model.trim()]);
+      if (existing) return respond(res, 409, { error: "This brand/model already exists" });
+      const [created] = await db(
+        `INSERT INTO ppf_car_models (brand,model,size_category,is_active,created_at) VALUES ($1,$2,$3,1,NOW()) RETURNING *`,
+        [brand.trim(), model.trim(), sizeCategory]
+      );
+      return respond(res, 201, ppfCarModel(created));
+    }
+
+    // PATCH /owner/ppf/car-models/:id — edit brand/model/sizeCategory/isActive
+    if (m === "PATCH" && /^\/owner\/ppf\/car-models\/\d+$/.test(p)) {
+      if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
+      const id = +p.split("/")[4];
+      const body = await readBody(req);
+      if (body.sizeCategory && !PPF_SIZE_CATEGORIES.some(c => c.key === body.sizeCategory)) return respond(res, 400, { error: "Invalid sizeCategory" });
+      const [updated] = await db(
+        `UPDATE ppf_car_models SET brand=COALESCE($1,brand), model=COALESCE($2,model), size_category=COALESCE($3,size_category), is_active=COALESCE($4,is_active) WHERE id=$5 RETURNING *`,
+        [body.brand?.trim()||null, body.model?.trim()||null, body.sizeCategory||null, body.isActive!=null?(body.isActive?1:0):null, id]
+      );
+      if (!updated) return respond(res, 404, { error: "Car model not found" });
+      return respond(res, 200, ppfCarModel(updated));
+    }
+
+    // DELETE /owner/ppf/car-models/:id
+    if (m === "DELETE" && /^\/owner\/ppf\/car-models\/\d+$/.test(p)) {
+      if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
+      const id = +p.split("/")[4];
+      await db(`DELETE FROM ppf_car_models WHERE id=$1`, [id]);
+      return respond(res, 200, { success: true });
+    }
+
     // GET /owner/customers — aggregated customer profiles across all shops. Grouped by phone
     // (not account) so walk-ins who never signed up still show up here — then enriched with
     // email and their full saved car list for whoever *does* have a registered account, since

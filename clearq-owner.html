@@ -152,6 +152,7 @@ input,select{font-family:inherit;}
     <button class="nav-item" onclick="showPage('customers')"><span class="nav-icon">👤</span> Customers</button>
     <button class="nav-item" onclick="showPage('revenue')"><span class="nav-icon">💰</span> Revenue</button>
     <button class="nav-item" onclick="showPage('ratings')"><span class="nav-icon">⭐</span> Reviews</button>
+    <button class="nav-item" onclick="showPage('ppfcars')"><span class="nav-icon">🚙</span> PPF Car Database</button>
     <div class="sidebar-footer">
       <div class="sidebar-user">Signed in as Owner</div>
       <button class="logout-btn" onclick="doLogout()">Sign Out</button>
@@ -440,6 +441,48 @@ input,select{font-family:inherit;}
           <button onclick="closeCustomerModal()" style="background:none;border:none;color:var(--gray);font-size:22px;cursor:pointer;">✕</button>
         </div>
         <div id="customer-history-list"><div class="loading"><div class="spin"></div></div></div>
+      </div>
+    </div>
+
+    <!-- PPF CAR DATABASE -->
+    <div class="page" id="page-ppfcars">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="page-title">PPF Car Database</div>
+        <button class="refresh-btn" onclick="openAddCarModal()">+ Add Car</button>
+      </div>
+      <div class="page-sub">Every car model used for Protection (PPF) quoting, with its size class — the size class drives the per-panel area estimate a quote is priced from. Not literal measurements (no one publishes those); see each size class as a rough estimate for cars of that type.</div>
+      <div class="filters-row">
+        <input class="search-input" type="text" id="search-ppfcars" placeholder="Search brand or model..." oninput="loadPPFCars()" style="width:280px;">
+        <button class="refresh-btn" onclick="loadPPFCars()">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header" style="grid-template-columns:1fr 1fr 1.2fr 0.6fr;">
+          <div>Brand</div>
+          <div>Model</div>
+          <div>Size Class</div>
+          <div></div>
+        </div>
+        <div id="ppfcars-table"><div class="loading"><div class="spin"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ADD/EDIT CAR MODAL -->
+    <div id="car-modal-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:var(--navy-mid);border-radius:16px;padding:28px;width:100%;max-width:440px;border:1px solid var(--navy-light);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="font-size:18px;font-weight:800;" id="car-modal-title">Add Car</div>
+          <button onclick="closeCarModal()" style="background:none;border:none;color:var(--gray);font-size:22px;cursor:pointer;">✕</button>
+        </div>
+        <input type="hidden" id="carm-id">
+        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Brand</label>
+        <input class="login-input" id="carm-brand" placeholder="Mercedes-Benz">
+        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Model</label>
+        <input class="login-input" id="carm-model" placeholder="C-Class">
+        <label style="font-size:11px;color:var(--gray);font-weight:600;display:block;margin-bottom:6px;">Size Class</label>
+        <select class="login-input" id="carm-size"></select>
+        <div style="font-size:11px;color:var(--gray);margin:-4px 0 14px;">Determines panel-area pricing — pick the closest real-world match.</div>
+        <div id="carm-error" style="color:var(--red);font-size:12px;margin-bottom:12px;"></div>
+        <button class="login-btn" onclick="saveCarModel()" id="carm-save-btn">Save</button>
       </div>
     </div>
 
@@ -1427,6 +1470,117 @@ function closeCustomerModal() {
   document.getElementById('customer-modal-bg').style.display = 'none';
 }
 
+// ─── PPF CAR DATABASE ────────────────────────────────────────────
+const PPF_SIZE_CATEGORIES = [
+  {key:'hatchback_small', label:'Small Hatchback'},
+  {key:'sedan_compact', label:'Compact Sedan'},
+  {key:'sedan_mid', label:'Mid-Size Sedan'},
+  {key:'sedan_large', label:'Full-Size / Luxury Sedan'},
+  {key:'suv_compact', label:'Compact SUV'},
+  {key:'suv_mid', label:'Mid-Size SUV'},
+  {key:'suv_full', label:'Full-Size SUV'},
+  {key:'pickup_van', label:'Pickup / Van'},
+];
+const ppfSizeLabel = key => PPF_SIZE_CATEGORIES.find(c => c.key === key)?.label || key;
+let ppfCars = [];
+
+async function loadPPFCars() {
+  const search = document.getElementById('search-ppfcars').value;
+  document.getElementById('ppfcars-table').innerHTML = '<div class="loading"><div class="spin"></div></div>';
+  try {
+    const params = new URLSearchParams();
+    if (search) params.set('q', search);
+    const res = await fetch(`${API}/api/owner/ppf/car-models?${params}`, { headers: {'x-owner-key': OWNER_PASSWORD} });
+    if (!res.ok) throw new Error();
+    ppfCars = await res.json();
+
+    if (!ppfCars.length) {
+      document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--gray)">No car models found</div>';
+      return;
+    }
+
+    document.getElementById('ppfcars-table').innerHTML = ppfCars.map(c => `
+      <div class="table-row" style="grid-template-columns:1fr 1fr 1.2fr 0.6fr;">
+        <div class="td">${c.brand}</div>
+        <div class="td">${c.model}</div>
+        <div class="td td-sub">${ppfSizeLabel(c.sizeCategory)}</div>
+        <div class="td" style="display:flex;gap:10px;">
+          <span onclick="openEditCarModal(${c.id})" style="cursor:pointer;color:var(--blue);font-size:12px;font-weight:700;">Edit</span>
+          <span onclick="deleteCarModel(${c.id})" style="cursor:pointer;color:var(--red);font-size:12px;font-weight:700;">Delete</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('ppfcars-table').innerHTML = '<div class="loading" style="color:var(--red)">Error loading car models</div>';
+  }
+}
+
+function fillSizeSelect(selected) {
+  const sel = document.getElementById('carm-size');
+  sel.innerHTML = PPF_SIZE_CATEGORIES.map(c => `<option value="${c.key}" ${c.key===selected?'selected':''}>${c.label}</option>`).join('');
+}
+
+function openAddCarModal() {
+  document.getElementById('car-modal-title').textContent = 'Add Car';
+  document.getElementById('carm-id').value = '';
+  document.getElementById('carm-brand').value = '';
+  document.getElementById('carm-model').value = '';
+  document.getElementById('carm-error').textContent = '';
+  fillSizeSelect('sedan_compact');
+  document.getElementById('car-modal-bg').style.display = 'flex';
+}
+
+function openEditCarModal(id) {
+  const c = ppfCars.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('car-modal-title').textContent = 'Edit Car';
+  document.getElementById('carm-id').value = c.id;
+  document.getElementById('carm-brand').value = c.brand;
+  document.getElementById('carm-model').value = c.model;
+  document.getElementById('carm-error').textContent = '';
+  fillSizeSelect(c.sizeCategory);
+  document.getElementById('car-modal-bg').style.display = 'flex';
+}
+
+function closeCarModal() {
+  document.getElementById('car-modal-bg').style.display = 'none';
+}
+
+async function saveCarModel() {
+  const id = document.getElementById('carm-id').value;
+  const brand = document.getElementById('carm-brand').value.trim();
+  const model = document.getElementById('carm-model').value.trim();
+  const sizeCategory = document.getElementById('carm-size').value;
+  const errEl = document.getElementById('carm-error');
+  if (!brand || !model) { errEl.textContent = 'Brand and model are required'; return; }
+  const btn = document.getElementById('carm-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await fetch(`${API}/api/owner/ppf/car-models${id ? '/'+id : ''}`, {
+      method: id ? 'PATCH' : 'POST',
+      headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
+      body: JSON.stringify({ brand, model, sizeCategory }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to save');
+    closeCarModal();
+    loadPPFCars();
+  } catch(e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteCarModel(id) {
+  const c = ppfCars.find(x => x.id === id);
+  if (!c || !confirm(`Delete ${c.brand} ${c.model}? This cannot be undone.`)) return;
+  try {
+    await fetch(`${API}/api/owner/ppf/car-models/${id}`, { method: 'DELETE', headers: {'x-owner-key': OWNER_PASSWORD} });
+    loadPPFCars();
+  } catch(e) { alert('Failed to delete'); }
+}
+
 // ─── NAVIGATION ─────────────────────────────────────────────────
 function showPage(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1441,6 +1595,7 @@ function showPage(page) {
   else if (page === 'ratings') loadRatings();
   else if (page === 'customers') loadCustomers();
   else if (page === 'overview') loadOverview();
+  else if (page === 'ppfcars') loadPPFCars();
 }
 
 // ─── AUTO REFRESH ────────────────────────────────────────────────
