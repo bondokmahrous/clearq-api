@@ -247,6 +247,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(15,92,84,0.9
 .map-pin{background:var(--blue);color:#fff;border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);white-space:nowrap;}
 .map-pin.busy{background:var(--amber);}
 .map-pin.full{background:var(--red);}
+/* FILO ghost demo only — Google's own basemap is already busy with POI icons at this zoom, so
+   this needs real contrast to be found at a glance: bigger, a bright border ring, and a slow
+   pulse to catch the eye without being distracting. */
+.map-pin.ghost-standout{padding:8px 16px;font-size:14px;font-weight:800;border-radius:24px;border:3px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,0.3),0 0 0 4px rgba(63,189,176,0.45);animation:ghostPinPulse 1.8s ease-in-out infinite;}
+@keyframes ghostPinPulse{0%,100%{box-shadow:0 4px 14px rgba(0,0,0,0.3),0 0 0 4px rgba(63,189,176,0.45);}50%{box-shadow:0 4px 18px rgba(0,0,0,0.35),0 0 0 10px rgba(63,189,176,0.18);}}
 
 /* BOOKINGS */
 .booking-item{background:#fff;border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
@@ -1099,7 +1104,10 @@ async function loadShops() {
         const gRes = await fetch(`${API}/api/wash/shops/ghost/${encodeURIComponent(ghostSlug)}`);
         if (gRes.ok) {
           const ghostShop = await gRes.json();
-          shops.push(ghostShop);
+          // A shop can be both publicly active *and* have a ghost link (e.g. a real centre the
+          // owner also demos this way) — in that case it's already in `shops` from the public
+          // fetch above, so don't push a second copy of it.
+          if (!shops.some(s => s.id === ghostShop.id)) shops.push(ghostShop);
           ghostShopId = ghostShop.id;
           // Preview-only: the faint background car-wash motif on the hero — see .lp-hero-art.
           const heroArt = document.getElementById('lp-hero-art');
@@ -3068,10 +3076,12 @@ function refreshMapPins() {
     const waitMins = qd.minsUntilNextFree || 0;
     const qColor = waitMins === 0 ? '#22c55e' : waitMins < 30 ? '#f59e0b' : '#ef4444';
     const pinClass = waitMins === 0 ? '' : waitMins < 30 ? 'busy' : 'full';
+    // FILO ghost demo only — make it easy to spot against Google's own busy POI icons at a glance.
+    const isFiloGhost = ghostShopId === s.id && new URLSearchParams(location.search).get('g') === 'filo';
     const {start: mapStart, ready: mapReady} = getStartReady(qd, s, getServiceDuration(s, services[s.id]));
     const mapClosesTooLate = shopClosesTooLate(s, mapStart, mapReady);
 
-    const pinHtml = `<button class="map-pin ${pinClass}" onclick="focusMapShop(${s.id})">${s.name.split(' ')[0]}</button>`;
+    const pinHtml = `<button class="map-pin ${pinClass}${isFiloGhost ? ' ghost-standout' : ''}" onclick="focusMapShop(${s.id})">${s.name.split(' ')[0]}</button>`;
     const overlay = new (getPinOverlayClass())({ lat: s.lat, lng: s.lng }, pinHtml);
     overlay.setMap(gMap);
     gPinOverlays.push(overlay);
