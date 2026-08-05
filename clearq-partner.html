@@ -318,6 +318,19 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
   </div>
 </div>
 
+<div class="wi-bg" id="eb-modal">
+  <div class="wi-box">
+    <div class="wi-title" data-i18n="edit_booking_title">Change Service</div>
+    <div class="wi-lbl" id="eb-customer-line" style="font-weight:600;color:var(--gray-dark);margin-bottom:8px;"></div>
+    <div class="wi-lbl" data-i18n="wash_type">Wash type</div>
+    <div class="wt-row" id="eb-types"></div>
+    <div class="wi-acts">
+      <button class="wi-cancel" onclick="closeEB()" data-i18n="cancel">Cancel</button>
+      <button class="wi-confirm" id="eb-btn" onclick="saveEditBooking()" disabled data-i18n="save_changes">Save</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = 'https://clearq.online';
 
@@ -394,6 +407,8 @@ let partnerShop = JSON.parse(localStorage.getItem('partner_shop') || 'null');
 let partnerServices = [];
 let editAddons = [];
 let selectedWashType = null;
+let lastBookings = [];
+let editingBookingId = null, editSelectedWashType = null;
 let queuePoll = null;
 let editServices = [];
 
@@ -620,6 +635,7 @@ async function loadQueue(silent=false) {
     if (!qRes.ok) throw new Error();
     const bookings = (await qRes.json()).filter(b=>b.status!=='cancelled');
     partnerServices = sRes.ok ? await sRes.json() : [];
+    lastBookings = bookings;
     renderQueue(bookings);
     renderStaleBookings(staleRes.ok ? await staleRes.json() : []);
     if (waitRes.ok) {
@@ -689,6 +705,7 @@ function renderQueue(bookings) {
         </div>
         ${!cp?`<div class="bc-acts">
           ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start',this)">${CQI18N.t('start_btn')}</button>`:''}
+          ${b.status==='pending'?`<button class="abtn" onclick="openEB(${b.id})">${CQI18N.t('edit_btn')}</button>`:''}
           ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
         </div>`:''}
       </div>`;
@@ -1148,6 +1165,35 @@ async function addWalkIn(){
     loadQueue();loadBays();
   }catch(e){toast(ICONS.alert+' '+e.message, 7000);}
   finally{btn.disabled=false;btn.textContent='Add';}
+}
+
+// EDIT BOOKING (staff correcting the service after the customer arrives)
+function openEB(id){
+  const b = lastBookings.find(x=>x.id===id);
+  if (!b) return;
+  editingBookingId = id;
+  editSelectedWashType = null;
+  document.getElementById('eb-customer-line').textContent = (b.customerName || CQI18N.t('walk_in_label')) + (b.customerPhone ? ' · '+b.customerPhone : '');
+  const row = document.getElementById('eb-types');
+  const types = partnerServices.length ? partnerServices.filter(s=>s.isActive!==0) : [{name:'exterior'},{name:'interior'},{name:'full'}];
+  row.innerHTML = types.map(s=>`<button class="wt-btn ${s.name===b.washType?'sel':''}" onclick="selEBWT('${s.name}',this)">${s.name}</button>`).join('');
+  if (types.some(s=>s.name===b.washType)) editSelectedWashType = b.washType;
+  document.getElementById('eb-btn').disabled = !editSelectedWashType;
+  document.getElementById('eb-modal').classList.add('open');
+}
+function closeEB(){ document.getElementById('eb-modal').classList.remove('open'); }
+function selEBWT(type,btn){ editSelectedWashType=type; document.querySelectorAll('#eb-types .wt-btn').forEach(b=>b.classList.remove('sel')); btn.classList.add('sel'); document.getElementById('eb-btn').disabled=false; }
+async function saveEditBooking(){
+  if (!editingBookingId || !editSelectedWashType) return;
+  const btn = document.getElementById('eb-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+  try{
+    await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${editingBookingId}/edit`,{method:'PATCH',headers:authH(),body:JSON.stringify({washType:editSelectedWashType})});
+    closeEB();
+    toast(`${ICONS.check}${CQI18N.t('booking_updated_toast')}`);
+    loadQueue();loadBays();
+  }catch(e){toast(ICONS.alert+' '+e.message, 7000);}
+  finally{btn.disabled=false;btn.textContent=CQI18N.t('save_changes');}
 }
 
 // ─── PUSH NOTIFICATIONS FOR PARTNER ─────────────────────────────

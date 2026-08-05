@@ -769,6 +769,19 @@ a { text-decoration: none; }
   </div>
 </div>
 
+<div class="modal-overlay" id="edit-booking-modal">
+  <div class="modal-box">
+    <div class="modal-title" data-i18n="edit_booking_title">Change Service</div>
+    <div style="font-size:13px;font-weight:600;color:var(--gray);margin-bottom:14px;" id="eb-customer-line"></div>
+    <label class="form-label" data-i18n="wash_type">Wash type</label>
+    <div class="wash-type-grid" id="eb-types"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal('edit-booking-modal')" data-i18n="cancel">Cancel</button>
+      <button class="modal-confirm" id="eb-btn" onclick="saveEditBooking()" disabled data-i18n="save_changes">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = 'https://clearq.online';
 let token = localStorage.getItem('cq_partner_token');
@@ -1397,6 +1410,7 @@ function renderQueueTable(bookings) {
         <td>
           <div class="action-btns">
             ${b.status==='pending'?`<button class="act-btn act-start" onclick="doAction(${b.id},'start',this)" title="${CQI18N.t('start_wash_title')}">${CQI18N.t('start_btn')}</button>`:''}
+            ${b.status==='pending'?`<button class="act-btn" onclick="openEditBooking(${b.id})" title="${CQI18N.t('edit_booking_title')}">${CQI18N.t('edit_btn')}</button>`:''}
             ${b.status==='in_progress'?`<button class="act-btn act-done" onclick="doAction(${b.id},'done',this)" title="${CQI18N.t('mark_complete_title')}">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
             ${b.status!=='completed'&&b.status!=='cancelled'?`<button class="act-btn act-cancel" onclick="cancelBooking(${b.id},this)" title="${CQI18N.t('cancel_booking_title')}">${ICONS.x}</button>`:''}
           </div>
@@ -2244,6 +2258,47 @@ async function submitWalkIn() {
     loadBays();
   } catch(e) { toast(e.message,'error',ICONS.xCircle,7000); }
   finally { unspin(btn); btn.textContent='Add Walk-in'; }
+}
+
+// ─── EDIT BOOKING MODAL (staff correcting the service after the customer arrives) ────
+let editingBookingId = null, editSelectedWashType = null;
+
+async function openEditBooking(bookingId) {
+  const b = currentBookings.find(x=>x.id===bookingId);
+  if (!b) return;
+  editingBookingId = bookingId;
+  editSelectedWashType = null;
+  document.getElementById('eb-customer-line').textContent = (b.customerName || CQI18N.t('walk_in_label')) + (b.customerPhone ? ' · '+b.customerPhone : '');
+  if (!currentServices.length) currentServices = await api('/api/partners/shop/'+currentShopId+'/services');
+  const types = currentServices.length ? currentServices.filter(s=>s.isActive!==0) : [{name:'exterior'},{name:'interior'},{name:'full'}];
+  document.getElementById('eb-types').innerHTML = types.map(s=>`
+    <button class="wtype-btn ${s.name===b.washType?'sel':''}" onclick="selectEditWashType('${s.name}',this)">${s.name}</button>
+  `).join('');
+  if (types.some(s=>s.name===b.washType)) editSelectedWashType = b.washType;
+  document.getElementById('eb-btn').disabled = !editSelectedWashType;
+  openModal('edit-booking-modal');
+}
+
+function selectEditWashType(type, btn) {
+  editSelectedWashType = type;
+  document.querySelectorAll('#eb-types .wtype-btn').forEach(b=>b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('eb-btn').disabled = false;
+}
+
+async function saveEditBooking() {
+  if (!editingBookingId || !editSelectedWashType) return;
+  const btn = document.getElementById('eb-btn');
+  spin(btn);
+  try {
+    await api('/api/partners/shop/'+currentShopId+'/reservations/'+editingBookingId+'/edit', {
+      method: 'PATCH', body: JSON.stringify({ washType: editSelectedWashType })
+    });
+    closeModal('edit-booking-modal');
+    toast(CQI18N.t('booking_updated_toast'),'success',ICONS.check);
+    loadQueue(true);
+  } catch(e) { toast(e.message,'error',ICONS.xCircle,7000); }
+  finally { unspin(btn); btn.textContent=CQI18N.t('save_changes'); }
 }
 
 // ─── PUSH NOTIFICATIONS FOR MANAGER ─────────────────────────────

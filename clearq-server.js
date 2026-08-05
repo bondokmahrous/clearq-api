@@ -2628,6 +2628,36 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       return respond(res, 200, booking(updated));
     }
 
+    // PATCH /partners/shop/:id/reservations/:bookingId/edit — staff correcting the service on a
+    // booking the customer picked wrong online (e.g. booked Exterior, arrives wanting Full Wash).
+    // Only allowed while still pending — once a wash is in progress or done, its price/duration
+    // are settled history, not something to retroactively rewrite.
+    if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/edit$/.test(p)) {
+      const parts = p.split("/");
+      const bookingId = +parts[parts.length-2];
+      const { washType } = await readBody(req);
+      if (!washType) return respond(res, 400, { error: "washType required" });
+      const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
+      if (!b) return respond(res, 404, { error: "Booking not found" });
+      if (b.status !== "pending") return respond(res, 409, { error: `Booking is already ${b.status} — can't change its service now.` });
+
+      const { price: basePrice, durationMins: baseDurationMins } = await resolveService(shopId, washType);
+      const addons = Array.isArray(b.addons) ? b.addons : [];
+      const addonsPrice = addons.reduce((sum, a) => sum + (a.price || 0), 0);
+      const addonsDurationMins = addons.reduce((sum, a) => sum + (a.durationMins || 0), 0);
+      const subtotal = basePrice + addonsPrice;
+      const price = b.discount_percent != null ? Math.round(subtotal * (1 - b.discount_percent / 100)) : subtotal;
+      const originalPrice = b.discount_percent != null ? subtotal : b.original_price;
+      const durationMins = baseDurationMins + addonsDurationMins;
+      const etaReady = b.eta_arrival_at ? new Date(new Date(b.eta_arrival_at).getTime() + durationMins * 60000) : b.eta_ready_at;
+
+      const [updated] = await db(
+        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, updated_at=NOW() WHERE id=$5 RETURNING *`,
+        [washType, price, originalPrice, etaReady, bookingId]
+      );
+      return respond(res, 200, booking(updated));
+    }
+
     // PATCH /partners/shop/:id/reservations/:bookingId/cancel
     if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/cancel$/.test(p)) {
       const parts = p.split("/");
