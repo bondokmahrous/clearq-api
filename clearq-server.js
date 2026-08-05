@@ -1312,6 +1312,17 @@ function assignBays(maxBays, active, items, defaultDur, nowMs) {
   return startTimes;
 }
 
+// A currently-active wash's bay can't count as free before the wash actually physically finishes,
+// even once the configured spacing has elapsed since it started — otherwise a spacing shorter
+// than a real service's duration (e.g. spacing dropped to 30min while a "Highly Detailed Wash"
+// still takes 90) promises a bay that's still occupied. Spacing is a MINIMUM gap, not a promise
+// that ignores reality.
+function hdActiveBayFreeAt(b, spacingMs) {
+  const startAt = new Date(b.wash_started_at || b.created_at).getTime();
+  const actualFinishAt = b.eta_ready_at ? new Date(b.eta_ready_at).getTime() : startAt + spacingMs;
+  return Math.max(startAt + spacingMs, actualFinishAt);
+}
+
 // Same shape as assignBays(), but a bay's next booking always waits a fixed spacingMs after the
 // previous one in that same bay — the real wash duration plays no part in when the bay opens up
 // for its next booking. Each bay still runs independently, so with N bays the shop can take up
@@ -1327,7 +1338,7 @@ function assignBaysFixedSpacing(maxBays, active, items, spacingMs, nowMs) {
     bays.sort((a, x) => a - x);
     const startAt = new Date(b.wash_started_at || b.created_at).getTime();
     startTimes.set(b, startAt);
-    bays[0] = startAt + spacingMs;
+    bays[0] = hdActiveBayFreeAt(b, spacingMs);
   }
 
   for (const b of items) {
@@ -1466,7 +1477,7 @@ async function simulateBayQueue(shopId, opts = {}) {
     ? (mb, act, items) => assignBaysFixedSpacing(mb, act, items, spacingMs, nowMs)
     : (mb, act, items) => assignBays(mb, act, items, defaultDur, nowMs);
   const activeFinishAt = isHdCarWash
-    ? (b) => new Date(b.wash_started_at || b.created_at).getTime() + spacingMs
+    ? (b) => hdActiveBayFreeAt(b, spacingMs)
     : (b) => {
         const dur = bookingDurationMins(b, defaultDur);
         const finishAt = b.eta_ready_at
