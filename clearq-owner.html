@@ -971,7 +971,8 @@ async function loadBookings() {
         <div class="td">${b.scheduledDate||'—'}</div>
         <div class="td">
           <div style="color:var(--green);font-weight:700">${b.price||0} EGP</div>
-          ${b.promoCode ? `<div class="td-sub" style="color:#f59e0b;font-weight:700;">🏷 ${b.promoCode} · -${b.discountPercent}%${b.originalPrice ? ` <span style="text-decoration:line-through;color:var(--gray);font-weight:400;">${b.originalPrice}</span>` : ''}</div>` : ''}
+          ${b.promoCode ? `<div class="td-sub" style="color:#f59e0b;font-weight:700;">🏷 ${b.promoCode} · -${b.discountPercent}%${b.originalPrice ? ` <span style="text-decoration:line-through;color:var(--gray);font-weight:400;">${b.originalPrice}</span>` : ''}</div>
+          <span onclick="grantPromoUse(${b.shopId},'${(b.customerPhone||'').replace(/'/g,"\\'")}','${(b.customerName||'').replace(/'/g,"\\'")}',this)" style="cursor:pointer;color:var(--blue);font-size:11px;font-weight:700;text-decoration:underline;">+ Grant another use</span>` : ''}
         </div>
         <div class="td">${statusBadge(b.status)}</div>
         <div class="td td-sub">${b.scheduledTime||'—'}</div>
@@ -980,6 +981,25 @@ async function loadBookings() {
 
   } catch(e) {
     document.getElementById('bookings-table').innerHTML = `<div class="loading" style="color:var(--red)">Error loading bookings</div>`;
+  }
+}
+
+async function grantPromoUse(shopId, customerPhone, customerName, el) {
+  if (!customerPhone) { alert('No phone on file for this booking — cannot grant a use.'); return; }
+  if (!confirm(`Grant ${customerName || 'this customer'} one more use of this promo code?`)) return;
+  el.textContent = '...';
+  try {
+    await fetch(`${API}/api/owner/promo/grant-use`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'x-owner-key': OWNER_PASSWORD},
+      body: JSON.stringify({ shopId, customerPhone }),
+    });
+    el.textContent = '✓ Granted';
+    el.style.cursor = 'default';
+    el.onclick = null;
+  } catch(e) {
+    el.textContent = '+ Grant another use';
+    alert('Failed to grant: ' + e.message);
   }
 }
 

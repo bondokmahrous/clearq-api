@@ -368,6 +368,19 @@ async function initDB() {
     )
   `);
 
+  // Manual customer-service exceptions to the one-use-per-account promo limit — e.g. a customer's
+  // first attempt failed/was cancelled through no fault of their own and the owner wants to
+  // honor the code again. Extra uses stack (owner can grant more than once).
+  await db(`
+    CREATE TABLE IF NOT EXISTS promo_bonus_uses (
+      shop_id INT NOT NULL REFERENCES wash_shops(id),
+      customer_phone TEXT NOT NULL,
+      extra_uses INT NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (shop_id, customer_phone)
+    )
+  `);
+
   // Check if we need to seed data
   const count = await db1("SELECT COUNT(*) as cnt FROM wash_shops");
   if (parseInt(count.cnt) === 0) {
@@ -1196,11 +1209,17 @@ async function promoAlreadyUsed(shopId, code, userId, customerPhone) {
   if (userId) { conditions.push(`user_id = $${i++}`); params.push(userId); }
   if (customerPhone) { conditions.push(`customer_phone = $${i++}`); params.push(customerPhone); }
   if (!conditions.length) return false;
-  const row = await db1(
-    `SELECT id FROM wash_bookings WHERE shop_id=$1 AND promo_code=$2 AND status != 'cancelled' AND (${conditions.join(' OR ')}) LIMIT 1`,
+  const usedRow = await db1(
+    `SELECT COUNT(*)::int as cnt FROM wash_bookings WHERE shop_id=$1 AND promo_code=$2 AND status != 'cancelled' AND (${conditions.join(' OR ')})`,
     params
   );
-  return !!row;
+  const usedCount = usedRow?.cnt || 0;
+  let bonus = 0;
+  if (customerPhone) {
+    const bonusRow = await db1(`SELECT extra_uses FROM promo_bonus_uses WHERE shop_id=$1 AND customer_phone=$2`, [shopId, customerPhone]);
+    bonus = bonusRow?.extra_uses || 0;
+  }
+  return usedCount >= (1 + bonus);
 }
 
 // Wraps applyPromoDiscount() with the one-use-per-account check — if the code would otherwise
@@ -2675,7 +2694,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/edit$/.test(p)) {
       const parts = p.split("/");
       const bookingId = +parts[parts.length-2];
-      const { washType, time } = await readBody(req);
+      const { washType, startTime, endTime } = await readBody(req);
       if (!washType) return respond(res, 400, { error: "washType required" });
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
@@ -2690,40 +2709,53 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const originalPrice = b.discount_percent != null ? subtotal : b.original_price;
       const durationMins = baseDurationMins + addonsDurationMins;
 
-      // Optional "HH:MM" (Cairo local time, today) override for the booking's operative time —
-      // arrival for a pending booking, actual start for one already in a bay. Built with an
-      // explicit +03:00 offset so this is correct regardless of the server's own timezone.
-      let newAnchor = null;
-      if (time && /^\d{1,2}:\d{2}$/.test(time)) {
-        const [hh, mm] = time.split(':').map(Number);
-        const cairoDateStr = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
-        newAnchor = new Date(`${cairoDateStr}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+03:00`);
-      }
+      // Optional "HH:MM" (Cairo local time, today) overrides for the booking's operative times.
+      // startTime = arrival (pending) or actual start (in_progress/completed).
+      // endTime = actual finish, only meaningful once a booking is completed.
+      // Built with an explicit +03:00 offset so this is correct regardless of the server's own timezone.
+      const cairoDateStr = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+      const parseCairoTime = (t) => {
+        if (!t || !/^\d{1,2}:\d{2}$/.test(t)) return null;
+        const [hh, mm] = t.split(':').map(Number);
+        return new Date(`${cairoDateStr}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+03:00`);
+      };
+      const newStart = parseCairoTime(startTime);
+      const newEnd = parseCairoTime(endTime);
 
       let etaArrivalAt = b.eta_arrival_at;
       let washStartedAt = b.wash_started_at;
+      let washFinishedAt = b.wash_finished_at;
       let etaReady = b.eta_ready_at;
       if (b.status === "pending") {
-        if (newAnchor) etaArrivalAt = newAnchor;
+        if (newStart) etaArrivalAt = newStart;
         etaReady = etaArrivalAt ? new Date(new Date(etaArrivalAt).getTime() + durationMins * 60000) : b.eta_ready_at;
       } else if (b.status === "in_progress") {
-        if (newAnchor) washStartedAt = newAnchor;
+        if (newStart) washStartedAt = newStart;
         const anchor = washStartedAt || b.arrived_at || b.created_at;
         etaReady = new Date(new Date(anchor).getTime() + durationMins * 60000);
+      } else if (b.status === "completed") {
+        if (newStart) washStartedAt = newStart;
+        if (newEnd) washFinishedAt = newEnd;
+        // Keep eta_ready_at consistent with the corrected finish time (or start+duration if only start changed).
+        if (newEnd) etaReady = washFinishedAt;
+        else if (newStart) etaReady = new Date(new Date(washStartedAt).getTime() + durationMins * 60000);
       }
-      // completed: eta_ready_at/arrival/start are all history at this point, left untouched.
 
       const [updated] = await db(
-        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, eta_arrival_at=$5, wash_started_at=$6, updated_at=NOW() WHERE id=$7 RETURNING *`,
-        [washType, price, originalPrice, etaReady, etaArrivalAt, washStartedAt, bookingId]
+        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, eta_arrival_at=$5, wash_started_at=$6, wash_finished_at=$7, updated_at=NOW() WHERE id=$8 RETURNING *`,
+        [washType, price, originalPrice, etaReady, etaArrivalAt, washStartedAt, washFinishedAt, bookingId]
       );
 
-      // A completed wash already snapshotted the old service/price into wash_service_history —
-      // keep that record in sync so revenue reports match what the booking now shows. The
-      // duration in that row is real elapsed time (recorded at completion), not a service config
-      // value, so it's deliberately left alone here.
+      // A completed wash already snapshotted the old service/price/duration into wash_service_history —
+      // keep that record in sync so revenue and time reports match what the booking now shows.
       if (b.status === "completed") {
-        await db(`UPDATE wash_service_history SET wash_type=$1, price=$2 WHERE booking_id=$3`, [washType, price, bookingId]);
+        const historyDurationMins = (newStart || newEnd) && washStartedAt && washFinishedAt
+          ? Math.max(1, Math.round((new Date(washFinishedAt).getTime() - new Date(washStartedAt).getTime()) / 60000))
+          : null;
+        await db(
+          `UPDATE wash_service_history SET wash_type=$1, price=$2, duration_mins=COALESCE($3, duration_mins), completed_at=COALESCE($4, completed_at) WHERE booking_id=$5`,
+          [washType, price, historyDurationMins, newEnd ? washFinishedAt : null, bookingId]
+        );
       }
 
       return respond(res, 200, booking(updated));
@@ -3197,6 +3229,23 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         kind: b.kind, createdAt: b.created_at, licensePlate: b.license_plate,
         carModel: b.car_model,
       })));
+    }
+
+    // POST /owner/promo/grant-use — manually grant a customer one more use of a shop's promo
+    // code, on top of the normal one-use-per-account limit (customer service exception — e.g.
+    // their first attempt was cancelled through no fault of their own). Stacks if called again.
+    if (m === "POST" && p === "/owner/promo/grant-use") {
+      if (!checkOwnerKey(req)) return respond(res, 401, { error: "Unauthorized" });
+      const { shopId, customerPhone, extraUses } = await readBody(req);
+      if (!shopId || !customerPhone) return respond(res, 400, { error: "shopId and customerPhone required" });
+      const grant = extraUses != null ? +extraUses : 1;
+      const [row] = await db(
+        `INSERT INTO promo_bonus_uses (shop_id, customer_phone, extra_uses, updated_at) VALUES ($1,$2,$3,NOW())
+         ON CONFLICT (shop_id, customer_phone) DO UPDATE SET extra_uses = promo_bonus_uses.extra_uses + $3, updated_at = NOW()
+         RETURNING *`,
+        [shopId, customerPhone, grant]
+      );
+      return respond(res, 200, { shopId: row.shop_id, customerPhone: row.customer_phone, extraUses: row.extra_uses });
     }
 
     // GET /owner/bookings — all bookings across all shops (owner only)
