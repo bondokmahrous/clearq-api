@@ -324,6 +324,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(255,255,255,
     <div class="wi-lbl" id="eb-customer-line" style="font-weight:600;color:var(--gray-dark);margin-bottom:8px;"></div>
     <div class="wi-lbl" data-i18n="wash_type">Wash type</div>
     <div class="wt-row" id="eb-types"></div>
+    <div class="wi-lbl" id="eb-time-lbl" data-i18n="edit_time_label">Arrival time</div>
+    <input class="wi-in" type="time" id="eb-time">
     <div class="wi-acts">
       <button class="wi-cancel" onclick="closeEB()" data-i18n="cancel">Cancel</button>
       <button class="wi-confirm" id="eb-btn" onclick="saveEditBooking()" disabled data-i18n="save_changes">Save</button>
@@ -1168,6 +1170,7 @@ async function addWalkIn(){
 }
 
 // EDIT BOOKING (staff correcting the service after the customer arrives)
+function fmtTimeHHMM(iso){ if(!iso) return ''; const d=new Date(new Date(iso).getTime()+3*3600000); return String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0'); }
 function openEB(id){
   const b = lastBookings.find(x=>x.id===id);
   if (!b) return;
@@ -1179,6 +1182,14 @@ function openEB(id){
   row.innerHTML = types.map(s=>`<button class="wt-btn ${s.name===b.washType?'sel':''}" onclick="selEBWT('${s.name}',this)">${s.name}</button>`).join('');
   if (types.some(s=>s.name===b.washType)) editSelectedWashType = b.washType;
   document.getElementById('eb-btn').disabled = !editSelectedWashType;
+  const timeField = document.getElementById('eb-time'), timeLbl = document.getElementById('eb-time-lbl');
+  if (b.status === 'completed') {
+    timeField.style.display = 'none'; timeLbl.style.display = 'none';
+  } else {
+    timeField.style.display = ''; timeLbl.style.display = '';
+    timeLbl.textContent = b.status === 'in_progress' ? CQI18N.t('edit_time_started_label') : CQI18N.t('edit_time_label');
+    timeField.value = fmtTimeHHMM(b.status === 'in_progress' ? b.washStartedAt : b.etaArrivalAt);
+  }
   document.getElementById('eb-modal').classList.add('open');
 }
 function closeEB(){ document.getElementById('eb-modal').classList.remove('open'); }
@@ -1188,7 +1199,8 @@ async function saveEditBooking(){
   const btn = document.getElementById('eb-btn');
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
   try{
-    await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${editingBookingId}/edit`,{method:'PATCH',headers:authH(),body:JSON.stringify({washType:editSelectedWashType})});
+    const timeVal = document.getElementById('eb-time').style.display !== 'none' ? document.getElementById('eb-time').value : null;
+    await apiFetch(`${API}/api/partners/shop/${partnerShop.id}/reservations/${editingBookingId}/edit`,{method:'PATCH',headers:authH(),body:JSON.stringify({washType:editSelectedWashType, time:timeVal||undefined})});
     closeEB();
     toast(`${ICONS.check}${CQI18N.t('booking_updated_toast')}`);
     loadQueue();loadBays();

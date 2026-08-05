@@ -953,7 +953,7 @@ async function loadBookings() {
     };
 
     document.getElementById('bookings-table').innerHTML = filtered.map(b => `
-      <div class="table-row">
+      <div class="table-row" style="${b.promoCode ? 'background:rgba(245,158,11,0.08);border-left:3px solid #f59e0b;' : ''}">
         <div class="td">
           <div>${b.customerName||'—'}</div>
           <div class="td-sub">${b.customerPhone||''}</div>
@@ -969,7 +969,10 @@ async function loadBookings() {
           ${b.licensePlate ? `<div class="td-sub" style="color:var(--blue)">${b.licensePlate}</div>` : ''}
         </div>
         <div class="td">${b.scheduledDate||'—'}</div>
-        <div class="td" style="color:var(--green);font-weight:700">${b.price||0} EGP</div>
+        <div class="td">
+          <div style="color:var(--green);font-weight:700">${b.price||0} EGP</div>
+          ${b.promoCode ? `<div class="td-sub" style="color:#f59e0b;font-weight:700;">🏷 ${b.promoCode} · -${b.discountPercent}%${b.originalPrice ? ` <span style="text-decoration:line-through;color:var(--gray);font-weight:400;">${b.originalPrice}</span>` : ''}</div>` : ''}
+        </div>
         <div class="td">${statusBadge(b.status)}</div>
         <div class="td td-sub">${b.scheduledTime||'—'}</div>
       </div>

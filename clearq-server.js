@@ -1184,6 +1184,36 @@ function applyPromoDiscount(shop, originalPrice, promoCode) {
   return { finalPrice, originalPrice, appliedCode: shop.promo_code, discountPercent };
 }
 
+// One use per account: a promo code already applied (on any non-cancelled booking) by this same
+// logged-in user, or this same phone number for a guest booking, can't be applied again. Checked
+// separately from applyPromoDiscount() since that's a pure/sync price calculation and this needs
+// the database.
+async function promoAlreadyUsed(shopId, code, userId, customerPhone) {
+  if (!code) return false;
+  const conditions = [];
+  const params = [shopId, code];
+  let i = 3;
+  if (userId) { conditions.push(`user_id = $${i++}`); params.push(userId); }
+  if (customerPhone) { conditions.push(`customer_phone = $${i++}`); params.push(customerPhone); }
+  if (!conditions.length) return false;
+  const row = await db1(
+    `SELECT id FROM wash_bookings WHERE shop_id=$1 AND promo_code=$2 AND status != 'cancelled' AND (${conditions.join(' OR ')}) LIMIT 1`,
+    params
+  );
+  return !!row;
+}
+
+// Wraps applyPromoDiscount() with the one-use-per-account check — if the code would otherwise
+// apply but this account/phone already used it, silently falls back to full price rather than
+// rejecting the whole booking (the customer likely doesn't even know they're reusing it).
+async function applyPromoDiscountChecked(shop, originalPrice, promoCode, userId, customerPhone) {
+  const result = applyPromoDiscount(shop, originalPrice, promoCode);
+  if (result.appliedCode && await promoAlreadyUsed(shop.id, result.appliedCode, userId, customerPhone)) {
+    return { finalPrice: originalPrice, originalPrice, appliedCode: null, discountPercent: null, alreadyUsed: true };
+  }
+  return result;
+}
+
 // ─── BUSINESS LOGIC ───────────────────────────────────────────────────────────
 function today() {
   // Use Cairo timezone (UTC+3)
@@ -1970,7 +2000,11 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
       const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
       const durationMins = baseDurationMins + addonsDurationMins;
-      const { finalPrice, originalPrice, appliedCode, discountPercent } = applyPromoDiscount(s, basePrice + addonsPrice, promoCode);
+      // Logged-in customers get an accurate preview (checked against their account); a guest's
+      // preview can't know their phone yet (asked for later in the flow) so it optimistically
+      // shows the discount — POST /wash/reservations is what actually enforces the limit either way.
+      const previewUserId = verifyJWT(getToken(req))?.userId || null;
+      const { finalPrice, originalPrice, appliedCode, discountPercent } = await applyPromoDiscountChecked(s, basePrice + addonsPrice, promoCode, previewUserId, null);
       const now = new Date();
       const requestedArrival = new Date(now.getTime() + driveMins * 60000);
       const sim = await simulateBayQueue(shopId, { hypotheticalArrival: requestedArrival, hypotheticalDurationMins: durationMins });
@@ -2032,7 +2066,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addonsPrice = addons.reduce((sum, a) => sum + a.price, 0);
       const addonsDurationMins = addons.reduce((sum, a) => sum + a.durationMins, 0);
       const preDiscountPrice = basePrice + addonsPrice;
-      const { finalPrice: price, originalPrice, appliedCode, discountPercent } = applyPromoDiscount(s, preDiscountPrice, promoCode);
+      const { finalPrice: price, originalPrice, appliedCode, discountPercent } = await applyPromoDiscountChecked(s, preDiscountPrice, promoCode, userId, customerPhone);
       const durationMins = baseDurationMins + addonsDurationMins;
       const now = new Date();
 
@@ -2641,7 +2675,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/edit$/.test(p)) {
       const parts = p.split("/");
       const bookingId = +parts[parts.length-2];
-      const { washType } = await readBody(req);
+      const { washType, time } = await readBody(req);
       if (!washType) return respond(res, 400, { error: "washType required" });
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
@@ -2656,18 +2690,32 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const originalPrice = b.discount_percent != null ? subtotal : b.original_price;
       const durationMins = baseDurationMins + addonsDurationMins;
 
+      // Optional "HH:MM" (Cairo local time, today) override for the booking's operative time —
+      // arrival for a pending booking, actual start for one already in a bay. Built with an
+      // explicit +03:00 offset so this is correct regardless of the server's own timezone.
+      let newAnchor = null;
+      if (time && /^\d{1,2}:\d{2}$/.test(time)) {
+        const [hh, mm] = time.split(':').map(Number);
+        const cairoDateStr = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+        newAnchor = new Date(`${cairoDateStr}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00+03:00`);
+      }
+
+      let etaArrivalAt = b.eta_arrival_at;
+      let washStartedAt = b.wash_started_at;
       let etaReady = b.eta_ready_at;
       if (b.status === "pending") {
-        etaReady = b.eta_arrival_at ? new Date(new Date(b.eta_arrival_at).getTime() + durationMins * 60000) : b.eta_ready_at;
+        if (newAnchor) etaArrivalAt = newAnchor;
+        etaReady = etaArrivalAt ? new Date(new Date(etaArrivalAt).getTime() + durationMins * 60000) : b.eta_ready_at;
       } else if (b.status === "in_progress") {
-        const anchor = b.wash_started_at || b.arrived_at || b.created_at;
+        if (newAnchor) washStartedAt = newAnchor;
+        const anchor = washStartedAt || b.arrived_at || b.created_at;
         etaReady = new Date(new Date(anchor).getTime() + durationMins * 60000);
       }
-      // completed: eta_ready_at is history at this point, left untouched.
+      // completed: eta_ready_at/arrival/start are all history at this point, left untouched.
 
       const [updated] = await db(
-        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, updated_at=NOW() WHERE id=$5 RETURNING *`,
-        [washType, price, originalPrice, etaReady, bookingId]
+        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, eta_arrival_at=$5, wash_started_at=$6, updated_at=NOW() WHERE id=$7 RETURNING *`,
+        [washType, price, originalPrice, etaReady, etaArrivalAt, washStartedAt, bookingId]
       );
 
       // A completed wash already snapshotted the old service/price into wash_service_history —
@@ -3191,6 +3239,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
         createdAt: b.created_at, updatedAt: b.updated_at,
         etaArrivalAt: b.eta_arrival_at, etaReadyAt: b.eta_ready_at,
         washStartedAt: b.wash_started_at, washFinishedAt: b.wash_finished_at,
+        promoCode: b.promo_code || null, discountPercent: b.discount_percent != null ? b.discount_percent : null,
+        originalPrice: b.original_price != null ? b.original_price : null,
       })));
     }
 
@@ -3199,25 +3249,44 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const ownerKey = req.headers['x-owner-key'];
       if (ownerKey !== OWNER_KEY) return respond(res, 401, { error: "Unauthorized" });
       const todayStr = today();
+      // Bookings and ratings are both one-to-many off wash_shops — joining them in the same query
+      // cross-multiplies every booking row by every rating row for that shop (e.g. 1 booking x 2
+      // ratings counted as 2 bookings, its revenue doubled). Aggregate each side separately first,
+      // then join the two already-aggregated one-row-per-shop results together.
       const stats = await db(`
-        SELECT 
+        SELECT
           s.id, s.name, s.max_workers,
-          COUNT(b.id) FILTER (WHERE b.scheduled_date = $1) as today_total,
-          COUNT(b.id) FILTER (WHERE b.scheduled_date = $1 AND b.status = 'completed') as today_completed,
-          COUNT(b.id) FILTER (WHERE b.scheduled_date = $1 AND b.kind = 'reservation') as today_online,
-          COUNT(b.id) FILTER (WHERE b.scheduled_date = $1 AND b.kind = 'walkin') as today_walkin,
-          COUNT(b.id) FILTER (WHERE b.status = 'pending') as pending,
-          COUNT(b.id) FILTER (WHERE b.status = 'in_progress') as in_progress,
-          COALESCE(SUM(b.price) FILTER (WHERE b.scheduled_date = $1 AND b.status = 'completed'), 0) as today_revenue,
-          COALESCE(SUM(b.price) FILTER (WHERE b.scheduled_date = $1 AND b.status = 'completed' AND b.kind = 'reservation'), 0) as today_online_revenue,
-          COALESCE(SUM(b.price) FILTER (WHERE b.scheduled_date = $1 AND b.status = 'completed' AND b.kind = 'walkin'), 0) as today_walkin_revenue,
-          COALESCE(AVG(r.stars), 0) as avg_rating,
-          COUNT(r.id) as rating_count
+          COALESCE(bk.today_total, 0) as today_total,
+          COALESCE(bk.today_completed, 0) as today_completed,
+          COALESCE(bk.today_online, 0) as today_online,
+          COALESCE(bk.today_walkin, 0) as today_walkin,
+          COALESCE(bk.pending, 0) as pending,
+          COALESCE(bk.in_progress, 0) as in_progress,
+          COALESCE(bk.today_revenue, 0) as today_revenue,
+          COALESCE(bk.today_online_revenue, 0) as today_online_revenue,
+          COALESCE(bk.today_walkin_revenue, 0) as today_walkin_revenue,
+          COALESCE(rt.avg_rating, 0) as avg_rating,
+          COALESCE(rt.rating_count, 0) as rating_count
         FROM wash_shops s
-        LEFT JOIN wash_bookings b ON b.shop_id = s.id AND b.kind IN ('reservation','walkin')
-        LEFT JOIN wash_ratings r ON r.shop_id = s.id
+        LEFT JOIN (
+          SELECT
+            shop_id,
+            COUNT(id) FILTER (WHERE scheduled_date = $1) as today_total,
+            COUNT(id) FILTER (WHERE scheduled_date = $1 AND status = 'completed') as today_completed,
+            COUNT(id) FILTER (WHERE scheduled_date = $1 AND kind = 'reservation') as today_online,
+            COUNT(id) FILTER (WHERE scheduled_date = $1 AND kind = 'walkin') as today_walkin,
+            COUNT(id) FILTER (WHERE status = 'pending') as pending,
+            COUNT(id) FILTER (WHERE status = 'in_progress') as in_progress,
+            SUM(price) FILTER (WHERE scheduled_date = $1 AND status = 'completed') as today_revenue,
+            SUM(price) FILTER (WHERE scheduled_date = $1 AND status = 'completed' AND kind = 'reservation') as today_online_revenue,
+            SUM(price) FILTER (WHERE scheduled_date = $1 AND status = 'completed' AND kind = 'walkin') as today_walkin_revenue
+          FROM wash_bookings WHERE kind IN ('reservation','walkin') GROUP BY shop_id
+        ) bk ON bk.shop_id = s.id
+        LEFT JOIN (
+          SELECT shop_id, AVG(stars) as avg_rating, COUNT(id) as rating_count
+          FROM wash_ratings GROUP BY shop_id
+        ) rt ON rt.shop_id = s.id
         WHERE s.is_active = 1
-        GROUP BY s.id, s.name, s.max_workers
         ORDER BY s.id
       `, [todayStr]);
       return respond(res, 200, stats);
