@@ -25,6 +25,13 @@ const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
 const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 const GMAIL_SENDER = process.env.GMAIL_SENDER || 'ClearQ <ClearQ.info@gmail.com>';
+const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+// Template used for the new-booking alert sent to a shop's WhatsApp. Business-initiated messages
+// require a pre-approved template — defaults to Meta's built-in "hello_world" template until a
+// real "new_booking_alert" template (with customer/service/time/price placeholders) is approved
+// in WhatsApp Manager, at which point set this env var — no code change needed to switch over.
+const WHATSAPP_BOOKING_TEMPLATE = process.env.WHATSAPP_BOOKING_TEMPLATE || "hello_world";
 // Bondok's own inboxes — notified on every online booking at every centre, separate from each
 // shop's own optional notification_email (which only that shop's partner sees).
 const OWNER_NOTIFICATION_EMAILS = ['mahrousjr@gmail.com'];
@@ -1019,6 +1026,53 @@ async function notifyShopByEmail(shopId, shopName, notificationEmail, booking) {
         <p style="color:#94a3b8;font-size:11px;">Booked via the ClearQ website.</p>
       </div>`);
   } catch (e) { console.error("notifyShopByEmail failed:", e.message); }
+}
+
+// Sends a WhatsApp template message via Meta's Cloud API. Business-initiated messages (the shop
+// hasn't messaged ClearQ's number first) can only use pre-approved templates, not free text.
+async function sendWhatsAppTemplate(toPhone, templateName, languageCode, components) {
+  if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID || !toPhone) return null;
+  const to = toPhone.replace(/[^\d]/g, "");
+  try {
+    const resp = await fetch(`https://graph.facebook.com/v22.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: { name: templateName, language: { code: languageCode }, ...(components ? { components } : {}) },
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) console.error("WhatsApp send failed:", JSON.stringify(data));
+    return data;
+  } catch (e) {
+    console.error("WhatsApp send error:", e.message);
+    return null;
+  }
+}
+
+// Notifies a wash centre's own WhatsApp (their public phone number) the moment a customer books
+// online — same trigger as the push/email notifications, just WhatsApp. Never touches the booking
+// flow's own response: any failure here is swallowed and logged, matching notifyShopByEmail.
+async function notifyShopByWhatsApp(shopPhone, booking) {
+  try {
+    if (!shopPhone) return;
+    if (WHATSAPP_BOOKING_TEMPLATE === "hello_world") {
+      // Proof-of-pipe only — Meta's built-in template, fixed "Hello World" text, no booking details.
+      await sendWhatsAppTemplate(shopPhone, "hello_world", "en_US");
+      return;
+    }
+    await sendWhatsAppTemplate(shopPhone, WHATSAPP_BOOKING_TEMPLATE, "en", [
+      { type: "body", parameters: [
+        { type: "text", text: booking.customer_name || "Customer" },
+        { type: "text", text: booking.wash_type },
+        { type: "text", text: fmtCairoTime(booking.eta_arrival_at) },
+        { type: "text", text: String(booking.price) },
+      ]},
+    ]);
+  } catch (e) { console.error("notifyShopByWhatsApp failed:", e.message); }
 }
 
 // ─── HTTP HELPERS ─────────────────────────────────────────────────────────────
@@ -2123,6 +2177,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       sendBookingEmail(created, s.name, 'confirmed');
       notifyShopByEmail(shopId, s.name, s.notification_email, created);
       notifyShopByEmail(shopId, s.name, OWNER_NOTIFICATION_EMAILS, created);
+      notifyShopByWhatsApp(s.phone, created);
       return respond(res, 201, booking(created));
     }
 
