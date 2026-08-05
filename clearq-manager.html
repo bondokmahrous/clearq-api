@@ -1410,7 +1410,7 @@ function renderQueueTable(bookings) {
         <td>
           <div class="action-btns">
             ${b.status==='pending'?`<button class="act-btn act-start" onclick="doAction(${b.id},'start',this)" title="${CQI18N.t('start_wash_title')}">${CQI18N.t('start_btn')}</button>`:''}
-            ${b.status==='pending'?`<button class="act-btn" onclick="openEditBooking(${b.id})" title="${CQI18N.t('edit_booking_title')}">${CQI18N.t('edit_btn')}</button>`:''}
+            ${b.status!=='cancelled'?`<button class="act-btn" onclick="openEditBooking(${b.id})" title="${CQI18N.t('edit_booking_title')}">${CQI18N.t('edit_btn')}</button>`:''}
             ${b.status==='in_progress'?`<button class="act-btn act-done" onclick="doAction(${b.id},'done',this)" title="${CQI18N.t('mark_complete_title')}">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
             ${b.status!=='completed'&&b.status!=='cancelled'?`<button class="act-btn act-cancel" onclick="cancelBooking(${b.id},this)" title="${CQI18N.t('cancel_booking_title')}">${ICONS.x}</button>`:''}
           </div>

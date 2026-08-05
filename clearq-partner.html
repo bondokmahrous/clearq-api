@@ -703,11 +703,11 @@ function renderQueue(bookings) {
           ${doneByLine}
           ${b.licensePlate?`<div class="pl">${b.licensePlate}</div>`:''}
         </div>
-        ${!cp?`<div class="bc-acts">
+        <div class="bc-acts">
           ${b.status==='pending'?`<button class="abtn abtn-s" onclick="doAction(${b.id},'start',this)">${CQI18N.t('start_btn')}</button>`:''}
-          ${b.status==='pending'?`<button class="abtn" onclick="openEB(${b.id})">${CQI18N.t('edit_btn')}</button>`:''}
+          <button class="abtn" onclick="openEB(${b.id})">${CQI18N.t('edit_btn')}</button>
           ${b.status==='in_progress'?`<button class="abtn abtn-d" onclick="doAction(${b.id},'done',this)">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
-        </div>`:''}
+        </div>
       </div>`;
     });
   };

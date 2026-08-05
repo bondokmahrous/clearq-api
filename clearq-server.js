@@ -2630,8 +2630,14 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
 
     // PATCH /partners/shop/:id/reservations/:bookingId/edit — staff correcting the service on a
     // booking the customer picked wrong online (e.g. booked Exterior, arrives wanting Full Wash).
-    // Only allowed while still pending — once a wash is in progress or done, its price/duration
-    // are settled history, not something to retroactively rewrite.
+    // Works at any point in a booking's life except cancelled (a cancelled booking has nothing to
+    // correct). The anchor for the recomputed ready-time depends on where the booking actually is:
+    //  - pending: not arrived/started yet, so anchor on the promised arrival time.
+    //  - in_progress: already in a bay, so anchor on when it actually started — this feeds
+    //    straight back into the live queue math (getQueueState/simulateBayQueue read eta_ready_at
+    //    for active bookings), so changing the service correctly pushes out other customers' waits
+    //    if the new service takes longer.
+    //  - completed: wash is over, nothing to reschedule — only price/history need correcting.
     if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/edit$/.test(p)) {
       const parts = p.split("/");
       const bookingId = +parts[parts.length-2];
@@ -2639,7 +2645,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       if (!washType) return respond(res, 400, { error: "washType required" });
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
-      if (b.status !== "pending") return respond(res, 409, { error: `Booking is already ${b.status} — can't change its service now.` });
+      if (b.status === "cancelled") return respond(res, 409, { error: "This booking is cancelled — nothing to change." });
 
       const { price: basePrice, durationMins: baseDurationMins } = await resolveService(shopId, washType);
       const addons = Array.isArray(b.addons) ? b.addons : [];
@@ -2649,12 +2655,29 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const price = b.discount_percent != null ? Math.round(subtotal * (1 - b.discount_percent / 100)) : subtotal;
       const originalPrice = b.discount_percent != null ? subtotal : b.original_price;
       const durationMins = baseDurationMins + addonsDurationMins;
-      const etaReady = b.eta_arrival_at ? new Date(new Date(b.eta_arrival_at).getTime() + durationMins * 60000) : b.eta_ready_at;
+
+      let etaReady = b.eta_ready_at;
+      if (b.status === "pending") {
+        etaReady = b.eta_arrival_at ? new Date(new Date(b.eta_arrival_at).getTime() + durationMins * 60000) : b.eta_ready_at;
+      } else if (b.status === "in_progress") {
+        const anchor = b.wash_started_at || b.arrived_at || b.created_at;
+        etaReady = new Date(new Date(anchor).getTime() + durationMins * 60000);
+      }
+      // completed: eta_ready_at is history at this point, left untouched.
 
       const [updated] = await db(
         `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, updated_at=NOW() WHERE id=$5 RETURNING *`,
         [washType, price, originalPrice, etaReady, bookingId]
       );
+
+      // A completed wash already snapshotted the old service/price into wash_service_history —
+      // keep that record in sync so revenue reports match what the booking now shows. The
+      // duration in that row is real elapsed time (recorded at completion), not a service config
+      // value, so it's deliberately left alone here.
+      if (b.status === "completed") {
+        await db(`UPDATE wash_service_history SET wash_type=$1, price=$2 WHERE booking_id=$3`, [washType, price, bookingId]);
+      }
+
       return respond(res, 200, booking(updated));
     }
 
