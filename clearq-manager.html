@@ -276,6 +276,7 @@ a { text-decoration: none; }
 .act-start { background: #3FBDB0; }
 .act-done { background: var(--green-dim); color: var(--green); border: 1px solid #166534; }
 .act-cancel { background: var(--red-dim); color: var(--red); border: 1px solid #7f1d1d; }
+.act-edit { background: var(--purple); }
 
 .table-wrap {
   background: var(--surface); border: 1px solid var(--border);
@@ -779,6 +780,10 @@ a { text-decoration: none; }
     <input class="form-input" type="time" id="eb-time" style="margin-bottom:14px">
     <label class="form-label" id="eb-endtime-lbl" data-i18n="edit_endtime_label" style="display:none">Finished at</label>
     <input class="form-input" type="time" id="eb-endtime" style="margin-bottom:14px;display:none">
+    <label id="eb-promo-row" style="display:none;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--white);margin-bottom:14px;cursor:pointer;">
+      <input type="checkbox" id="eb-promo-used" checked style="width:16px;height:16px;">
+      <span id="eb-promo-lbl"></span>
+    </label>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeModal('edit-booking-modal')" data-i18n="cancel">Cancel</button>
       <button class="modal-confirm" id="eb-btn" onclick="saveEditBooking()" disabled data-i18n="save_changes">Save Changes</button>
@@ -1414,7 +1419,7 @@ function renderQueueTable(bookings) {
         <td>
           <div class="action-btns">
             ${b.status==='pending'?`<button class="act-btn act-start" onclick="doAction(${b.id},'start',this)" title="${CQI18N.t('start_wash_title')}">${CQI18N.t('start_btn')}</button>`:''}
-            ${b.status!=='cancelled'?`<button class="act-btn" onclick="openEditBooking(${b.id})" title="${CQI18N.t('edit_booking_title')}">${CQI18N.t('edit_btn')}</button>`:''}
+            ${b.status!=='cancelled'?`<button class="act-btn act-edit" onclick="openEditBooking(${b.id})" title="${CQI18N.t('edit_booking_title')}">${CQI18N.t('edit_btn')}</button>`:''}
             ${b.status==='in_progress'?`<button class="act-btn act-done" onclick="doAction(${b.id},'done',this)" title="${CQI18N.t('mark_complete_title')}">${ICONS.check}${CQI18N.t('done_btn')}</button>`:''}
             ${b.status!=='completed'&&b.status!=='cancelled'?`<button class="act-btn act-cancel" onclick="cancelBooking(${b.id},this)" title="${CQI18N.t('cancel_booking_title')}">${ICONS.x}</button>`:''}
           </div>
@@ -2300,6 +2305,14 @@ async function openEditBooking(bookingId) {
       endTimeField.style.display = 'none'; endTimeLbl.style.display = 'none';
     }
   }
+  const promoRow = document.getElementById('eb-promo-row'), promoCheckbox = document.getElementById('eb-promo-used');
+  if (b.promoCode) {
+    promoRow.style.display = 'flex';
+    document.getElementById('eb-promo-lbl').textContent = CQI18N.t('edit_promo_used_label', { code: b.promoCode, percent: b.discountPercent });
+    promoCheckbox.checked = true;
+  } else {
+    promoRow.style.display = 'none';
+  }
   openModal('edit-booking-modal');
 }
 
@@ -2318,8 +2331,10 @@ async function saveEditBooking() {
     const timeField = document.getElementById('eb-time'), endTimeField = document.getElementById('eb-endtime');
     const startVal = timeField.style.display !== 'none' ? timeField.value : null;
     const endVal = endTimeField.style.display !== 'none' ? endTimeField.value : null;
+    const promoRow = document.getElementById('eb-promo-row');
+    const removePromo = promoRow.style.display !== 'none' && !document.getElementById('eb-promo-used').checked;
     await api('/api/partners/shop/'+currentShopId+'/reservations/'+editingBookingId+'/edit', {
-      method: 'PATCH', body: JSON.stringify({ washType: editSelectedWashType, startTime: startVal || undefined, endTime: endVal || undefined })
+      method: 'PATCH', body: JSON.stringify({ washType: editSelectedWashType, startTime: startVal || undefined, endTime: endVal || undefined, removePromo: removePromo || undefined })
     });
     closeModal('edit-booking-modal');
     toast(CQI18N.t('booking_updated_toast'),'success',ICONS.check);

@@ -2694,7 +2694,7 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
     if (m === "PATCH" && /\/partners\/shop\/\d+\/reservations\/\d+\/edit$/.test(p)) {
       const parts = p.split("/");
       const bookingId = +parts[parts.length-2];
-      const { washType, startTime, endTime } = await readBody(req);
+      const { washType, startTime, endTime, removePromo } = await readBody(req);
       if (!washType) return respond(res, 400, { error: "washType required" });
       const b = await db1(`SELECT * FROM wash_bookings WHERE id=$1 AND shop_id=$2`, [bookingId, shopId]);
       if (!b) return respond(res, 404, { error: "Booking not found" });
@@ -2705,8 +2705,13 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       const addonsPrice = addons.reduce((sum, a) => sum + (a.price || 0), 0);
       const addonsDurationMins = addons.reduce((sum, a) => sum + (a.durationMins || 0), 0);
       const subtotal = basePrice + addonsPrice;
-      const price = b.discount_percent != null ? Math.round(subtotal * (1 - b.discount_percent / 100)) : subtotal;
-      const originalPrice = b.discount_percent != null ? subtotal : b.original_price;
+      // Staff can correct a booking that was recorded as having used a promo code but actually paid
+      // full price — clearing promo_code/discount_percent here also frees up that customer's
+      // one-use-per-account limit (promoAlreadyUsed only counts bookings that still carry a promo_code).
+      const promoCode = removePromo ? null : b.promo_code;
+      const discountPercent = removePromo ? null : b.discount_percent;
+      const price = discountPercent != null ? Math.round(subtotal * (1 - discountPercent / 100)) : subtotal;
+      const originalPrice = discountPercent != null ? subtotal : (removePromo ? null : b.original_price);
       const durationMins = baseDurationMins + addonsDurationMins;
 
       // Optional "HH:MM" (Cairo local time, today) overrides for the booking's operative times.
@@ -2742,8 +2747,8 @@ const pages = { "/": "clearq.html", "/partner": "clearq-partner.html", "/manager
       }
 
       const [updated] = await db(
-        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, eta_ready_at=$4, eta_arrival_at=$5, wash_started_at=$6, wash_finished_at=$7, updated_at=NOW() WHERE id=$8 RETURNING *`,
-        [washType, price, originalPrice, etaReady, etaArrivalAt, washStartedAt, washFinishedAt, bookingId]
+        `UPDATE wash_bookings SET wash_type=$1, price=$2, original_price=$3, promo_code=$4, discount_percent=$5, eta_ready_at=$6, eta_arrival_at=$7, wash_started_at=$8, wash_finished_at=$9, updated_at=NOW() WHERE id=$10 RETURNING *`,
+        [washType, price, originalPrice, promoCode, discountPercent, etaReady, etaArrivalAt, washStartedAt, washFinishedAt, bookingId]
       );
 
       // A completed wash already snapshotted the old service/price/duration into wash_service_history —
